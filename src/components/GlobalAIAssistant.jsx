@@ -35,6 +35,10 @@ import {
   isExitIntent,
   stripWakeWord
 } from '../services/voiceStateMachine';
+import {
+  resolveVoice,
+  isFemaleVoice
+} from '../services/voiceResolver';
 
 
 
@@ -330,88 +334,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
     };
   }, [googleToken, activeProject?.folderId, projectId]);
 
-  const getBestBritishMaleVoice = (voices) => {
-    if (!voices || voices.length === 0) return null;
-    const femaleNames = ['Susan', 'Hazel', 'Victoria', 'Zira', 'Samantha', 'Karen', 'Serena', 'Kate', 'Stephanie', 'Martha', 'Female', 'en-gb-x-gba', 'en-gb-x-gbd', 'en-gb-x-gbf', 'en-us-x-sfg', 'en-au'];
 
-    // Platform Priority 1: Windows (Microsoft George / Natural)
-    const msGeorge = voices.find((v) => (v.lang.startsWith('en-GB') || v.lang === 'en-GB' || v.lang === 'en_GB') && (v.name.includes('George') || v.name.includes('Ryan')));
-    if (msGeorge) return msGeorge;
-
-    // Platform Priority 2: Apple iOS / iPadOS / macOS (Daniel, Oliver, Arthur, Aaron)
-    const appleMale = voices.find(
-      (v) => (v.lang.startsWith('en-GB') || v.lang === 'en-GB' || v.lang.startsWith('en')) && (v.name.includes('Daniel') || v.name.includes('Oliver') || v.name.includes('Arthur') || v.name.includes('Aaron') || v.name.includes('Gordon'))
-    );
-    if (appleMale) return appleMale;
-
-    // Platform Priority 3: Google Android (Google UK English Male, en-gb-x-rjs, en-gb-x-gbb)
-    const googleUkMale = voices.find(
-      (v) => (v.lang.startsWith('en-GB') || v.lang === 'en-GB' || v.lang === 'en_GB') && (v.name.includes('UK English Male') || v.name.includes('rjs') || v.name.includes('gbb') || v.name.includes('gbc'))
-    );
-    if (googleUkMale) return googleUkMale;
-
-    // Platform Priority 4: Android standard English (United Kingdom) / en-GB
-    const androidUk = voices.find((v) => (v.lang.startsWith('en-GB') || v.lang === 'en-GB' || v.lang === 'en_GB' || v.name.includes('United Kingdom')));
-    if (androidUk) return androidUk;
-
-    // Platform Priority 5: Any non-blacklisted en-GB voice
-    const safeUk = voices.find(
-      (v) => (v.lang.startsWith('en-GB') || v.lang === 'en-GB' || v.lang === 'en_GB') && !femaleNames.some((f) => v.name.includes(f))
-    );
-    if (safeUk) return safeUk;
-
-    // Platform Priority 6: Any general English male voice
-    const generalMale = voices.find(
-      (v) => v.lang.startsWith('en') && (v.name.includes('George') || v.name.includes('Daniel') || v.name.includes('Oliver') || v.name.includes('Arthur') || v.name.includes('David') || v.name.includes('Guy') || v.name.includes('Male'))
-    );
-    if (generalMale) return generalMale;
-
-    // Platform Priority 7: Fallback to en-US (to prevent en-AU Australia default on Android)
-    const usVoice = voices.find((v) => v.lang.startsWith('en-US') || v.lang === 'en-US' || v.lang === 'en_US');
-    if (usVoice) return usVoice;
-
-    return voices.find((v) => v.lang.startsWith('en')) || voices[0];
-  };
-
-  const getBestSpanishMaleVoice = (voices) => {
-    if (!voices || voices.length === 0) return null;
-    const femaleNames = ['Sabina', 'Dalia', 'Paulina', 'Helena', 'Laura', 'Monica', 'Female', 'es-es-x-eea'];
-    const maleNames = ['Jorge', 'Raul', 'Pablo', 'Carlos', 'Alvaro', 'Enrique', 'Male', 'rjs'];
-    const maleEs = voices.find((v) => v.lang.startsWith('es') && maleNames.some((m) => v.name.includes(m)));
-    if (maleEs) return maleEs;
-    const safeEs = voices.find((v) => v.lang.startsWith('es') && !femaleNames.some((f) => v.name.includes(f)));
-    if (safeEs) return safeEs;
-    return voices.find((v) => v.lang.startsWith('es')) || null;
-  };
-
-  const resolveVoice = (voices, config, isSpanish) => {
-    if (!Array.isArray(voices) || voices.length === 0) return null;
-
-    if (isSpanish) {
-      if (config && (config.lang?.startsWith('es') || config.name?.toLowerCase().includes('spanish'))) {
-        const match = voices.find(v => (config.uri && v.voiceURI === config.uri) || (config.name && v.name === config.name));
-        if (match) return match;
-      }
-      return getBestSpanishMaleVoice(voices);
-    }
-
-    if (config) {
-      if (config.uri) {
-        const matchUri = voices.find(v => v.voiceURI === config.uri);
-        if (matchUri) return matchUri;
-      }
-      if (config.name) {
-        const matchName = voices.find(v => v.name === config.name);
-        if (matchName) return matchName;
-      }
-      if (config.lang) {
-        const matchLang = voices.find(v => v.lang.replace('_', '-').toLowerCase() === config.lang.replace('_', '-').toLowerCase());
-        if (matchLang) return matchLang;
-      }
-    }
-
-    return getBestBritishMaleVoice(voices);
-  };
 
   // Load natural voices (English + Spanish) with J.A.R.V.I.S. British English priority
   useEffect(() => {
@@ -519,8 +442,8 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
 
 
       const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.rate = 1.15; // Natural, clear executive cadence
-      utterance.pitch = 1.0; // Natural, clean pitch
+      utterance.rate = 1.06; // Crisp, natural cadence
+      utterance.pitch = 0.94; // Authentic resonant J.A.R.V.I.S. tone
 
       // Retrieve live voices directly from browser engine (crucial for mobile Android & iOS)
       const liveVoices = (window.speechSynthesis.getVoices && window.speechSynthesis.getVoices().length > 0)
@@ -1593,11 +1516,16 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                       outline: 'none'
                     }}
                   >
-                    {availableVoices.map((v) => (
-                      <option key={v.voiceURI || v.name} value={v.voiceURI || v.name}>
-                        {v.name} ({v.lang}) {v.name.includes('Natural') || v.name.includes('Google') || v.lang.includes('GB') ? '✨ Recommended' : ''}
-                      </option>
-                    ))}
+                    {availableVoices.map((v) => {
+                      const isFem = isFemaleVoice(v);
+                      const isUk = (v.lang || '').toLowerCase().replace('_', '-').startsWith('en-gb');
+                      const isRecommended = !isFem && (isUk || v.name.includes('George') || v.name.includes('Daniel') || v.name.includes('rjs'));
+                      return (
+                        <option key={v.voiceURI || v.name} value={v.voiceURI || v.name}>
+                          {v.name} ({v.lang}) — {isFem ? '🌸 Female' : '🎙️ Male'}{isRecommended ? ' ✨ J.A.R.V.I.S.' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
 
                   <button
