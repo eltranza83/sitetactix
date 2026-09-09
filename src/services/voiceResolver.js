@@ -242,3 +242,62 @@ export function resolveVoice(voices, config, isSpanish = false) {
 
   return getBestBritishMaleVoice(voices);
 }
+
+/**
+ * Splits spoken text into clean, digestible sentence chunks.
+ * Prevents mobile TTS engine timeouts (15s Android limit), buffer overflows,
+ * and unnatural speech clipping on Samsung Galaxy and other mobile devices.
+ */
+export function splitIntoSpokenChunks(str) {
+  if (!str || typeof str !== 'string') return [];
+
+  const text = str
+    .replace(/\$(\d+(?:,\d{3})*)\.00\b/g, '$$$1')
+    .replace(/\b(vs|dr|mr|mrs|ms|approx|dept|est|apt|inc|corp)\.\s+/gi, '$1 ')
+    .trim();
+
+  if (!text) return [];
+
+  // Split on terminal sentence punctuation (. ! ?) followed by whitespace or end of string
+  // Uses lookbehind for . ! ? or newline so delimiters are retained with their sentence
+  let rawSegments = [];
+  try {
+    rawSegments = text.split(/(?<=[.!?\n])\s+/);
+  } catch {
+    rawSegments = text.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) || [text];
+  }
+
+  const chunks = [];
+
+  for (const segment of rawSegments) {
+    const trimmed = segment.trim();
+    if (!trimmed) continue;
+
+    // If an individual segment is still long (>160 chars), break by comma/semicolon clauses
+    if (trimmed.length > 160) {
+      let subParts = [];
+      try {
+        subParts = trimmed.split(/(?<=[,;])\s+/);
+      } catch {
+        subParts = trimmed.match(/[^,;]+[,;]+|[^,;]+$/g) || [trimmed];
+      }
+
+      let currentBuffer = '';
+      for (const part of subParts) {
+        const pt = part.trim();
+        if (!pt) continue;
+        if ((currentBuffer + ' ' + pt).length > 160) {
+          if (currentBuffer) chunks.push(currentBuffer.trim());
+          currentBuffer = pt;
+        } else {
+          currentBuffer = currentBuffer ? `${currentBuffer} ${pt}` : pt;
+        }
+      }
+      if (currentBuffer.trim()) chunks.push(currentBuffer.trim());
+    } else {
+      chunks.push(trimmed);
+    }
+  }
+
+  return chunks.length > 0 ? chunks : [text];
+}

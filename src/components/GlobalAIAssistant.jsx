@@ -37,7 +37,8 @@ import {
 } from '../services/voiceStateMachine';
 import {
   resolveVoice,
-  isFemaleVoice
+  isFemaleVoice,
+  splitIntoSpokenChunks
 } from '../services/voiceResolver';
 
 
@@ -287,6 +288,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
 
   const chatEndRef = useRef(null);
   const lastSubmissionRef = useRef({ query: '', timestamp: 0 });
+  const activeSpeechRef = useRef(0);
 
 
   const handleRunDiagnosticSuite = async () => {
@@ -441,10 +443,6 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
 
 
 
-      const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.rate = 1.06; // Crisp, natural cadence
-      utterance.pitch = 0.94; // Authentic resonant J.A.R.V.I.S. tone
-
       // Retrieve live voices directly from browser engine (crucial for mobile Android & iOS)
       const liveVoices = (window.speechSynthesis.getVoices && window.speechSynthesis.getVoices().length > 0)
         ? window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith('en') || v.lang.startsWith('es'))
@@ -465,35 +463,42 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
 
       const isSpanish = /[áéíóúüñ¿¡]/i.test(text) || /\b(el|la|los|las|un|una|del|por|para|con|este|esta|lote|plomero|electricista|dinero|gastado|cuanto|quien|recordatorio|buenos|dias|tardes|hola|subcontratista|factura|presupuesto)\b/i.test(text);
 
+      let targetVoice = null;
+      let targetLang = 'en-GB';
+
       if (isSpanish || aiLanguage === 'es') {
         const spanishVoice = resolveVoice(liveVoices, currentConfig, true);
         if (spanishVoice) {
-          utterance.voice = spanishVoice;
-          utterance.lang = spanishVoice.lang || 'es-US';
+          targetVoice = spanishVoice;
+          targetLang = spanishVoice.lang || 'es-US';
         } else {
-          utterance.lang = 'es-US';
+          targetLang = 'es-US';
         }
       } else if (directlyChosenVoice) {
-        utterance.voice = directlyChosenVoice;
-        utterance.lang = directlyChosenVoice.lang || 'en-GB';
+        targetVoice = directlyChosenVoice;
+        targetLang = directlyChosenVoice.lang || 'en-GB';
       } else {
         const britishVoice = resolveVoice(liveVoices, currentConfig, false);
         if (britishVoice) {
-          utterance.voice = britishVoice;
-          utterance.lang = britishVoice.lang || 'en-GB';
+          targetVoice = britishVoice;
+          targetLang = britishVoice.lang || 'en-GB';
         } else {
-          utterance.lang = 'en-GB';
+          targetLang = 'en-GB';
         }
       }
 
+      const chunks = splitIntoSpokenChunks(clean);
+      if (chunks.length === 0) {
+        if (typeof onFinished === 'function') onFinished();
+        return;
+      }
+
+      const speechSessionId = ++activeSpeechRef.current;
+      const activeSession = voiceSmRef.current?.currentSessionId;
+      let currentIdx = 0;
       let finishedTriggered = false;
-      let keepAliveTimer = null;
 
       const triggerFinished = () => {
-        if (keepAliveTimer) {
-          clearInterval(keepAliveTimer);
-          keepAliveTimer = null;
-        }
         if (finishedTriggered) return;
         finishedTriggered = true;
         if (typeof onFinished === 'function') {
@@ -501,45 +506,81 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         }
       };
 
-      const activeSession = voiceSmRef.current?.currentSessionId;
-      utterance.onstart = () => {
-        voiceSmRef.current?.startSpeaking(clean, 'tts_started');
-        // Android Chrome keepalive heartbeat: periodically wakes speech engine so long responses (>15s) do not freeze
-        keepAliveTimer = setInterval(() => {
-          if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
-            window.speechSynthesis.pause();
-            window.speechSynthesis.resume();
-          } else if (keepAliveTimer) {
-            clearInterval(keepAliveTimer);
-            keepAliveTimer = null;
+      const playNextChunk = () => {
+        // Abort if another speech request started, user cancelled, or session changed
+        if (activeSpeechRef.current !== speechSessionId || activeSession !== voiceSmRef.current?.currentSessionId) {
+          return;
+        }
+
+        if (currentIdx >= chunks.length) {
+          voiceSmRef.current?.finishSpeaking('tts_ended', activeSession);
+          triggerFinished();
+          return;
+        }
+
+        const chunkText = chunks[currentIdx];
+        const utterance = new SpeechSynthesisUtterance(chunkText);
+        if (targetVoice) utterance.voice = targetVoice;
+        utterance.lang = targetLang;
+        // Studio fidelity: pitch=1.0 prevents robotic distortion/phasing on mobile Samsung & Google TTS
+        utterance.pitch = 1.0;
+        utterance.rate = 1.05; // Crisp, natural conversational cadence
+
+        utterance.onstart = () => {
+          if (activeSpeechRef.current !== speechSessionId || activeSession !== voiceSmRef.current?.currentSessionId) return;
+          if (currentIdx === 0) {
+            voiceSmRef.current?.startSpeaking(clean, 'tts_started');
           }
-        }, 4000);
-      };
+        };
 
-      utterance.onend = () => {
-        voiceSmRef.current?.finishSpeaking('tts_ended', activeSession);
-        triggerFinished();
-      };
+        utterance.onend = () => {
+          if (activeSpeechRef.current !== speechSessionId || activeSession !== voiceSmRef.current?.currentSessionId) return;
+          currentIdx += 1;
+          playNextChunk();
+        };
 
-      utterance.onerror = (err) => {
-        console.warn('Speech synthesis utterance error:', err);
-        voiceSmRef.current?.handleError('tts-error', err?.error || 'speech synthesis error', activeSession);
-        triggerFinished();
-      };
+        utterance.onerror = (err) => {
+          console.warn(`Speech synthesis chunk ${currentIdx} error:`, err);
+          if (activeSpeechRef.current !== speechSessionId || activeSession !== voiceSmRef.current?.currentSessionId) return;
+          currentIdx += 1;
+          if (currentIdx < chunks.length) {
+            playNextChunk();
+          } else {
+            voiceSmRef.current?.handleError('tts-error', err?.error || 'speech synthesis error', activeSession);
+            triggerFinished();
+          }
+        };
 
-      // 1. Cancel previous speech
-      window.speechSynthesis.cancel();
-
-      // 2. Android Chrome queue settle: dispatch speak with a 40ms tick and wake up audio queue
-      setTimeout(() => {
         try {
           if (window.speechSynthesis.paused) {
             window.speechSynthesis.resume();
           }
           window.speechSynthesis.speak(utterance);
-          window.speechSynthesis.resume();
         } catch (e) {
-          console.warn('Speech synthesis speak dispatch error:', e);
+          console.warn('Speech synthesis chunk speak dispatch error:', e);
+          if (activeSpeechRef.current !== speechSessionId || activeSession !== voiceSmRef.current?.currentSessionId) return;
+          currentIdx += 1;
+          if (currentIdx < chunks.length) {
+            playNextChunk();
+          } else {
+            triggerFinished();
+          }
+        }
+      };
+
+      // 1. Cancel previous speech
+      window.speechSynthesis.cancel();
+
+      // 2. Android Chrome queue settle: dispatch initial chunk with a 40ms tick
+      setTimeout(() => {
+        if (activeSpeechRef.current !== speechSessionId || activeSession !== voiceSmRef.current?.currentSessionId) return;
+        try {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+          playNextChunk();
+        } catch (e) {
+          console.warn('Initial chunk playback dispatch error:', e);
           triggerFinished();
         }
       }, 40);
@@ -551,6 +592,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
       }
     }
   };
+
 
 
 
@@ -1375,7 +1417,10 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                         type="button"
                         onClick={() => {
                           setSpeechEnabled(!speechEnabled);
-                          if (speechEnabled) window.speechSynthesis.cancel();
+                          if (speechEnabled) {
+                            activeSpeechRef.current += 1;
+                            window.speechSynthesis.cancel();
+                          }
                           setShowMenu(false);
                         }}
                         style={{

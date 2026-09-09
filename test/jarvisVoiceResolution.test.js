@@ -5,7 +5,8 @@ import {
   getBestSpanishMaleVoice,
   resolveVoice,
   isFemaleVoice,
-  isExplicitMaleVoice
+  isExplicitMaleVoice,
+  splitIntoSpokenChunks
 } from '../src/services/voiceResolver.js';
 
 describe('J.A.R.V.I.S. Mobile & Platform Voice Resolver Test Suite', () => {
@@ -108,6 +109,24 @@ describe('J.A.R.V.I.S. Mobile & Platform Voice Resolver Test Suite', () => {
     assert.ok(chosen);
     assert.equal(chosen.name, 'Microsoft Raul - Spanish (Mexico)');
     assert.equal(isFemaleVoice(chosen), false);
+  });
+
+  test('8. Spoken Sentence Chunking: Correctly breaks paragraphs into individual sentences without breaking decimals', () => {
+    const sample = 'According to your project spreadsheet in Google Sheets, the total amount spent on Lot 3 is $6,000.00. We also have 4 pending invoices. Would you like me to read them?';
+    const chunks = splitIntoSpokenChunks(sample);
+    assert.equal(chunks.length, 3, 'Must split into exactly 3 sentences');
+    assert.ok(chunks[0].includes('$6,000'), 'Should retain $6,000 without breaking across decimal zero zero');
+    assert.equal(chunks[1], 'We also have 4 pending invoices.');
+    assert.equal(chunks[2], 'Would you like me to read them?');
+  });
+
+  test('9. Spoken Sentence Chunking: Subdivides long continuous clauses safely', () => {
+    const longSentence = 'The foundation inspection has been completed, the framing passed municipal city review without any citations, the rough plumbing passed pressure test, and drywall installation is currently scheduled for next Monday morning.';
+    const chunks = splitIntoSpokenChunks(longSentence);
+    assert.ok(chunks.length >= 2, 'Long clause must be split into digestible chunks under 160 chars');
+    for (const chunk of chunks) {
+      assert.ok(chunk.length <= 165, `Chunk must be under buffer limit: "${chunk}"`);
+    }
   });
 
 });
