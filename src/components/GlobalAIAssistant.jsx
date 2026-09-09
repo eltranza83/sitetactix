@@ -458,6 +458,11 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         } catch {}
       }
 
+      // 100% Honor user's explicit selection from dropdown/storage
+      const directlyChosenVoice = (selectedVoiceURI || currentConfig?.uri)
+        ? liveVoices.find(v => (selectedVoiceURI && (v.voiceURI === selectedVoiceURI || v.name === selectedVoiceURI)) || (currentConfig?.uri && (v.voiceURI === currentConfig.uri || v.name === currentConfig.name)))
+        : null;
+
       const isSpanish = /[áéíóúüñ¿¡]/i.test(text) || /\b(el|la|los|las|un|una|del|por|para|con|este|esta|lote|plomero|electricista|dinero|gastado|cuanto|quien|recordatorio|buenos|dias|tardes|hola|subcontratista|factura|presupuesto)\b/i.test(text);
 
       if (isSpanish || aiLanguage === 'es') {
@@ -468,6 +473,9 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         } else {
           utterance.lang = 'es-US';
         }
+      } else if (directlyChosenVoice) {
+        utterance.voice = directlyChosenVoice;
+        utterance.lang = directlyChosenVoice.lang || 'en-GB';
       } else {
         const britishVoice = resolveVoice(liveVoices, currentConfig, false);
         if (britishVoice) {
@@ -479,7 +487,13 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
       }
 
       let finishedTriggered = false;
+      let keepAliveTimer = null;
+
       const triggerFinished = () => {
+        if (keepAliveTimer) {
+          clearInterval(keepAliveTimer);
+          keepAliveTimer = null;
+        }
         if (finishedTriggered) return;
         finishedTriggered = true;
         if (typeof onFinished === 'function') {
@@ -490,17 +504,45 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
       const activeSession = voiceSmRef.current?.currentSessionId;
       utterance.onstart = () => {
         voiceSmRef.current?.startSpeaking(clean, 'tts_started');
+        // Android Chrome keepalive heartbeat: periodically wakes speech engine so long responses (>15s) do not freeze
+        keepAliveTimer = setInterval(() => {
+          if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          } else if (keepAliveTimer) {
+            clearInterval(keepAliveTimer);
+            keepAliveTimer = null;
+          }
+        }, 4000);
       };
+
       utterance.onend = () => {
         voiceSmRef.current?.finishSpeaking('tts_ended', activeSession);
         triggerFinished();
       };
+
       utterance.onerror = (err) => {
+        console.warn('Speech synthesis utterance error:', err);
         voiceSmRef.current?.handleError('tts-error', err?.error || 'speech synthesis error', activeSession);
         triggerFinished();
       };
 
-      window.speechSynthesis.speak(utterance);
+      // 1. Cancel previous speech
+      window.speechSynthesis.cancel();
+
+      // 2. Android Chrome queue settle: dispatch speak with a 40ms tick and wake up audio queue
+      setTimeout(() => {
+        try {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+          window.speechSynthesis.speak(utterance);
+          window.speechSynthesis.resume();
+        } catch (e) {
+          console.warn('Speech synthesis speak dispatch error:', e);
+          triggerFinished();
+        }
+      }, 40);
     } catch (e) {
       console.warn('Speech synthesis error:', e);
       voiceSmRef.current?.finishSpeaking('tts_catch_error');
@@ -524,6 +566,13 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
     lastSubmissionRef.current = { query, timestamp: now };
 
     setInput('');
+
+    // Pre-activate mobile speech synthesis pipeline during user gesture
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.resume();
+      } catch {}
+    }
 
     const userMsg = {
       sender: 'user',
