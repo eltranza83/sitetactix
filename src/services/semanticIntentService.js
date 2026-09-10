@@ -296,7 +296,7 @@ export const ActionCommandPlugin = {
   classifier: (cleanQuery) => {
     return /\b(add|create|update|mark|delete|remove|sync|save|remind me|schedule an?|open|launch|navigate|switch to)\b/i.test(cleanQuery) && !/\b(how do i|how to|what is the schedule|what's the schedule|schedule for)\b/i.test(cleanQuery);
   },
-  synthesizeEvidence: (evidenceList, query, projectContext) => {
+  synthesizeEvidence: (evidenceList, _query, _projectContext) => {
     const responses = [];
     for (const t of evidenceList) {
       const res = t.result;

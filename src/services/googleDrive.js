@@ -23,7 +23,7 @@ export async function authenticatedDriveFetch(accessToken, url, options = {}) {
   }
 
   const headers = {
-    ...(options.headers || {}),
+    ...options.headers,
     Authorization: `Bearer ${accessToken}`,
   };
 
@@ -126,7 +126,7 @@ export function extractTextFromDocxBytes(bytes) {
 
       // Check heading style or trade section
       const isHeading = /<w:pStyle\s+w:val="Heading[1-3]"/i.test(pContent) ||
-                        /^\d+[\.\)]\s+[A-Za-z]/.test(pText) ||
+                        /^\d+[.)]\s+[A-Za-z]/.test(pText) ||
                         /^(quartz|electrical|plumbing|hvac|paint|drywall|general)\s+(hardware|fixtures|supplies|materials)/i.test(pText);
 
       // Normalize checkbox markers

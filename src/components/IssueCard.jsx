@@ -4,7 +4,6 @@ import {
   FileText,
   Calendar,
   Trash2,
-  CheckCircle,
   Clock,
   AlertTriangle,
   X,
@@ -86,7 +85,6 @@ export default function IssueCard({
     verifiedAt,
     verifiedBy,
     reopenReason,
-    reopenedAt,
     activityHistory,
     createdAt
   } = issue;

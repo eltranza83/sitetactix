@@ -35,6 +35,9 @@ export default function BlueprintCanvasView({
   onToggleIssueAddMode,
   onToggleAddMode,
   onUpdateIssueStatus,
+  onMarkIssueFixed,
+  onVerifyIssue,
+  onReopenIssue,
   pins,
   selectedIssue,
   selectedPin,
@@ -42,6 +45,10 @@ export default function BlueprintCanvasView({
   zoomScale
 }) {
   const [showResolvedIssues, setShowResolvedIssues] = React.useState(false);
+  const activeDropMode = isIssueAddMode ? 'issue' : isAddMode ? 'xray' : null;
+  const allLocatedIssues = issues.filter(isLocatedIssue);
+  const resolvedIssuesCount = allLocatedIssues.filter(i => i.status === 'resolved').length;
+  const locatedIssues = showResolvedIssues ? allLocatedIssues : allLocatedIssues.filter(i => i.status !== 'resolved');
   const frameBorderColor = activeDropMode === 'issue'
     ? 'rgba(248, 113, 113, 0.82)'
     : activeDropMode === 'xray'

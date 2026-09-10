@@ -11,7 +11,6 @@ export const DOCUMENT_VIEWER_SPEC_VERSION = '1.0';
 
 const STRATEGY_CACHE_KEY_PREFIX = 'sitetactix_viewer_strategy_pref_';
 const TELEMETRY_STORAGE_KEY = 'sitetactix_viewer_telemetry_logs';
-const PROVIDER_HEALTH_KEY = 'sitetactix_provider_health_status';
 
 export const FILE_CATEGORIES = {
   PDF: 'pdf',

@@ -1,4 +1,5 @@
 import { fetchDocumentContent, writeDocumentContent, DOCUMENT_STATES } from './documentContentProvider.js';
+import { loadStoredAppState, persistStagedItems } from './appStorage.js';
 /**
  * Client-Side AI Tool Executors, Data Retrieval & Diagnostic Test Suite
  */
@@ -363,14 +364,16 @@ export function sanitizeToolArgs(args = {}) {
   for (const [key, value] of Object.entries(args)) {
     if (typeof value === 'string') {
       sanitized[key] = value
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
         .replace(/<\s*script[^>]*>.*?<\s*\/\s*script\s*>/gi, '')
         .trim();
     } else if (Array.isArray(value)) {
       sanitized[key] = value.map(item =>
         typeof item === 'string'
           ? item
-              .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+              // eslint-disable-next-line no-control-regex
+              .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
               .replace(/<\s*script[^>]*>.*?<\s*\/\s*script\s*>/gi, '')
               .trim()
           : item
@@ -699,7 +702,6 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       const notes = String(args.notes || (docType === 'check' ? 'Self-Attested Contractor Check / Payment — No Physical Scan Attached' : 'Self-Attested Manual Expense Record — No Vendor Receipt Attached')).trim();
 
       // Check existing staged items in appStorage
-      const { loadStoredAppState, persistStagedItems } = await import('./appStorage.js');
       const currentApp = loadStoredAppState();
       const existingStaged = Array.isArray(currentApp.stagedItems) ? currentApp.stagedItems : [];
 

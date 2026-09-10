@@ -12,7 +12,6 @@ export default function BlueprintAddPinModal({
   onCategoryChange,
   onFormDataChange,
   onPhotoSelect,
-  onClearPhoto,
   onCancel,
   onSave
 }) {

@@ -3,7 +3,7 @@
  * Manages contextual business intelligence, site decisions, subcontractor preferences,
  * verbal agreements, quotes, and lessons learned across projects.
  */
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query as firestoreQuery, where } from 'firebase/firestore/lite';
+import { collection, doc, getDocs, setDoc, updateDoc, query as firestoreQuery, where } from 'firebase/firestore/lite';
 import { getFirebaseDb, getFirebaseAuthInstance } from './firebase.js';
 
 export const MEMORY_STORAGE_KEY = 'sitetactix_persistent_memories_v1';
@@ -429,7 +429,7 @@ export async function getMemories(options = {}) {
     } else if (db && !user) {
       // Unauthenticated client relies on local storage cache
     }
-  } catch (err) {
+  } catch {
     // Gracefully use local cache
   }
 
@@ -476,7 +476,7 @@ export async function searchMemories(queryStr = '', options = {}) {
     category = null,
     memoryType = null,
     queryEmbedding = null,
-    importance = null,
+    _importance = null,
     includePersonal = false,
     limit = 10
   } = options;
@@ -562,7 +562,7 @@ export const USER_PREFERENCE_STORAGE_KEY = 'sitetactix_user_preferences_v1';
 /**
  * Loads user preferences for a given user ID and optional project ID.
  */
-export async function loadUserPreferences(userId = 'default_user', projectId = null) {
+export async function loadUserPreferences(userId = 'default_user', _projectId = null) {
   if (!userId) userId = 'default_user';
   let prefs = [];
 

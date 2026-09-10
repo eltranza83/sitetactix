@@ -1,7 +1,6 @@
 import { getFirebaseDb } from './firebase.js';
-import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore/lite';
+import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore/lite';
 import { APP_STORAGE_KEYS, getStoredJson, persistProjects } from './appStorage.js';
-import { isBuiltInAdmin } from '../config/appConfig.js';
 import { toCanonicalProjectId } from './googleDocsPurchasingService.js';
 
 export function cleanProjectId(rawId) {

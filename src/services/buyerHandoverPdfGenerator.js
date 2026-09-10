@@ -1,8 +1,6 @@
 const ADEPEC_GOLD = [197, 160, 89];
 const ADEPEC_DARK = [15, 15, 18];
-const ZINC_800 = [39, 39, 42];
 const ZINC_500 = [113, 113, 122];
-const ZINC_100 = [244, 244, 245];
 
 export async function generateBuyerHandoverPdf({
   projectName = 'Custom Home',
@@ -47,7 +45,8 @@ export async function generateBuyerHandoverPdf({
   doc.setFontSize(8.5);
   doc.setTextColor(ZINC_500[0], ZINC_500[1], ZINC_500[2]);
   const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  doc.text(`Project / Lot: ${projectName}   |   Issued: ${dateStr}`, margin + 8, cursorY + 25);
+  const addressStr = projectAddress ? `   |   ${projectAddress}` : '';
+  doc.text(`Project / Lot: ${projectName}${addressStr}   |   Issued: ${dateStr}`, margin + 8, cursorY + 25);
 
   cursorY += 38;
 

@@ -28,73 +28,10 @@ export function getPurchasingDocStorageKey(projectId = 'default') {
   return `sitetactix_purchasing_doc_${cleanId}`;
 }
 
-export const TRADE_SECTION_MAP = {
-  quartz: {
-    id: 'quartz',
-    title: 'Quartz Hardware',
-    aliases: ['quartz', 'countertop', 'countertops', 'stone', 'granite', 'quartz guy', 'slab'],
-    keywords: [
-      'electrical pass-through', 'pass-through', 'caps', 'hole grommets', 'grommet',
-      'quartz', 'countertop', 'sink cutout', 'support bracket', 'undermount sink clip',
-      'seam adhesive', 'corbel', 'waterfall edge', 'backsplash bracket'
-    ]
-  },
-  electrical: {
-    id: 'electrical',
-    title: 'Electrical Hardware Fixtures',
-    aliases: ['electrician', 'electrical', 'electric', 'lighting', 'lights', 'sparky'],
-    keywords: [
-      'security light', 'security lights', 'doorbell', 'chime kit', 'smart doorbell',
-      'hanging light', 'porch light', 'exterior column light', 'column lights',
-      'garage ceiling light', 'ceiling light', 'vanity light', 'vanity lights',
-      'smart switch', 'smart switches', 'extension rod', 'extension rods',
-      'ceiling fan', 'ceiling fans', 'gfci', 'gfi', 'outlet', 'outlets',
-      'breaker', 'dimmer', 'dimmer switch', 'dimmer switches', 'can light', 'can lights', 'recessed light',
-      'junction box', 'switch plate', 'motion sensor', 'under cabinet lighting'
-    ]
-  },
-  plumbing: {
-    id: 'plumbing',
-    title: 'Plumbing Hardware Fixtures',
-    aliases: ['plumber', 'plumbing', 'pipes', 'fixtures', 'water'],
-    keywords: [
-      'soap dispenser', 'garbage disposal', 'disposal button', 'air switch',
-      'water heater', 'water heater stand', 'water heater tray', 'expansion tank',
-      'shower kit', 'shower kits', 'toilet', 'toilets', 'rough-in valve',
-      'shower valve', 'faucet', 'faucets', 'p-trap', 'drain', 'angle stop',
-      'supply line', 'wax ring', 'flange', 'hose bibb', 'tub spout',
-      'shower pan liner', 'shower head', 'cleanout plug'
-    ]
-  },
-  hvac: {
-    id: 'hvac',
-    title: 'HVAC Hardware & Fixtures',
-    aliases: ['hvac', 'ac', 'heating', 'cooling', 'air conditioning', 'mechanical'],
-    keywords: [
-      'thermostat', 'smart thermostat', 'vent', 'register', 'diffuser',
-      'return grill', 'filter', 'furnace filter', 'condensate pump', 'line set',
-      'exhaust fan', 'bath fan', 'damper', 'duct cap'
-    ]
-  },
-  paint_drywall: {
-    id: 'paint_drywall',
-    title: 'Paint & Drywall Supplies',
-    aliases: ['paint', 'painter', 'drywall', 'sheetrock', 'mud'],
-    keywords: [
-      'primer', 'paint', 'roller cover', 'tray liner', 'caulk',
-      'joint compound', 'drywall tape', 'corner bead', 'sanding sponge',
-      'sheen', 'drop cloth', 'masking tape', 'patch kit'
-    ]
-  },
-  general: {
-    id: 'general',
-    title: 'General Hardware & Materials',
-    aliases: ['general', 'materials', 'hardware', 'other', 'misc', 'miscellaneous'],
-    keywords: []
-  }
-};
+import { TRADE_SECTION_MAP, TRADE_CATEGORIES } from '../config/tradesConfig.js';
 
-export const TRADE_CATEGORIES = TRADE_SECTION_MAP;
+export { TRADE_SECTION_MAP, TRADE_CATEGORIES };
+
 
 export const DEFAULT_MASTER_TEMPLATE_DOC = `# Master Fixtures & Hardware Purchasing Checklist (Company Master Template — v1.0)
 <!-- version: 1.0 -->
@@ -203,7 +140,7 @@ export function normalizePurchasingDocumentSpacing(docText = '') {
 
     const isDocTitle = trimmed.startsWith('# ') && !trimmed.startsWith('## ');
     const isSectionTag = trimmed.startsWith('<!--') && (trimmed.includes('section:') || trimmed.includes('version:'));
-    const isSectionHeader = trimmed.startsWith('## ') || trimmed.startsWith('### ') || /^\d+[\.\)]\s+[A-Za-z\s&]+(?:Hardware|Fixtures|Supplies|Materials|Package|List|Notes|Gear|Wiring|Equipment|Trade|Category)/i.test(trimmed);
+    const isSectionHeader = trimmed.startsWith('## ') || trimmed.startsWith('### ') || /^\d+[.)]\s+[A-Za-z\s&]+(?:Hardware|Fixtures|Supplies|Materials|Package|List|Notes|Gear|Wiring|Equipment|Trade|Category)/i.test(trimmed);
     const isItem = /^[-*•+o\u2610\u2611\u2612☐☑☒]/.test(trimmed) || /^\[[ xX]?\]/.test(trimmed) || /^\([ xX]?\)/.test(trimmed);
 
     if (resultLines.length > 0) {
@@ -499,14 +436,14 @@ export function classifyTradeCategory(itemText = '', explicitOverride = null) {
     if (TRADE_SECTION_MAP[overrideLower]) {
       return TRADE_SECTION_MAP[overrideLower];
     }
-    for (const [key, cat] of Object.entries(TRADE_SECTION_MAP)) {
+    for (const [, cat] of Object.entries(TRADE_SECTION_MAP)) {
       if (cat.id === overrideLower || cat.aliases.some(alias => overrideLower.includes(alias))) {
         return cat;
       }
     }
   }
 
-  for (const [key, cat] of Object.entries(TRADE_SECTION_MAP)) {
+  for (const [, cat] of Object.entries(TRADE_SECTION_MAP)) {
     if (cat.keywords && cat.keywords.length > 0) {
       for (const kw of cat.keywords) {
         if (textLower.includes(kw)) {
@@ -646,13 +583,13 @@ export function parseGoogleDocPurchasingStructure(docData) {
     // Comprehensive heading detection for Markdown, Numbered, and Native Google Docs headings
     const isHeading = !isDocTitle && (
       trimmed.startsWith('##') || 
-      trimmed.match(/^\d+[\.\)]\s+[A-Za-z\s&]+(?:Hardware|Fixtures|Supplies|Materials|Package|List|Notes|Gear|Wiring|Equipment|Trade|Category)/i) ||
+      trimmed.match(/^\d+[.)]\s+[A-Za-z\s&]+(?:Hardware|Fixtures|Supplies|Materials|Package|List|Notes|Gear|Wiring|Equipment|Trade|Category)/i) ||
       (trimmed.endsWith(':') && (trimmed.toLowerCase().includes('hardware') || trimmed.toLowerCase().includes('fixtures') || trimmed.toLowerCase().includes('plumbing') || trimmed.toLowerCase().includes('electrical') || trimmed.toLowerCase().includes('quartz') || trimmed.toLowerCase().includes('hvac') || trimmed.toLowerCase().includes('paint'))) ||
       /^(?:Quartz(?:\s+Hardware)?|Electrical(?:\s+Hardware)?(?:\s+Fixtures)?|Plumbing(?:\s+Hardware)?(?:\s+Fixtures)?|HVAC(?:\s+Hardware)?(?:\s+Fixtures)?|Paint(?:\s+&\s+Drywall)?(?:\s+Supplies)?|General(?:\s+Hardware)?)$/i.test(trimmed)
     );
 
     if (isHeading || (pendingTagId && !currentSection)) {
-      const sectionIdentifier = trimmed.replace(/^[#\d.\)\s]+/, '').replace(/:$/, '').trim();
+      const sectionIdentifier = trimmed.replace(/^[#\d.)\s]+/, '').replace(/:$/, '').trim();
       const stableSectionId = pendingTagId || classifyTradeCategory('', sectionIdentifier).id;
       const category = TRADE_SECTION_MAP[stableSectionId] || classifyTradeCategory('', sectionIdentifier);
 

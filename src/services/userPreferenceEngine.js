@@ -70,7 +70,7 @@ export function calculateObservationConfidence(observationCount = 1, isExplicit 
 /**
  * Checks if a rejected preference's cooldown period has expired.
  */
-export function isRejectionCooldownExpired(rejectedUntil, cooldownDays = 30) {
+export function isRejectionCooldownExpired(rejectedUntil, _cooldownDays = 30) {
   if (!rejectedUntil) return true;
   const expiry = new Date(rejectedUntil).getTime();
   if (Number.isNaN(expiry)) return true;
