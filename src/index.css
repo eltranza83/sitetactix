@@ -768,15 +768,19 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .alert-error {
-  background-color: rgba(244, 63, 94, 0.1);
-  border: 1px solid rgba(244, 63, 94, 0.2);
-  color: var(--color-rose-500);
+  background-color: rgba(26, 15, 20, 0.96);
+  border: 1px solid rgba(244, 63, 94, 0.45);
+  color: #fca5a5;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .alert-success {
-  background-color: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  color: var(--color-emerald-500);
+  background-color: rgba(13, 27, 20, 0.96);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #6ee7b7;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* Animations */

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, AlertCircle, FileSpreadsheet } from 'lucide-react';
+import { RefreshCw, AlertCircle, FileSpreadsheet, X } from 'lucide-react';
 import { STATUS_MESSAGES, getDriveErrorMessage, getUploadErrorMessage, isAuthError } from '../services/appErrors';
 import {
   getCachedDashboardSpreadsheetId,
@@ -232,16 +232,27 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
       
       const rawError = getDriveErrorMessage(err, 'load dashboard data');
       const isMissingSpreadsheet = String(err?.message || '').toLowerCase().includes('no spreadsheet found');
-      
-      const customError = isMissingSpreadsheet
-        ? `No financial spreadsheet found in the Google Drive folder for "${activeProject?.name || 'this project'}".`
-        : rawError;
+      const isFailedFetch = String(err?.message || '').toLowerCase().includes('failed to fetch');
+
+      let customError;
+      if (isMissingSpreadsheet) {
+        customError = `No financial spreadsheet found in Google Drive folder for "${activeProject?.name || 'this project'}".`;
+      } else if (isFailedFetch) {
+        customError = 'Unable to connect to live Google Sheet (session may have expired or signal is offline).';
+      } else {
+        customError = rawError;
+      }
+
+      // If user deliberately clicked Refresh and it failed to fetch, prompt to renew token
+      if (forceInteractive && isFailedFetch && onRequestConnect) {
+        onRequestConnect({ interactive: true });
+      }
 
       // Try to load cached data offline
       if (cached) {
         setData(cached);
         setIsCached(true);
-        setError(`Could not refresh live Google Sheet. Displaying cached report. (${customError})`);
+        setError(`Showing saved snapshot: ${customError}`);
       } else {
         setData(null);
         setError(customError);
@@ -454,9 +465,66 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
       )}
 
       {error && data && (
-        <div className="alert-box alert-error" style={{ fontSize: '0.78rem', margin: 0, padding: '10px 12px' }}>
-          <AlertCircle size={14} style={{ flexShrink: 0 }} />
-          {error}
+        <div
+          style={{
+            backgroundColor: 'rgba(24, 24, 27, 0.95)',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            borderRadius: '10px',
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            fontSize: '0.8rem',
+            color: 'var(--color-zinc-300)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.35)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+            <AlertCircle size={15} style={{ color: 'var(--color-amber-400)', flexShrink: 0 }} />
+            <span style={{ lineHeight: 1.4 }}>
+              {error}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {onRequestConnect && (
+              <button
+                type="button"
+                onClick={() => onRequestConnect({ interactive: true })}
+                className="btn btn-secondary"
+                style={{
+                  width: 'auto',
+                  padding: '4px 10px',
+                  fontSize: '0.72rem',
+                  height: '28px',
+                  borderColor: 'rgba(245, 158, 11, 0.4)',
+                  color: 'var(--color-amber-400)',
+                  backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Reconnect Drive
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--color-zinc-400)',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '4px'
+              }}
+              title="Dismiss alert"
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
       )}
 
