@@ -33,12 +33,6 @@ import {
   fetchProjectFinishes,
   formatFinishesForAI
 } from './finishService.js';
-import {
-  getCachedDashboardSpreadsheetId,
-  loadProjectDashboardFromFolder,
-  persistDashboardCache,
-  persistDashboardSpreadsheetId
-} from './dashboardDrive.js';
 
 let _activeSessionCognitiveState = {
   turnIndex: 0,
@@ -1184,6 +1178,12 @@ export function getAuthoritativeReadRoute(query = '') {
   const normalized = String(query).trim();
   if (!normalized || AUTHORITATIVE_READ_ACTIONS.test(normalized) || !AUTHORITATIVE_READ_QUESTION.test(normalized)) return null;
 
+  // Finance already has a full dashboard manifest and conversational trade
+  // resolution. The direct tool gate reduced a trade to a literal substring
+  // ("electrician" does not occur in "Electrical & Lighting"). Keep finance
+  // on the established Jarvis path, using the dashboard the user refreshed.
+  if (FINANCE_QUERY.test(normalized)) return null;
+
   // “Paint color” and similar specification questions are finishes, while a
   // request to buy paint belongs to purchasing.
   if (FINISH_QUERY.test(normalized) && /\b(finish|color|sheen|stucco|stone|cantera|grout|shingle|spec)\b/i.test(normalized)) {
@@ -1195,12 +1195,6 @@ export function getAuthoritativeReadRoute(query = '') {
       args: { trade: getPurchasingTrade(normalized), unpurchasedOnly: /\b(need|needed|still)\b/i.test(normalized) },
       source: 'Firestore purchasing checklist'
     };
-  }
-  if (FINANCE_QUERY.test(normalized)) {
-    const tradeMatch = normalized.match(/\b(electrician|electrical|plumber|plumbing|hvac|roofing|framing|drywall|painter|paint|tile|concrete)\b/i);
-    return tradeMatch
-      ? { toolName: 'get_subcontractor_balance', args: { tradeOrContractor: tradeMatch[1] }, source: 'Google Sheets financial ledger' }
-      : { toolName: 'get_project_budget', args: { category: 'all' }, source: 'Google Sheets financial ledger' };
   }
   if (INSPECTION_QUERY.test(normalized)) {
     return { toolName: 'get_municipal_inspections', args: {}, source: 'Municipal inspection records' };
@@ -1216,30 +1210,6 @@ export function getAuthoritativeReadRoute(query = '') {
 
 async function answerFromAuthoritativeSource(route, query, projectContext, correlationId, startedAt) {
   try {
-    if (route.source === 'Google Sheets financial ledger') {
-      const accessToken = projectContext.accessToken;
-      const projectFolderId = projectContext.projectFolderId;
-      if (!accessToken || !projectFolderId) {
-        return {
-          text: 'I cannot verify financial information until the active project’s Google Sheet is connected.',
-          telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Google Sheets Connection Required', durationMs: Date.now() - startedAt, toolsExecuted: [{ name: route.toolName, args: route.args }] }
-        };
-      }
-
-      const cachedSpreadsheetId = getCachedDashboardSpreadsheetId(localStorage, projectContext.projectId);
-      const { spreadsheetId, data } = await loadProjectDashboardFromFolder({
-        accessToken,
-        projectFolderId,
-        cachedSpreadsheetId
-      });
-      // The current Google Sheet response becomes the only financial context
-      // available to this lookup. Persisting it only improves the dashboard;
-      // it is never used instead of this refresh for a Jarvis finance answer.
-      projectContext.dashboardData = data;
-      persistDashboardSpreadsheetId(localStorage, projectContext.projectId, spreadsheetId);
-      persistDashboardCache(localStorage, projectContext.projectId, data);
-    }
-
     const result = await executeClientToolCall(route.toolName, route.args, projectContext, correlationId);
     if (!result || result.error || result.success === false || result.readError) {
       return {

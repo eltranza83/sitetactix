@@ -86,7 +86,7 @@ export default function Settings({
       {/* Build & Version Diagnostic Badge */}
       <div style={{ textAlign: 'center', padding: '16px 8px', marginTop: '12px', borderTop: '1px solid var(--color-zinc-800)' }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-zinc-400)' }}>
-          SiteTactix Build <span style={{ color: 'var(--color-amber-400)' }}>v1.3.5 (Build 2026.09.18-authoritative-finance)</span>
+          SiteTactix Build <span style={{ color: 'var(--color-amber-400)' }}>v1.3.6 (Build 2026.09.18-finance-flow-restore)</span>
         </div>
         <div style={{ fontSize: '0.7rem', color: 'var(--color-zinc-500)', marginTop: '4px' }}>
           Real-time Cloud Sync • Active Finishes & Municipal Engine
