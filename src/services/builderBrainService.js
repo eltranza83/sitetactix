@@ -1151,6 +1151,106 @@ export function formatToolResultsHumanReadable(toolTelemetryList, userQuery = ''
   return parts.length > 0 ? parts.join('\n\n') : null;
 }
 
+const AUTHORITATIVE_READ_ACTIONS = /\b(add|create|update|delete|remove|mark|set|save|scan|capture|upload|attach|stage|log)\b/i;
+const AUTHORITATIVE_READ_QUESTION = /\b(what|which|who|when|where|why|how|show|list|tell|do|did|does|is|are|have|has|can)\b|\?/i;
+const PURCHASE_QUERY = /\b(purchas|buy|bought|needed|need|checklist|hardware|fixture|material|quartz|countertop|sink|electrical|plumb|hvac|roof|drywall|paint|tile|flooring)\b/i;
+const FINANCE_QUERY = /\b(budget|spent|spend|paid|payment|owe|owed|balance|expense|receipt|invoice|draw|quote|contract|capital|money)\b/i;
+const INSPECTION_QUERY = /\b(inspection|inspect|framing|rough[ -]?in|foundation|municipal|permit)\b/i;
+const FINISH_QUERY = /\b(finish|paint|color|sheen|stucco|stone|cantera|tile|grout|shingle|fixture spec)\b/i;
+const DRIVE_QUERY = /\b(file|folder|document|drive|blueprint|plan|permit|photo|pdf)\b/i;
+
+function getPurchasingTrade(query) {
+  const normalized = String(query || '').toLowerCase();
+  if (/\b(quartz|countertop|sink)\b/.test(normalized)) return 'quartz';
+  if (/\b(electrical|electrician|lighting)\b/.test(normalized)) return 'electrical';
+  if (/\b(plumb|faucet|toilet|shower)\b/.test(normalized)) return 'plumbing';
+  if (/\b(hvac|air conditioning|mechanical)\b/.test(normalized)) return 'hvac';
+  if (/\b(paint|drywall)\b/.test(normalized)) return 'paint_drywall';
+  return '';
+}
+
+/**
+ * Project facts are not left to model discretion. A matching route returns a
+ * live tool request; the caller must return that tool's evidence or an honest
+ * verification failure, never a generated fallback.
+ */
+export function getAuthoritativeReadRoute(query = '') {
+  const normalized = String(query).trim();
+  if (!normalized || AUTHORITATIVE_READ_ACTIONS.test(normalized) || !AUTHORITATIVE_READ_QUESTION.test(normalized)) return null;
+
+  // “Paint color” and similar specification questions are finishes, while a
+  // request to buy paint belongs to purchasing.
+  if (FINISH_QUERY.test(normalized) && /\b(finish|color|sheen|stucco|stone|cantera|grout|shingle|spec)\b/i.test(normalized)) {
+    return { toolName: 'get_project_finishes', args: {}, source: 'Firestore finishes and specifications' };
+  }
+  if (PURCHASE_QUERY.test(normalized)) {
+    return {
+      toolName: 'get_purchasing_list',
+      args: { trade: getPurchasingTrade(normalized), unpurchasedOnly: /\b(need|needed|still)\b/i.test(normalized) },
+      source: 'Firestore purchasing checklist'
+    };
+  }
+  if (FINANCE_QUERY.test(normalized)) {
+    const tradeMatch = normalized.match(/\b(electrician|electrical|plumber|plumbing|hvac|roofing|framing|drywall|painter|paint|tile|concrete)\b/i);
+    return tradeMatch
+      ? { toolName: 'get_subcontractor_balance', args: { tradeOrContractor: tradeMatch[1] }, source: 'Google Sheets financial ledger' }
+      : { toolName: 'get_project_budget', args: { category: 'all' }, source: 'Google Sheets financial ledger' };
+  }
+  if (INSPECTION_QUERY.test(normalized)) {
+    return { toolName: 'get_municipal_inspections', args: {}, source: 'Municipal inspection records' };
+  }
+  if (FINISH_QUERY.test(normalized)) {
+    return { toolName: 'get_project_finishes', args: {}, source: 'Firestore finishes and specifications' };
+  }
+  if (DRIVE_QUERY.test(normalized)) {
+    return { toolName: 'get_drive_files', args: {}, source: 'Google Drive' };
+  }
+  return null;
+}
+
+async function answerFromAuthoritativeSource(route, query, projectContext, correlationId, startedAt) {
+  try {
+    const result = await executeClientToolCall(route.toolName, route.args, projectContext, correlationId);
+    if (!result || result.error || result.success === false || result.readError) {
+      return {
+        text: `I could not verify that against the ${route.source} right now, so I will not guess.`,
+        telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verification Unavailable', durationMs: Date.now() - startedAt, toolsExecuted: [route.toolName] }
+      };
+    }
+
+    const evidence = [{
+      name: route.toolName,
+      args: route.args,
+      success: true,
+      source: result.source || route.source,
+      result,
+      data: result.data !== undefined ? result.data : result
+    }];
+    const text = formatToolResultsHumanReadable(evidence, query, projectContext)
+      || result.itemLookup?.canonicalAnswer
+      || result.summary?.canonicalAnswer
+      || result.canonicalAnswer
+      || result.message;
+
+    if (!text) {
+      return {
+        text: `I checked the ${route.source}, but it did not return a verifiable answer for that question.`,
+        telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'No Verifiable Result', durationMs: Date.now() - startedAt, toolsExecuted: [route.toolName] }
+      };
+    }
+
+    return {
+      text,
+      telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verified Lookup', durationMs: Date.now() - startedAt, toolsExecuted: [route.toolName] }
+    };
+  } catch {
+    return {
+      text: `I could not verify that against the ${route.source} right now, so I will not guess.`,
+      telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verification Unavailable', durationMs: Date.now() - startedAt, toolsExecuted: [route.toolName] }
+    };
+  }
+}
+
 /**
  * Main AI Query Handler: Pure AI Model with Grounded Live Project Data
  */
@@ -1277,6 +1377,11 @@ export async function askGeminiBrain(
     memoriesData,
     userPreferences
   };
+
+  const authoritativeRoute = getAuthoritativeReadRoute(query);
+  if (authoritativeRoute) {
+    return answerFromAuthoritativeSource(authoritativeRoute, query, projectContext, correlationId, clientStartTime);
+  }
 
   const now = new Date();
   const currentHour = now.getHours();

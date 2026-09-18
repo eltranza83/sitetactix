@@ -801,8 +801,23 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
         item: args.item || args.keyword
       });
 
+      // A read must never seed, import, or otherwise change a project's
+      // checklist. Initialization is an explicit setup action, not a side
+      // effect of asking Jarvis a question.
+      if (!isInitialized && items.length === 0 && !args.item && !args.initializeIfMissing) {
+        resultPayload = {
+          success: true,
+          found: false,
+          state: 'NOT_INITIALIZED',
+          projectId: targetProjectId,
+          source: `Firestore (${projLabel} Purchasing Checklist)`,
+          message: `The purchasing checklist for ${projLabel} has not been initialized yet. I will not import or create items unless you explicitly ask me to.`
+        };
+        break;
+      }
+
       // If project is not initialized in Firestore, attempt Google Drive discovery & live document ingestion
-      if (!isInitialized && items.length === 0 && !args.item) {
+      if (!isInitialized && items.length === 0 && !args.item && args.initializeIfMissing) {
         const hasRealItems = (doc) => doc && typeof doc === 'string' && (doc.includes('- [ ]') || doc.includes('- [x]'));
 
         let rawDoc = null;
@@ -1556,19 +1571,27 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       const inspections = projectContext?.inspectionsData || [];
       const stageId = (args.stageId || '').toLowerCase();
       const filtered = stageId
-        ? inspections.filter(s => (s.id || '').toLowerCase().includes(stageId) || (s.title || '').toLowerCase().includes(stageId))
+        ? inspections.filter(s => (s.stageId || s.id || '').toLowerCase().includes(stageId) || (s.stageName || s.title || '').toLowerCase().includes(stageId))
         : inspections;
 
       resultPayload = {
         found: true,
         totalStages: inspections.length,
-        stages: filtered.map(s => ({
-          id: s.id,
-          title: s.title,
-          isPassed: Boolean(s.isPassed),
-          progress: s.progress || 0,
-          pendingItemsCount: Array.isArray(s.items) ? s.items.filter(it => !it.checked).length : 0
-        }))
+        stages: filtered.map(s => {
+          const items = Array.isArray(s.items) ? s.items : [];
+          const passedItems = items.filter(it => it.status === 'PASSED' || it.status === 'pass' || it.checked === true).length;
+          const totalItems = s.totalItems || items.length;
+          const isPassed = typeof s.isFullyPassed === 'boolean'
+            ? s.isFullyPassed
+            : (typeof s.isPassed === 'boolean' ? s.isPassed : (totalItems > 0 && passedItems === totalItems));
+          return {
+            id: s.stageId || s.id,
+            title: s.stageName || s.title,
+            isPassed,
+            progress: s.progress || (totalItems > 0 ? Math.round((passedItems / totalItems) * 100) : 0),
+            pendingItemsCount: Math.max(0, totalItems - passedItems)
+          };
+        })
       };
       break;
     }
