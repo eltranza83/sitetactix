@@ -691,7 +691,10 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
 
       const currentDashboard = loadProjectDashboard(projectId);
       const forceDeepReasoning = false;
-      const answerPayload = await askGeminiBrain(query, [], projectName, apiKey, currentDashboard, projectId, messages, currentLiveTree, fileAttachment, forceDeepReasoning, googleToken, { onNavigateTab });
+      const answerPayload = await askGeminiBrain(query, [], projectName, apiKey, currentDashboard, projectId, messages, currentLiveTree, fileAttachment, forceDeepReasoning, googleToken, {
+        onNavigateTab,
+        projectFolderId: activeProject?.folderId || selectedFolder?.id || null
+      });
       const answer = typeof answerPayload === 'object' && answerPayload.text !== undefined ? answerPayload.text : String(answerPayload || '');
       const telemetry = typeof answerPayload === 'object' && answerPayload.telemetry ? answerPayload.telemetry : null;
 

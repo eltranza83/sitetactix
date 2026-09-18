@@ -33,6 +33,12 @@ import {
   fetchProjectFinishes,
   formatFinishesForAI
 } from './finishService.js';
+import {
+  getCachedDashboardSpreadsheetId,
+  loadProjectDashboardFromFolder,
+  persistDashboardCache,
+  persistDashboardSpreadsheetId
+} from './dashboardDrive.js';
 
 let _activeSessionCognitiveState = {
   turnIndex: 0,
@@ -1210,11 +1216,35 @@ export function getAuthoritativeReadRoute(query = '') {
 
 async function answerFromAuthoritativeSource(route, query, projectContext, correlationId, startedAt) {
   try {
+    if (route.source === 'Google Sheets financial ledger') {
+      const accessToken = projectContext.accessToken;
+      const projectFolderId = projectContext.projectFolderId;
+      if (!accessToken || !projectFolderId) {
+        return {
+          text: 'I cannot verify financial information until the active project’s Google Sheet is connected.',
+          telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Google Sheets Connection Required', durationMs: Date.now() - startedAt, toolsExecuted: [{ name: route.toolName, args: route.args }] }
+        };
+      }
+
+      const cachedSpreadsheetId = getCachedDashboardSpreadsheetId(localStorage, projectContext.projectId);
+      const { spreadsheetId, data } = await loadProjectDashboardFromFolder({
+        accessToken,
+        projectFolderId,
+        cachedSpreadsheetId
+      });
+      // The current Google Sheet response becomes the only financial context
+      // available to this lookup. Persisting it only improves the dashboard;
+      // it is never used instead of this refresh for a Jarvis finance answer.
+      projectContext.dashboardData = data;
+      persistDashboardSpreadsheetId(localStorage, projectContext.projectId, spreadsheetId);
+      persistDashboardCache(localStorage, projectContext.projectId, data);
+    }
+
     const result = await executeClientToolCall(route.toolName, route.args, projectContext, correlationId);
     if (!result || result.error || result.success === false || result.readError) {
       return {
         text: `I could not verify that against the ${route.source} right now, so I will not guess.`,
-        telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verification Unavailable', durationMs: Date.now() - startedAt, toolsExecuted: [route.toolName] }
+        telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verification Unavailable', durationMs: Date.now() - startedAt, toolsExecuted: [{ name: route.toolName, args: route.args }] }
       };
     }
 
@@ -1235,18 +1265,18 @@ async function answerFromAuthoritativeSource(route, query, projectContext, corre
     if (!text) {
       return {
         text: `I checked the ${route.source}, but it did not return a verifiable answer for that question.`,
-        telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'No Verifiable Result', durationMs: Date.now() - startedAt, toolsExecuted: [route.toolName] }
+        telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'No Verifiable Result', durationMs: Date.now() - startedAt, toolsExecuted: [{ name: route.toolName, args: route.args, result }] }
       };
     }
 
     return {
       text,
-      telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verified Lookup', durationMs: Date.now() - startedAt, toolsExecuted: [route.toolName] }
+      telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verified Lookup', durationMs: Date.now() - startedAt, toolsExecuted: [{ name: route.toolName, args: route.args, result }] }
     };
   } catch {
     return {
       text: `I could not verify that against the ${route.source} right now, so I will not guess.`,
-      telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verification Unavailable', durationMs: Date.now() - startedAt, toolsExecuted: [route.toolName] }
+      telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verification Unavailable', durationMs: Date.now() - startedAt, toolsExecuted: [{ name: route.toolName, args: route.args }] }
     };
   }
 }
@@ -1364,6 +1394,7 @@ export async function askGeminiBrain(
     projectId,
     userId,
     accessToken,
+    projectFolderId: options?.projectFolderId || null,
     activeProjectName,
     projectName: activeProjectName,
     onNavigateTab: options?.onNavigateTab,
