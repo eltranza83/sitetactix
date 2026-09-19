@@ -45,7 +45,7 @@ function PhaseMetricGroup({ sub }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
       <div style={{
         fontWeight: 700,
-        color: 'var(--color-amber-400)',
+        color: '#F1D7A7',
         backgroundColor: 'rgba(241, 215, 167, 0.1)',
         padding: '3px 4px',
         borderRadius: '5px',
@@ -162,7 +162,7 @@ export default function DashboardTradeSections({
                   <span style={{
                     fontSize: '0.86rem',
                     fontWeight: 800,
-                    color: '#E5C158',
+                    color: '#F1D7A7',
                     textTransform: 'uppercase',
                     letterSpacing: '0.02em',
                     lineHeight: '1.2',
@@ -178,7 +178,7 @@ export default function DashboardTradeSections({
                     <span style={{ color: 'var(--color-zinc-400)', fontSize: '0.7rem', fontWeight: 600 }}>
                       {cat.phasesCount} Phase{cat.phasesCount > 1 ? 's' : ''}
                     </span>
-                    {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--color-amber-400)' }} /> : <ChevronDown size={16} style={{ color: 'var(--color-zinc-500)' }} />}
+                    {isExpanded ? <ChevronUp size={16} style={{ color: '#F1D7A7' }} /> : <ChevronDown size={16} style={{ color: 'var(--color-zinc-500)' }} />}
                   </div>
                 </div>
 
@@ -186,7 +186,7 @@ export default function DashboardTradeSections({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
                   <div style={{
                     fontWeight: 700,
-                    color: 'var(--color-amber-400)',
+                    color: '#F1D7A7',
                     backgroundColor: 'rgba(241, 215, 167, 0.12)',
                     padding: '3px 4px',
                     borderRadius: '5px',
@@ -294,7 +294,7 @@ export default function DashboardTradeSections({
                             {displayPayee && (
                               <span style={{
                                 fontWeight: isAssigned ? 700 : 400,
-                                color: isAssigned ? 'var(--color-amber-400)' : 'var(--color-zinc-500)',
+                                color: isAssigned ? '#F1D7A7' : 'var(--color-zinc-500)',
                                 fontSize: '0.72rem',
                                 fontStyle: isAssigned ? 'normal' : 'italic',
                                 flexShrink: 0

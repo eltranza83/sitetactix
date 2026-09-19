@@ -27,7 +27,7 @@ export default function ToastNotification({ message, type = 'success', onClose, 
       padding: '10px 18px',
       borderRadius: '30px',
       backgroundColor: isSuccess ? '#141416' : '#1c0a0c',
-      border: isSuccess ? '1.5px solid #E5C158' : '1.5px solid #ef4444',
+      border: isSuccess ? '1.5px solid #F1D7A7' : '1.5px solid #ef4444',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
       boxShadow: isSuccess
@@ -50,7 +50,7 @@ export default function ToastNotification({ message, type = 'success', onClose, 
           justifyContent: 'center',
           flexShrink: 0
         }}>
-          <CheckCircle2 size={18} style={{ color: '#E5C158' }} />
+          <CheckCircle2 size={18} style={{ color: '#F1D7A7' }} />
         </div>
       ) : (
         <div style={{
