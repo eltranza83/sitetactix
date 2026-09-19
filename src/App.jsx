@@ -31,25 +31,25 @@ function IronManIcon({ size = 18 }) {
     >
       <defs>
         <linearGradient id="im-gold" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FDE68A" />
-          <stop offset="50%" stopColor="#F59E0B" />
-          <stop offset="100%" stopColor="#B45309" />
+          <stop offset="0%" stopColor="#F1D7A7" />
+          <stop offset="50%" stopColor="#C5A059" />
+          <stop offset="100%" stopColor="#B28741" />
         </linearGradient>
-        <linearGradient id="im-red" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#EF4444" />
-          <stop offset="100%" stopColor="#991B1B" />
+        <linearGradient id="im-shell" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#3F3A32" />
+          <stop offset="100%" stopColor="#171512" />
         </linearGradient>
       </defs>
 
-      {/* Red Helmet Base / Cheeks / Crown */}
+      {/* Graphite shell keeps Jarvis aligned with the ADEPEC brand system. */}
       <path
         d="M26 18 C26 12 36 6 50 6 C64 6 74 12 74 18 L76 34 L82 42 L81 60 L73 66 L67 89 L50 93 L33 89 L27 66 L19 60 L18 42 L24 34 Z"
-        fill="url(#im-red)"
+        fill="url(#im-shell)"
       />
 
       {/* Ear Plates */}
-      <path d="M18 40 L23 35 V57 L18 55 Z" fill="#7F1D1D" />
-      <path d="M82 40 L77 35 V57 L82 55 Z" fill="#7F1D1D" />
+      <path d="M18 40 L23 35 V57 L18 55 Z" fill="#2A2620" />
+      <path d="M82 40 L77 35 V57 L82 55 Z" fill="#2A2620" />
 
       {/* Gold Faceplate */}
       <path
@@ -275,7 +275,7 @@ export default function App() {
         </button>
 
         <div className="logo-section">
-          <svg className="logo-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg className="logo-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <defs>
               <linearGradient id="header-gold" x1="0%" y1="100%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#C5A059" />
@@ -287,34 +287,10 @@ export default function App() {
             <path fillRule="evenodd" d="M50 33.5 L66.5 50 V85 H50.5 V73 H49.5 V85 H33.5 V50 Z M50 42.5 L57.5 50 V63 H42.5 V50 Z" fill="url(#header-gold)" />
           </svg>
           <div className="logo-text-group">
-            <span className="logo-main-text">
-              ADEPEC
-            </span>
-            <div className="header-logo-homes">
-              HOMES
-            </div>
-            <div style={{ 
-              fontSize: '0.60rem', 
-              fontWeight: 700, 
-              letterSpacing: '0.18em', 
-              color: 'var(--color-zinc-300)',
-              textTransform: 'uppercase',
-              fontFamily: 'var(--font-serif)',
-              marginTop: '3px',
-              textAlign: 'center',
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}>
-              <span style={{ color: 'var(--color-amber-500)', opacity: 0.8, fontSize: '0.5rem' }}>✦</span>
-              <span style={{ letterSpacing: '0.18em' }}>
-                SITET<span style={{ color: 'var(--color-amber-500)', fontWeight: 800, textShadow: '0 0 10px rgba(197, 160, 89, 0.7)' }}>A</span>CT<span style={{ color: 'var(--color-amber-500)', fontWeight: 800, textShadow: '0 0 10px rgba(197, 160, 89, 0.7)' }}>I</span>X
-              </span>
-              <span style={{ color: 'var(--color-amber-500)', opacity: 0.8, fontSize: '0.5rem' }}>✦</span>
-            </div>
+            <span className="logo-main-text">ADEPEC</span>
+            <div className="header-logo-homes">HOMES</div>
           </div>
+          <div className="header-product-name">SiteTactix</div>
         </div>
 
         {/* Centered Project Selector Pill (Interactive Selector) */}
@@ -400,7 +376,7 @@ export default function App() {
                         style={{
                           width: '100%',
                           padding: '10px 12px',
-                          backgroundColor: isActive ? 'rgba(245, 158, 11, 0.05)' : 'transparent',
+                          backgroundColor: isActive ? 'rgba(197, 160, 89, 0.05)' : 'transparent',
                           border: 'none',
                           color: isActive ? 'var(--color-amber-400)' : 'var(--color-zinc-200)',
                           textAlign: 'left',
@@ -559,8 +535,8 @@ export default function App() {
                     display: 'flex', 
                     gap: '12px', 
                     alignItems: 'flex-start',
-                    border: '1px solid rgba(245, 158, 11, 0.25)', 
-                    backgroundColor: 'rgba(245, 158, 11, 0.04)',
+                    border: '1px solid rgba(197, 160, 89, 0.25)',
+                    backgroundColor: 'rgba(197, 160, 89, 0.04)',
                     borderLeft: '4px solid var(--color-amber-500)'
                   }}>
                     <Sparkles size={20} style={{ color: 'var(--color-amber-500)', marginTop: '2px', flex: 'none' }} />

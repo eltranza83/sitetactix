@@ -172,7 +172,7 @@ export default function DashboardContractorDetail({
             {safeFormatCurrency(selectedSub.totalLabor || selectedSub.totalPaid || 0)}
           </div>
         </div>
-        <div style={{ padding: '10px 4px', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '10px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
+        <div style={{ padding: '10px 4px', backgroundColor: 'rgba(197, 160, 89, 0.1)', border: '1px solid rgba(197, 160, 89, 0.35)', borderRadius: '10px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
           <span style={{ fontSize: '0.64rem', color: 'var(--color-amber-400)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', display: 'block' }}>
             Balance
           </span>

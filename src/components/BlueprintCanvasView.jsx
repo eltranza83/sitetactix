@@ -5,7 +5,7 @@ import IssueCard from './IssueCard';
 
 function getIssueMarkerColor(issue) {
   if (issue.status === 'resolved') return '#34d399';
-  if (issue.status === 'in_progress') return '#fbbf24';
+  if (issue.status === 'in_progress') return '#F1D7A7';
   if (issue.priority === 'high') return '#ef4444';
   return '#f87171';
 }

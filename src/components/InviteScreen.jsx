@@ -199,7 +199,7 @@ export default function InviteScreen({ onUnlocked, googleUser, authError, signin
             </span>
           </div>
 
-          <svg style={{ width: '38px', height: '38px', marginTop: '4px' }} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg style={{ width: '38px', height: '38px', marginTop: '4px' }} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <defs>
               <linearGradient id="invite-gold" x1="0%" y1="100%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#C5A059" />
@@ -210,14 +210,9 @@ export default function InviteScreen({ onUnlocked, googleUser, authError, signin
             <path d="M50 15 L80 45 V85 H71 V45 L50 24 L29 45 V85 H20 V45 Z" fill="url(#invite-gold)" />
             <path fillRule="evenodd" d="M50 33.5 L66.5 50 V85 H50.5 V73 H49.5 V85 H33.5 V50 Z M50 42.5 L57.5 50 V63 H42.5 V50 Z" fill="url(#invite-gold)" />
           </svg>
-          
           <div className="logo-text-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '160px', marginTop: '2px' }}>
-            <span className="logo-main-text" style={{ fontSize: '1.1rem' }}>
-              ADEPEC
-            </span>
-            <div className="header-logo-homes" style={{ fontSize: '0.6rem', marginTop: '1px' }}>
-              HOMES
-            </div>
+            <span className="logo-main-text" style={{ fontSize: '1.1rem' }}>ADEPEC</span>
+            <div className="header-logo-homes" style={{ fontSize: '0.48rem', marginTop: '1px' }}>HOMES</div>
           </div>
           <span style={{ fontSize: '0.85rem', color: 'var(--color-zinc-400)', marginTop: '6px', fontWeight: 500 }}>
             Jobsite Intelligence & Field Operations
@@ -262,8 +257,8 @@ export default function InviteScreen({ onUnlocked, googleUser, authError, signin
             <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ 
                 fontSize: '0.8rem', 
-                backgroundColor: 'rgba(245, 158, 11, 0.05)', 
-                border: '1px solid rgba(245, 158, 11, 0.15)', 
+                backgroundColor: 'rgba(197, 160, 89, 0.05)',
+                border: '1px solid rgba(197, 160, 89, 0.15)',
                 borderRadius: '8px', 
                 padding: '10px 12px',
                 color: 'var(--color-zinc-300)',

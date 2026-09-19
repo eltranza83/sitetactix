@@ -1129,7 +1129,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             gap: '6px',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
-            boxShadow: activeSubTab === 'site_setup' ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none'
+            boxShadow: activeSubTab === 'site_setup' ? '0 2px 8px rgba(197, 160, 89, 0.25)' : 'none'
           }}
         >
           <Flag size={15} />
@@ -1154,7 +1154,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             gap: '6px',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
-            boxShadow: activeSubTab === 'phases' ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none'
+            boxShadow: activeSubTab === 'phases' ? '0 2px 8px rgba(197, 160, 89, 0.25)' : 'none'
           }}
         >
           <CheckSquare size={15} />
@@ -1179,7 +1179,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             gap: '6px',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
-            boxShadow: activeSubTab === 'specs' ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none'
+            boxShadow: activeSubTab === 'specs' ? '0 2px 8px rgba(197, 160, 89, 0.25)' : 'none'
           }}
         >
           <Palette size={15} />
@@ -1204,7 +1204,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             gap: '6px',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
-            boxShadow: activeSubTab === 'vault' ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none'
+            boxShadow: activeSubTab === 'vault' ? '0 2px 8px rgba(197, 160, 89, 0.25)' : 'none'
           }}
         >
           <Brain size={15} />
@@ -1249,7 +1249,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                   onClick={handleManualSyncToSheet}
                   disabled={sheetSyncStatus === 'syncing'}
                   style={{
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    backgroundColor: 'rgba(197, 160, 89, 0.1)',
                     color: 'var(--color-amber-400)',
                     border: '1px solid var(--color-amber-500)',
                     borderRadius: '8px',
@@ -1354,7 +1354,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                   </span>
                 )}
                 {sheetSyncStatus === 'out_of_sync' && (
-                  <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                  <span style={{ color: '#C5A059', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                     <AlertCircle size={13} /> Google Sheet: Out of Sync ⚠️
                   </span>
                 )}
@@ -1422,7 +1422,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                     borderRadius: '20px',
                     border: '1px solid',
                     borderColor: specsCategoryFilter === f.id ? 'var(--color-amber-500)' : 'var(--color-zinc-800)',
-                    backgroundColor: specsCategoryFilter === f.id ? 'rgba(245, 158, 11, 0.15)' : 'var(--color-zinc-900)',
+                    backgroundColor: specsCategoryFilter === f.id ? 'rgba(197, 160, 89, 0.15)' : 'var(--color-zinc-900)',
                     color: specsCategoryFilter === f.id ? 'var(--color-amber-400)' : 'var(--color-zinc-400)',
                     fontSize: '0.75rem',
                     fontWeight: 700,
@@ -1496,7 +1496,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span
                             style={{
-                              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                              backgroundColor: 'rgba(197, 160, 89, 0.15)',
                               color: 'var(--color-amber-400)',
                               fontSize: '0.7rem',
                               fontWeight: 800,
@@ -1692,7 +1692,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                         borderRadius: '12px',
                         border: '1px solid',
                         borderColor: newSpecForm.surface === surf ? 'var(--color-amber-500)' : 'var(--color-zinc-800)',
-                        backgroundColor: newSpecForm.surface === surf ? 'rgba(245, 158, 11, 0.15)' : 'var(--color-zinc-950)',
+                        backgroundColor: newSpecForm.surface === surf ? 'rgba(197, 160, 89, 0.15)' : 'var(--color-zinc-950)',
                         color: newSpecForm.surface === surf ? 'var(--color-amber-400)' : 'var(--color-zinc-400)',
                         fontSize: '0.7rem',
                         fontWeight: 600,
@@ -1731,7 +1731,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                       borderRadius: '6px',
                       border: '1px solid',
                       borderColor: newSpecForm.scope === 'whole_house' ? 'var(--color-amber-500)' : 'var(--color-zinc-700)',
-                      backgroundColor: newSpecForm.scope === 'whole_house' ? 'rgba(245, 158, 11, 0.15)' : 'var(--color-zinc-950)',
+                      backgroundColor: newSpecForm.scope === 'whole_house' ? 'rgba(197, 160, 89, 0.15)' : 'var(--color-zinc-950)',
                       color: newSpecForm.scope === 'whole_house' ? 'var(--color-amber-400)' : 'var(--color-zinc-400)',
                       fontSize: '0.75rem',
                       fontWeight: 700,
@@ -1858,7 +1858,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                     style={{
                       padding: '2px 8px',
                       borderRadius: '4px',
-                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                      backgroundColor: 'rgba(197, 160, 89, 0.15)',
                       border: '1px solid var(--color-amber-500)',
                       color: 'var(--color-amber-400)',
                       fontSize: '0.7rem',
@@ -2136,7 +2136,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                   <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-amber-500)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     1. Critical Pre-Work Notes
                   </span>
-                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: 'var(--color-amber-400)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(197, 160, 89, 0.15)', color: 'var(--color-amber-400)', border: '1px solid rgba(197, 160, 89, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
                     {siteSetupProtocol.preTradeNotes.length} {siteSetupProtocol.preTradeNotes.length === 1 ? 'item' : 'items'}
                   </span>
                 </div>
@@ -2752,7 +2752,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                       <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-amber-500)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         1. Critical Pre-Work Notes
                       </span>
-                      <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: 'var(--color-amber-400)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                      <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(197, 160, 89, 0.15)', color: 'var(--color-amber-400)', border: '1px solid rgba(197, 160, 89, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
                         {preNotesCount} {preNotesCount === 1 ? 'item' : 'items'}
                       </span>
                     </div>

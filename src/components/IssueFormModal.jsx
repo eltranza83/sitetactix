@@ -364,9 +364,9 @@ function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
                   activeBg = 'rgba(239, 68, 68, 0.12)';
                   activeBorder = '#ef4444';
                 } else if (level === 'medium') {
-                  color = '#f59e0b';
-                  activeBg = 'rgba(245, 158, 11, 0.12)';
-                  activeBorder = '#f59e0b';
+                  color = '#C5A059';
+                  activeBg = 'rgba(197, 160, 89, 0.12)';
+                  activeBorder = '#C5A059';
                 }
 
                 return (
@@ -399,8 +399,8 @@ function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
             <div style={{
               padding: '10px 12px',
               borderRadius: '8px',
-              border: '1px solid rgba(245, 158, 11, 0.25)',
-              backgroundColor: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(197, 160, 89, 0.25)',
+              backgroundColor: 'rgba(197, 160, 89, 0.08)',
               color: 'var(--color-amber-400)',
               fontSize: '0.78rem',
               fontWeight: 600

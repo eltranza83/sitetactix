@@ -116,7 +116,7 @@ export default function DashboardPunchList({
           flexDirection: 'column',
           alignItems: 'center',
           gap: '4px',
-          borderLeft: '4px solid #fbbf24'
+          borderLeft: '4px solid #F1D7A7'
         }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--color-zinc-400)', fontWeight: 500 }}>In Progress</span>
           <span style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-zinc-100)' }}>{counts.inProgress}</span>

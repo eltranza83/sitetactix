@@ -50,7 +50,7 @@ export const TRADE_SECTIONS_CONFIG = {
   },
   'House_Exterior_&_Yard': {
     label: 'House Exterior & Yard',
-    color: '#f97316',
+    color: '#B28741',
     phases: ['Stucco & Masonry', 'Garage Doors', 'Driveway & Sidewalks', 'Cantera Stone Detail', 'Fencing & Gates', 'Landscaping & Irrigation']
   },
   'Project_Overhead_&_Bills': {

@@ -19,7 +19,7 @@ export default function BlueprintPhaseAlbums({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--color-zinc-950)', border: '1px solid var(--color-zinc-800)', padding: '10px 14px', borderRadius: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(217, 119, 6, 0.12)', border: '1px solid rgba(217, 119, 6, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b', flexShrink: 0 }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(197, 160, 89, 0.12)', border: '1px solid rgba(197, 160, 89, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C5A059', flexShrink: 0 }}>
             <Camera size={16} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>

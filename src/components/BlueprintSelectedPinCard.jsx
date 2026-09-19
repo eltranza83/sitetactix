@@ -123,7 +123,7 @@ export default function BlueprintSelectedPinCard({
           <button
             type="button"
             onClick={() => onEditPin(pin)}
-            style={{ border: '1px dashed var(--color-zinc-700)', borderRadius: '8px', padding: '10px 12px', backgroundColor: 'rgba(245, 158, 11, 0.08)', color: 'var(--color-amber-500)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+            style={{ border: '1px dashed var(--color-zinc-700)', borderRadius: '8px', padding: '10px 12px', backgroundColor: 'rgba(197, 160, 89, 0.08)', color: 'var(--color-amber-500)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
           >
             Add verification photos from Edit Pin
           </button>
@@ -134,7 +134,7 @@ export default function BlueprintSelectedPinCard({
         <button
           onClick={() => onEditPin(pin)}
           className="btn"
-          style={{ backgroundColor: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.2)', color: 'var(--color-amber-500)', fontSize: '0.75rem', padding: '6px 12px', fontWeight: 600 }}
+          style={{ backgroundColor: 'rgba(197, 160, 89, 0.12)', border: '1px solid rgba(197, 160, 89, 0.2)', color: 'var(--color-amber-500)', fontSize: '0.75rem', padding: '6px 12px', fontWeight: 600 }}
         >
           Edit Pin
         </button>

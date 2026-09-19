@@ -511,8 +511,8 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         {/* Real-Time Duplicate Warning */}
         {duplicateWarning && (
           <div style={{
-            backgroundColor: 'rgba(245, 158, 11, 0.04)',
-            border: '1px solid rgba(245, 158, 11, 0.25)',
+            backgroundColor: 'rgba(197, 160, 89, 0.04)',
+            border: '1px solid rgba(197, 160, 89, 0.25)',
             borderLeft: '4px solid var(--color-amber-500)',
             borderRadius: '8px',
             padding: '10px 12px',
