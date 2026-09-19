@@ -70,8 +70,8 @@ export default function SettingsProjectProfilesCard({
                       justifyContent: 'space-between',
                       padding: '8px 12px',
                       borderRadius: '6px',
-                      backgroundColor: isActive ? 'rgba(197, 160, 89, 0.05)' : 'var(--color-zinc-900)',
-                      border: isActive ? '1px solid rgba(197, 160, 89, 0.3)' : '1px solid var(--color-zinc-800)',
+                      backgroundColor: isActive ? 'rgba(241, 215, 167, 0.05)' : 'var(--color-zinc-900)',
+                      border: isActive ? '1px solid rgba(241, 215, 167, 0.3)' : '1px solid var(--color-zinc-800)',
                       fontSize: '0.85rem'
                     }}
                   >

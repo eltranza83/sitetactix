@@ -14,7 +14,7 @@ export default function DocumentCard({ file, folderName, error, onOpen }) {
     if (error) return <AlertTriangle size={18} style={{ color: '#ef4444' }} />;
     if (isSheet) return <FileSpreadsheet size={18} style={{ color: '#22c55e' }} />;
     if (isImage) return <ImageIcon size={18} style={{ color: '#a855f7' }} />;
-    if (isPdf) return <FileText size={18} style={{ color: '#C5A059' }} />;
+    if (isPdf) return <FileText size={18} style={{ color: '#F1D7A7' }} />;
     return <FileText size={18} style={{ color: '#60a5fa' }} />;
   };
 

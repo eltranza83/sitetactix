@@ -181,8 +181,8 @@ export default function IssueCard({
     } else if (priority === 'medium') {
       text = 'Medium';
       color = '#F1D7A7';
-      bg = 'rgba(197, 160, 89, 0.08)';
-      border = 'rgba(197, 160, 89, 0.2)';
+      bg = 'rgba(241, 215, 167, 0.08)';
+      border = 'rgba(241, 215, 167, 0.2)';
     }
 
     return (
@@ -549,8 +549,8 @@ export default function IssueCard({
                   <span style={{
                     fontSize: '0.68rem',
                     color: 'var(--color-amber-400)',
-                    backgroundColor: 'rgba(197, 160, 89, 0.1)',
-                    border: '1px solid rgba(197, 160, 89, 0.25)',
+                    backgroundColor: 'rgba(241, 215, 167, 0.1)',
+                    border: '1px solid rgba(241, 215, 167, 0.25)',
                     padding: '1px 6px',
                     borderRadius: '4px',
                     fontWeight: 600,
@@ -803,8 +803,8 @@ export default function IssueCard({
                   <span style={{
                     fontSize: '0.68rem',
                     color: 'var(--color-amber-400)',
-                    backgroundColor: 'rgba(197, 160, 89, 0.1)',
-                    border: '1px solid rgba(197, 160, 89, 0.25)',
+                    backgroundColor: 'rgba(241, 215, 167, 0.1)',
+                    border: '1px solid rgba(241, 215, 167, 0.25)',
                     padding: '1px 6px',
                     borderRadius: '4px',
                     fontWeight: 600,
@@ -887,8 +887,8 @@ export default function IssueCard({
                 onClick={() => setShowFixForm(true)}
                 className="btn"
                 style={{
-                  backgroundColor: 'rgba(197, 160, 89, 0.12)',
-                  border: '1px solid rgba(197, 160, 89, 0.35)',
+                  backgroundColor: 'rgba(241, 215, 167, 0.12)',
+                  border: '1px solid rgba(241, 215, 167, 0.35)',
                   color: 'var(--color-amber-400)',
                   fontSize: '0.66rem',
                   fontWeight: 700,

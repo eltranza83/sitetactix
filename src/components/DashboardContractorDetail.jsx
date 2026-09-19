@@ -65,8 +65,8 @@ export default function DashboardContractorDetail({
       background: 'linear-gradient(145deg, #18181c 0%, #0d0d0f 100%)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
-      border: '1px solid rgba(197, 160, 89, 0.38)',
-      boxShadow: '0 12px 32px rgba(0, 0, 0, 0.7), 0 0 20px rgba(197, 160, 89, 0.12)',
+      border: '1px solid rgba(241, 215, 167, 0.38)',
+      boxShadow: '0 12px 32px rgba(0, 0, 0, 0.7), 0 0 20px rgba(241, 215, 167, 0.12)',
       borderRadius: '16px',
       padding: '16px 14px',
       display: 'flex',
@@ -90,7 +90,7 @@ export default function DashboardContractorDetail({
               onClick={() => onViewPhasePhotos({ category: selectedSub.category, phase: selectedSub.phase })}
               style={{
                 background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(197, 160, 89, 0.35)',
+                border: '1px solid rgba(241, 215, 167, 0.35)',
                 borderRadius: '20px',
                 color: 'var(--color-amber-400)',
                 fontSize: '0.7rem',
@@ -110,7 +110,7 @@ export default function DashboardContractorDetail({
               type="button"
               onClick={handleCopySummary}
               style={{
-                background: 'linear-gradient(135deg, #c5a059 0%, #a37c35 100%)',
+                background: 'linear-gradient(135deg, #f1d7a7 0%, #a37c35 100%)',
                 color: '#0a0a0a',
                 border: 'none',
                 borderRadius: '20px',
@@ -123,7 +123,7 @@ export default function DashboardContractorDetail({
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(197, 160, 89, 0.3)'
+                boxShadow: '0 2px 8px rgba(241, 215, 167, 0.3)'
               }}
             >
               {copied ? <Check size={13} style={{ color: '#000000' }} /> : <Copy size={13} />}
@@ -172,11 +172,11 @@ export default function DashboardContractorDetail({
             {safeFormatCurrency(selectedSub.totalLabor || selectedSub.totalPaid || 0)}
           </div>
         </div>
-        <div style={{ padding: '10px 4px', backgroundColor: 'rgba(197, 160, 89, 0.1)', border: '1px solid rgba(197, 160, 89, 0.35)', borderRadius: '10px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
+        <div style={{ padding: '10px 4px', backgroundColor: 'rgba(241, 215, 167, 0.1)', border: '1px solid rgba(241, 215, 167, 0.35)', borderRadius: '10px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
           <span style={{ fontSize: '0.64rem', color: 'var(--color-amber-400)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', display: 'block' }}>
             Balance
           </span>
-          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.remainingBalance), fontWeight: 800, color: 'var(--color-amber-400)', marginTop: '4px', textShadow: '0 0 10px rgba(197, 160, 89, 0.3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.remainingBalance), fontWeight: 800, color: 'var(--color-amber-400)', marginTop: '4px', textShadow: '0 0 10px rgba(241, 215, 167, 0.3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {safeFormatCurrency(selectedSub.remainingBalance)}
           </div>
         </div>

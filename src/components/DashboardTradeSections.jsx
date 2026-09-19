@@ -46,10 +46,10 @@ function PhaseMetricGroup({ sub }) {
       <div style={{
         fontWeight: 700,
         color: 'var(--color-amber-400)',
-        backgroundColor: 'rgba(197, 160, 89, 0.1)',
+        backgroundColor: 'rgba(241, 215, 167, 0.1)',
         padding: '3px 4px',
         borderRadius: '5px',
-        border: '1px solid rgba(197, 160, 89, 0.2)',
+        border: '1px solid rgba(241, 215, 167, 0.2)',
         fontSize: 'clamp(0.58rem, 2vw, 0.66rem)',
         textAlign: 'center',
         whiteSpace: 'nowrap',
@@ -132,13 +132,13 @@ export default function DashboardTradeSections({
             <div
               key={cat.name}
               style={{
-                border: isExpanded ? '1px solid rgba(197, 160, 89, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+                border: isExpanded ? '1px solid rgba(241, 215, 167, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: '10px',
                 overflow: 'hidden',
                 backgroundColor: 'rgba(24, 24, 27, 0.85)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
-                boxShadow: isExpanded ? '0 6px 20px rgba(0, 0, 0, 0.3), 0 0 12px rgba(197, 160, 89, 0.08)' : '0 2px 8px rgba(0, 0, 0, 0.2)',
+                boxShadow: isExpanded ? '0 6px 20px rgba(0, 0, 0, 0.3), 0 0 12px rgba(241, 215, 167, 0.08)' : '0 2px 8px rgba(0, 0, 0, 0.2)',
                 transition: 'all 0.25s ease'
               }}
             >
@@ -166,7 +166,7 @@ export default function DashboardTradeSections({
                     textTransform: 'uppercase',
                     letterSpacing: '0.02em',
                     lineHeight: '1.2',
-                    textShadow: '0 0 12px rgba(197, 160, 89, 0.25)',
+                    textShadow: '0 0 12px rgba(241, 215, 167, 0.25)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
@@ -187,10 +187,10 @@ export default function DashboardTradeSections({
                   <div style={{
                     fontWeight: 700,
                     color: 'var(--color-amber-400)',
-                    backgroundColor: 'rgba(197, 160, 89, 0.12)',
+                    backgroundColor: 'rgba(241, 215, 167, 0.12)',
                     padding: '3px 4px',
                     borderRadius: '5px',
-                    border: '1px solid rgba(197, 160, 89, 0.25)',
+                    border: '1px solid rgba(241, 215, 167, 0.25)',
                     fontSize: 'clamp(0.58rem, 2vw, 0.68rem)',
                     textAlign: 'center',
                     whiteSpace: 'nowrap',

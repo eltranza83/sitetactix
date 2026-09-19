@@ -34,8 +34,8 @@ function writePdfLoadingState(newWindow) {
       <div style="
         width: 28px;
         height: 28px;
-        border: 3px solid rgba(197, 160, 89, 0.2);
-        border-top-color: #C5A059;
+        border: 3px solid rgba(241, 215, 167, 0.2);
+        border-top-color: #F1D7A7;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       "></div>

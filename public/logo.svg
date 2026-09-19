@@ -1,10 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="adepec-champagne" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D2B075"/>
+      <stop offset="50%" stop-color="#F1D7A7"/>
+      <stop offset="100%" stop-color="#E1C28C"/>
+    </linearGradient>
+  </defs>
   <!-- Premium dark background matching the PWA theme -->
   <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
   
-  <!-- Scale and center the brand logo house icon using solid gold for bulletproof launcher rendering -->
+  <!-- Scale and center the ADEPEC champagne-gold house icon -->
   <g transform="translate(106, 106) scale(3.0)">
-    <path d="M50 15 L80 45 V85 H71 V45 L50 24 L29 45 V85 H20 V45 Z" fill="#C5A059" />
-    <path fillRule="evenodd" d="M50 33.5 L66.5 50 V85 H50.5 V73 H49.5 V85 H33.5 V50 Z M50 42.5 L57.5 50 V63 H42.5 V50 Z" fill="#C5A059" />
+    <path d="M50 15 L80 45 V85 H71 V45 L50 24 L29 45 V85 H20 V45 Z" fill="url(#adepec-champagne)" />
+    <path fill-rule="evenodd" d="M50 33.5 L66.5 50 V85 H50.5 V73 H49.5 V85 H33.5 V50 Z M50 42.5 L57.5 50 V63 H42.5 V50 Z" fill="url(#adepec-champagne)" />
   </g>
 </svg>

@@ -2,9 +2,9 @@
   <defs>
     <!-- Gold gradient for digital display/printing -->
     <linearGradient id="gold-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#C5A059"/>
+      <stop offset="0%" stop-color="#D2B075"/>
       <stop offset="50%" stop-color="#F1D7A7"/>
-      <stop offset="100%" stop-color="#B28741"/>
+      <stop offset="100%" stop-color="#E1C28C"/>
     </linearGradient>
     
     <!-- Link the Syne font so it renders correctly -->
@@ -43,8 +43,8 @@
   <text x="100" y="172" class="logo-sub">HOMES</text>
   
   <!-- Left horizontal gold bar (shifted left by 2px to balance the gaps visually based on font metrics) -->
-  <line x1="22" y1="168" x2="61" y2="168" stroke="#C5A059" stroke-width="1.5"/>
+  <line x1="22" y1="168" x2="61" y2="168" stroke="#D2B075" stroke-width="1.5"/>
   
   <!-- Right horizontal gold bar (shifted left by 2px to balance the gaps visually based on font metrics) -->
-  <line x1="135" y1="168" x2="174" y2="168" stroke="#C5A059" stroke-width="1.5"/>
+  <line x1="135" y1="168" x2="174" y2="168" stroke="#D2B075" stroke-width="1.5"/>
 </svg>

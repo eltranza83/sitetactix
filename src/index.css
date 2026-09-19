@@ -15,12 +15,12 @@
   --color-zinc-900: #121212;
   --color-zinc-950: #0a0a0a;
 
-  --color-amber-500: #C5A059;
-  --color-amber-600: #B28741;
-  --color-amber-700: #936B28;
+  --color-amber-500: #F1D7A7;
+  --color-amber-600: #F1D7A7;
+  --color-amber-700: #F1D7A7;
   --color-champagne-light: #F1D7A7;
 
-  --color-accent: #C5A059;
+  --color-accent: #F1D7A7;
   --color-accent-rgb: 197, 160, 89;
 
   --color-blue-500: #3b82f6;
@@ -41,7 +41,7 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-amber: 0 4px 14px 0 rgba(197, 160, 89, 0.2);
+  --shadow-amber: 0 4px 14px 0 rgba(241, 215, 167, 0.2);
 
   --transition-all: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --border-radius: 12px;
@@ -304,7 +304,7 @@ button, input, select, textarea {
 .nav-item.active {
   color: var(--color-amber-500);
   font-weight: 700;
-  text-shadow: 0 0 12px rgba(197, 160, 89, 0.35);
+  text-shadow: 0 0 12px rgba(241, 215, 167, 0.35);
 }
 
 .nav-item.active::after {
@@ -334,12 +334,12 @@ button, input, select, textarea {
 .login-illustration {
   width: 140px;
   height: 140px;
-  background: radial-gradient(circle, rgba(197, 160, 89, 0.15) 0%, rgba(24, 24, 27, 0) 70%);
+  background: radial-gradient(circle, rgba(241, 215, 167, 0.15) 0%, rgba(24, 24, 27, 0) 70%);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 1px dashed rgba(197, 160, 89, 0.3);
+  border: 1px dashed rgba(241, 215, 167, 0.3);
   animation: pulse 3s infinite ease-in-out;
 }
 
@@ -393,8 +393,8 @@ button, input, select, textarea {
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
-  border-color: #C5A059; /* Brand Amber/Gold border on focus */
-  box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.2); /* Soft Gold focus glow */
+  border-color: #F1D7A7; /* Brand Amber/Gold border on focus */
+  box-shadow: 0 0 0 2px rgba(241, 215, 167, 0.2); /* Soft Gold focus glow */
 }
 
 /* Make native calendar date picker icon highly visible and golden-themed */
@@ -441,7 +441,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background-color: rgba(197, 160, 89, 0.1);
+  background-color: rgba(241, 215, 167, 0.1);
   color: var(--color-amber-500);
   font-weight: 700;
   font-size: 0.75rem;
@@ -557,7 +557,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .cost-toggle-btn.active.material {
-  background-color: rgba(197, 160, 89, 0.15);
+  background-color: rgba(241, 215, 167, 0.15);
   color: var(--color-amber-500);
 }
 
@@ -915,7 +915,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .mini-toggle-btn.material.active {
-  background-color: rgba(197, 160, 89, 0.15);
+  background-color: rgba(241, 215, 167, 0.15);
   color: var(--color-amber-500);
 }
 
@@ -946,8 +946,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .project-profile-row:hover {
-  background-color: rgba(197, 160, 89, 0.08) !important;
-  border-color: rgba(197, 160, 89, 0.4) !important;
+  background-color: rgba(241, 215, 167, 0.08) !important;
+  border-color: rgba(241, 215, 167, 0.4) !important;
 }
 
 /* X-Ray floor plan toolbar */
@@ -1071,15 +1071,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 @keyframes badgeBouncePop {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(197, 160, 89, 0.6);
+    box-shadow: 0 0 0 0 rgba(241, 215, 167, 0.6);
   }
   30% {
     transform: scale(1.4);
-    box-shadow: 0 0 16px 6px rgba(197, 160, 89, 0.4);
+    box-shadow: 0 0 16px 6px rgba(241, 215, 167, 0.4);
   }
   70% {
     transform: scale(0.9);
-    box-shadow: 0 0 8px 2px rgba(197, 160, 89, 0.2);
+    box-shadow: 0 0 8px 2px rgba(241, 215, 167, 0.2);
   }
   100% {
     transform: scale(1);
@@ -1233,28 +1233,28 @@ button:active, .btn:active {
 
 .card-glass-gold {
   background: linear-gradient(145deg, rgba(24, 24, 28, 0.95) 0%, rgba(12, 12, 14, 0.98) 100%) !important;
-  border: 1px solid rgba(197, 160, 89, 0.28) !important;
-  border-top: 2px solid rgba(197, 160, 89, 0.75) !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(197, 160, 89, 0.12) !important;
+  border: 1px solid rgba(241, 215, 167, 0.28) !important;
+  border-top: 2px solid rgba(241, 215, 167, 0.75) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(241, 215, 167, 0.12) !important;
   backdrop-filter: blur(18px) !important;
   -webkit-backdrop-filter: blur(18px) !important;
 }
 
 .gold-badge-glow {
-  box-shadow: 0 0 12px rgba(197, 160, 89, 0.25);
+  box-shadow: 0 0 12px rgba(241, 215, 167, 0.25);
 }
 
 .btn-gold-action {
-  background: linear-gradient(135deg, rgba(197, 160, 89, 0.18) 0%, rgba(178, 135, 65, 0.1) 100%) !important;
-  border: 1px solid rgba(197, 160, 89, 0.4) !important;
+  background: linear-gradient(135deg, rgba(241, 215, 167, 0.18) 0%, rgba(241, 215, 167, 0.1) 100%) !important;
+  border: 1px solid rgba(241, 215, 167, 0.4) !important;
   color: var(--color-champagne-light) !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .btn-gold-action:hover {
-  background: rgba(197, 160, 89, 0.25) !important;
-  border-color: rgba(197, 160, 89, 0.6) !important;
-  box-shadow: 0 0 10px rgba(197, 160, 89, 0.2) !important;
+  background: rgba(241, 215, 167, 0.25) !important;
+  border-color: rgba(241, 215, 167, 0.6) !important;
+  box-shadow: 0 0 10px rgba(241, 215, 167, 0.2) !important;
 }
 
 

@@ -4,7 +4,7 @@ import { Image } from 'lucide-react';
 export default function BlueprintSetupPrompt({ blueprintInputRef, onUploadBlueprint }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', padding: '40px 20px', border: '1px dashed var(--color-zinc-800)', borderRadius: '12px', backgroundColor: 'var(--color-zinc-900)' }}>
-      <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(197, 160, 89, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-amber-500)' }}>
+      <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(241, 215, 167, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-amber-500)' }}>
         <Image size={24} style={{ margin: 'auto' }} />
       </div>
       <div style={{ textAlign: 'center' }}>

@@ -190,7 +190,7 @@ export default function MemoryVault({ projectId, projectName }) {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              boxShadow: '0 2px 8px rgba(197, 160, 89, 0.25)'
+              boxShadow: '0 2px 8px rgba(241, 215, 167, 0.25)'
             }}
           >
             <Plus size={16} />
@@ -354,7 +354,7 @@ export default function MemoryVault({ projectId, projectName }) {
                       style={{
                         padding: '2px 8px',
                         borderRadius: '4px',
-                        backgroundColor: mem.isGlobal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(197, 160, 89, 0.15)',
+                        backgroundColor: mem.isGlobal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(241, 215, 167, 0.15)',
                         color: mem.isGlobal ? '#60a5fa' : 'var(--color-amber-400)',
                         fontSize: '0.7rem',
                         fontWeight: 800,

@@ -16,8 +16,8 @@ export default function DashboardPhotoReminders({
         <div
           key={rem.id}
           style={{
-            background: 'linear-gradient(135deg, rgba(197, 160, 89, 0.05) 0%, rgba(0,0,0,0) 100%)',
-            border: '1px solid rgba(197, 160, 89, 0.2)',
+            background: 'linear-gradient(135deg, rgba(241, 215, 167, 0.05) 0%, rgba(0,0,0,0) 100%)',
+            border: '1px solid rgba(241, 215, 167, 0.2)',
             borderRadius: '10px',
             padding: '12px 14px',
             display: 'flex',
@@ -27,7 +27,7 @@ export default function DashboardPhotoReminders({
         >
           <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
             <div style={{
-              backgroundColor: 'rgba(197, 160, 89, 0.15)',
+              backgroundColor: 'rgba(241, 215, 167, 0.15)',
               color: 'var(--color-amber-500)',
               padding: '6px',
               borderRadius: '50%',
@@ -49,7 +49,7 @@ export default function DashboardPhotoReminders({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', borderTop: '1px solid rgba(197, 160, 89, 0.05)', paddingTop: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', borderTop: '1px solid rgba(241, 215, 167, 0.05)', paddingTop: '8px' }}>
             <button
               type="button"
               onClick={() => onSnoozeReminder(rem.phase)}

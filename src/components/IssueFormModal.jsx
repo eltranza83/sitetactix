@@ -299,8 +299,8 @@ function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{
-            border: '1px solid rgba(197, 160, 89, 0.24)',
-            backgroundColor: 'rgba(197, 160, 89, 0.07)',
+            border: '1px solid rgba(241, 215, 167, 0.24)',
+            backgroundColor: 'rgba(241, 215, 167, 0.07)',
             borderRadius: '10px',
             padding: '10px 12px',
             display: 'grid',
@@ -364,9 +364,9 @@ function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
                   activeBg = 'rgba(239, 68, 68, 0.12)';
                   activeBorder = '#ef4444';
                 } else if (level === 'medium') {
-                  color = '#C5A059';
-                  activeBg = 'rgba(197, 160, 89, 0.12)';
-                  activeBorder = '#C5A059';
+                  color = '#F1D7A7';
+                  activeBg = 'rgba(241, 215, 167, 0.12)';
+                  activeBorder = '#F1D7A7';
                 }
 
                 return (
@@ -399,8 +399,8 @@ function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
             <div style={{
               padding: '10px 12px',
               borderRadius: '8px',
-              border: '1px solid rgba(197, 160, 89, 0.25)',
-              backgroundColor: 'rgba(197, 160, 89, 0.08)',
+              border: '1px solid rgba(241, 215, 167, 0.25)',
+              backgroundColor: 'rgba(241, 215, 167, 0.08)',
               color: 'var(--color-amber-400)',
               fontSize: '0.78rem',
               fontWeight: 600

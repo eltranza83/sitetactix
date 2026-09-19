@@ -488,9 +488,9 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         {/* Manual Expense / No Receipt Banner */}
         {(formData.receiptStatus === 'no_receipt' || formData.provenance === 'manual_user_entry' || formData.documentType === 'manual_expense') && (
           <div style={{
-            backgroundColor: 'rgba(197, 160, 89, 0.08)',
-            border: '1px solid rgba(197, 160, 89, 0.35)',
-            borderLeft: '4px solid #C5A059',
+            backgroundColor: 'rgba(241, 215, 167, 0.08)',
+            border: '1px solid rgba(241, 215, 167, 0.35)',
+            borderLeft: '4px solid #F1D7A7',
             borderRadius: '8px',
             padding: '10px 12px',
             color: 'var(--color-zinc-100)',
@@ -501,9 +501,9 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
             gap: '8px',
             marginBottom: '4px'
           }}>
-            <span style={{ fontSize: '1rem', color: '#C5A059' }}>📝</span>
+            <span style={{ fontSize: '1rem', color: '#F1D7A7' }}>📝</span>
             <div>
-              <strong style={{ color: '#C5A059' }}>Self-Attested Manual Expense:</strong> No vendor receipt attached (Standard Voucher PDF will be generated on sync).
+              <strong style={{ color: '#F1D7A7' }}>Self-Attested Manual Expense:</strong> No vendor receipt attached (Standard Voucher PDF will be generated on sync).
             </div>
           </div>
         )}
@@ -511,8 +511,8 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         {/* Real-Time Duplicate Warning */}
         {duplicateWarning && (
           <div style={{
-            backgroundColor: 'rgba(197, 160, 89, 0.04)',
-            border: '1px solid rgba(197, 160, 89, 0.25)',
+            backgroundColor: 'rgba(241, 215, 167, 0.04)',
+            border: '1px solid rgba(241, 215, 167, 0.25)',
             borderLeft: '4px solid var(--color-amber-500)',
             borderRadius: '8px',
             padding: '10px 12px',
@@ -841,7 +841,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
           flexDirection: 'column', 
           gap: '8px', 
           border: '1px solid var(--color-zinc-800)', 
-          borderLeft: isSplit ? '3px solid #C5A059' : '3px solid var(--color-zinc-700)', /* Highlight left border */
+          borderLeft: isSplit ? '3px solid #F1D7A7' : '3px solid var(--color-zinc-700)', /* Highlight left border */
           padding: '10px 12px', 
           borderRadius: '8px', 
           backgroundColor: 'var(--color-zinc-900)',
@@ -958,10 +958,10 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                 borderRadius: '6px',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease-in-out',
-                backgroundColor: isSplit ? '#C5A059' : 'rgba(197, 160, 89, 0.08)',
-                color: isSplit ? '#000000' : '#C5A059',
-                border: isSplit ? '1px solid #C5A059' : '1px solid rgba(197, 160, 89, 0.4)',
-                boxShadow: isSplit ? '0 2px 8px rgba(197, 160, 89, 0.25)' : 'none',
+                backgroundColor: isSplit ? '#F1D7A7' : 'rgba(241, 215, 167, 0.08)',
+                color: isSplit ? '#000000' : '#F1D7A7',
+                border: isSplit ? '1px solid #F1D7A7' : '1px solid rgba(241, 215, 167, 0.4)',
+                boxShadow: isSplit ? '0 2px 8px rgba(241, 215, 167, 0.25)' : 'none',
               }}
             >
               {isSplit ? 'Split Active' : 'Enable Split'}
@@ -971,7 +971,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
           {isSplit && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--color-zinc-800)', paddingTop: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#C5A059' }}>Splits List</span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#F1D7A7' }}>Splits List</span>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <button
                     type="button"
@@ -986,7 +986,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                     type="button"
                     onClick={handleAddSplit}
                     className="btn btn-secondary"
-                    style={{ width: 'auto', padding: '3px 8px', fontSize: '0.68rem', borderColor: '#C5A059', color: '#C5A059' }}
+                    style={{ width: 'auto', padding: '3px 8px', fontSize: '0.68rem', borderColor: '#F1D7A7', color: '#F1D7A7' }}
                   >
                     + Add Split Row
                   </button>

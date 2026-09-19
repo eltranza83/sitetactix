@@ -534,10 +534,10 @@ export default function Scanner({ onDataExtracted, onError }) {
                 fill="rgba(0, 0, 0, 0.6)" 
                 fillRule="evenodd" 
               />
-              <line x1={c0.x*100} y1={c0.y*100} x2={c1.x*100} y2={c1.y*100} stroke="#C5A059" strokeWidth="0.8" />
-              <line x1={c1.x*100} y1={c1.y*100} x2={c2.x*100} y2={c2.y*100} stroke="#C5A059" strokeWidth="0.8" />
-              <line x1={c2.x*100} y1={c2.y*100} x2={c3.x*100} y2={c3.y*100} stroke="#C5A059" strokeWidth="0.8" />
-              <line x1={c3.x*100} y1={c3.y*100} x2={c0.x*100} y2={c0.y*100} stroke="#C5A059" strokeWidth="0.8" />
+              <line x1={c0.x*100} y1={c0.y*100} x2={c1.x*100} y2={c1.y*100} stroke="#F1D7A7" strokeWidth="0.8" />
+              <line x1={c1.x*100} y1={c1.y*100} x2={c2.x*100} y2={c2.y*100} stroke="#F1D7A7" strokeWidth="0.8" />
+              <line x1={c2.x*100} y1={c2.y*100} x2={c3.x*100} y2={c3.y*100} stroke="#F1D7A7" strokeWidth="0.8" />
+              <line x1={c3.x*100} y1={c3.y*100} x2={c0.x*100} y2={c0.y*100} stroke="#F1D7A7" strokeWidth="0.8" />
             </svg>
 
             {corners.map((c, idx) => (
@@ -551,7 +551,7 @@ export default function Scanner({ onDataExtracted, onError }) {
                   height: '28px',
                   marginLeft: '-14px',
                   marginTop: '-14px',
-                  backgroundColor: '#C5A059',
+                  backgroundColor: '#F1D7A7',
                   border: '2px solid #fff',
                   borderRadius: '50%',
                   cursor: 'grab',

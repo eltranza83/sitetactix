@@ -263,7 +263,7 @@ export default function App() {
             borderRadius: '20px',
             color: 'var(--color-amber-500)',
             cursor: 'pointer',
-            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.5), 0 0 10px rgba(197, 160, 89, 0.3)',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.5), 0 0 10px rgba(241, 215, 167, 0.3)',
             zIndex: 10
           }}
           title="Ask Jarvis"
@@ -278,9 +278,9 @@ export default function App() {
           <svg className="logo-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <defs>
               <linearGradient id="header-gold" x1="0%" y1="100%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#C5A059" />
+                <stop offset="0%" stopColor="#D2B075" />
                 <stop offset="50%" stopColor="#F1D7A7" />
-                <stop offset="100%" stopColor="#B28741" />
+                <stop offset="100%" stopColor="#E1C28C" />
               </linearGradient>
             </defs>
             <path d="M50 15 L80 45 V85 H71 V45 L50 24 L29 45 V85 H20 V45 Z" fill="url(#header-gold)" />
@@ -376,7 +376,7 @@ export default function App() {
                         style={{
                           width: '100%',
                           padding: '10px 12px',
-                          backgroundColor: isActive ? 'rgba(197, 160, 89, 0.05)' : 'transparent',
+                          backgroundColor: isActive ? 'rgba(241, 215, 167, 0.05)' : 'transparent',
                           border: 'none',
                           color: isActive ? 'var(--color-amber-400)' : 'var(--color-zinc-200)',
                           textAlign: 'left',
@@ -535,8 +535,8 @@ export default function App() {
                     display: 'flex', 
                     gap: '12px', 
                     alignItems: 'flex-start',
-                    border: '1px solid rgba(197, 160, 89, 0.25)',
-                    backgroundColor: 'rgba(197, 160, 89, 0.04)',
+                    border: '1px solid rgba(241, 215, 167, 0.25)',
+                    backgroundColor: 'rgba(241, 215, 167, 0.04)',
                     borderLeft: '4px solid var(--color-amber-500)'
                   }}>
                     <Sparkles size={20} style={{ color: 'var(--color-amber-500)', marginTop: '2px', flex: 'none' }} />

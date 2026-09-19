@@ -25,7 +25,7 @@ import { isPlaceholderProjectInfo } from '../services/projectInfoFormatter';
 export const TRADE_SECTIONS_CONFIG = {
   'Mechanicals_&_Utilities': {
     label: 'Mechanicals & Utilities',
-    color: '#C5A059',
+    color: '#F1D7A7',
     phases: ['Plumbing Rough-In', 'Electrical & Lighting', 'HVAC / AC Systems', 'Insulation & Alarms']
   },
   'Framing_&_Lumber': {
@@ -50,7 +50,7 @@ export const TRADE_SECTIONS_CONFIG = {
   },
   'House_Exterior_&_Yard': {
     label: 'House Exterior & Yard',
-    color: '#B28741',
+    color: '#F1D7A7',
     phases: ['Stucco & Masonry', 'Garage Doors', 'Driveway & Sidewalks', 'Cantera Stone Detail', 'Fencing & Gates', 'Landscaping & Irrigation']
   },
   'Project_Overhead_&_Bills': {

@@ -34,11 +34,11 @@ export default function DashboardKpiCards({ projectInfo = {} }) {
       </div>
 
       <div style={{
-        background: 'linear-gradient(135deg, rgba(197, 160, 89, 0.1) 0%, rgba(18, 18, 18, 0.95) 100%)',
+        background: 'linear-gradient(135deg, rgba(241, 215, 167, 0.1) 0%, rgba(18, 18, 18, 0.95) 100%)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        border: '1px solid rgba(197, 160, 89, 0.35)',
-        boxShadow: '0 4px 16px rgba(197, 160, 89, 0.12)',
+        border: '1px solid rgba(241, 215, 167, 0.35)',
+        boxShadow: '0 4px 16px rgba(241, 215, 167, 0.12)',
         borderRadius: '10px',
         padding: '10px 4px',
         display: 'flex',
@@ -48,7 +48,7 @@ export default function DashboardKpiCards({ projectInfo = {} }) {
         textAlign: 'center'
       }}>
         <span style={{ fontSize: '0.58rem', fontWeight: 700, color: 'var(--color-amber-400)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.03em' }}>Draws Paid</span>
-        <span style={{ fontSize: 'clamp(0.78rem, 3.4vw, 0.98rem)', fontWeight: 800, color: 'var(--color-amber-400)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 0 10px rgba(197, 160, 89, 0.3)' }}>
+        <span style={{ fontSize: 'clamp(0.78rem, 3.4vw, 0.98rem)', fontWeight: 800, color: 'var(--color-amber-400)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 0 10px rgba(241, 215, 167, 0.3)' }}>
           {safeFormat(projectInfo?.totalSpent || 0)}
         </span>
         <span style={{ fontSize: '0.56rem', color: 'var(--color-zinc-400)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

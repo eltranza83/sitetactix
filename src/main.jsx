@@ -77,7 +77,7 @@ class AppErrorBoundary extends React.Component {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              style={{ padding: '10px 18px', backgroundColor: '#C5A059', color: '#171512', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
+              style={{ padding: '10px 18px', backgroundColor: '#F1D7A7', color: '#171512', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
             >
               Reload Page
             </button>

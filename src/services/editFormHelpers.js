@@ -48,7 +48,7 @@ export const ROUTING_TEST_SPLITS = Object.entries(TRADE_SECTIONS_CONFIG)
   ));
 
 export const ALLOCATION_COLORS = [
-  { text: '#C5A059', border: '#C5A059', bg: 'rgba(197, 160, 89, 0.12)', darkBg: 'rgba(197, 160, 89, 0.04)' },
+  { text: '#F1D7A7', border: '#F1D7A7', bg: 'rgba(241, 215, 167, 0.12)', darkBg: 'rgba(241, 215, 167, 0.04)' },
   { text: '#38bdf8', border: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)', darkBg: 'rgba(56, 189, 248, 0.04)' },
   { text: '#34d399', border: '#34d399', bg: 'rgba(52, 211, 153, 0.12)', darkBg: 'rgba(52, 211, 153, 0.04)' },
   { text: '#c084fc', border: '#c084fc', bg: 'rgba(192, 132, 252, 0.12)', darkBg: 'rgba(192, 132, 252, 0.04)' }

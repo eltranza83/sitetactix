@@ -68,7 +68,7 @@ export default function StagingCard({
             <FileText size={10} /> {metadata.type || 'Document'}{isCheck && metadata.checkNumber ? ` #${metadata.checkNumber}` : ''}
           </span>
           {metadata.splits && metadata.splits.length > 0 && (
-            <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', backgroundColor: 'rgba(197, 160, 89, 0.15)', color: '#C5A059', border: '1px solid rgba(197, 160, 89, 0.3)', flexShrink: 0 }}>
+            <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', backgroundColor: 'rgba(241, 215, 167, 0.15)', color: '#F1D7A7', border: '1px solid rgba(241, 215, 167, 0.3)', flexShrink: 0 }}>
               Split ({metadata.splits.length})
             </span>
           )}
@@ -143,9 +143,9 @@ export default function StagingCard({
             padding: '3px 8px', 
             borderRadius: '4px', 
             fontWeight: 700, 
-            backgroundColor: 'rgba(197, 160, 89, 0.1)', 
-            color: '#C5A059', 
-            border: '1px solid rgba(197, 160, 89, 0.25)' 
+            backgroundColor: 'rgba(241, 215, 167, 0.1)',
+            color: '#F1D7A7',
+            border: '1px solid rgba(241, 215, 167, 0.25)'
           }}>
             Phase: {metadata.tradePhase || 'None'}
           </span>

@@ -1334,7 +1334,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                       >
                         <span>📋 Activity Log</span>
                         {activityLogs.length > 0 && (
-                          <span style={{ fontSize: '0.70rem', padding: '1px 6px', borderRadius: '10px', backgroundColor: 'rgba(197, 160, 89, 0.2)', color: 'var(--color-amber-400)' }}>
+                          <span style={{ fontSize: '0.70rem', padding: '1px 6px', borderRadius: '10px', backgroundColor: 'rgba(241, 215, 167, 0.2)', color: 'var(--color-amber-400)' }}>
                             {activityLogs.length}
                           </span>
                         )}
@@ -1652,7 +1652,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                       borderRadius: '6px',
                       fontSize: '0.78rem',
                       fontWeight: 700,
-                      backgroundColor: 'rgba(197, 160, 89, 0.15)',
+                      backgroundColor: 'rgba(241, 215, 167, 0.15)',
                       color: 'var(--color-amber-400)',
                       border: '1px solid var(--color-amber-500)',
                       cursor: 'pointer',
@@ -1815,8 +1815,8 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                                 const isWeather = src.includes('Weather');
                                 
                                 const icon = isDocs ? '📄 ' : isSheets ? '📊 ' : isMemory ? '🧠 ' : isReminders ? '📝 ' : isDrive ? '📁 ' : isInspection ? '🏗️ ' : isWeather ? '🌦️ ' : '⚡ ';
-                                const bg = isDocs ? 'rgba(56, 189, 248, 0.2)' : isSheets ? 'rgba(16, 185, 129, 0.15)' : isMemory ? 'rgba(168, 85, 247, 0.15)' : isReminders ? 'rgba(197, 160, 89, 0.15)' : isDrive ? 'rgba(56, 189, 248, 0.15)' : 'rgba(234, 179, 8, 0.15)';
-                                const border = isDocs ? 'rgba(56, 189, 248, 0.4)' : isSheets ? 'rgba(16, 185, 129, 0.3)' : isMemory ? 'rgba(168, 85, 247, 0.3)' : isReminders ? 'rgba(197, 160, 89, 0.3)' : isDrive ? 'rgba(56, 189, 248, 0.3)' : 'rgba(234, 179, 8, 0.3)';
+                                const bg = isDocs ? 'rgba(56, 189, 248, 0.2)' : isSheets ? 'rgba(16, 185, 129, 0.15)' : isMemory ? 'rgba(168, 85, 247, 0.15)' : isReminders ? 'rgba(241, 215, 167, 0.15)' : isDrive ? 'rgba(56, 189, 248, 0.15)' : 'rgba(234, 179, 8, 0.15)';
+                                const border = isDocs ? 'rgba(56, 189, 248, 0.4)' : isSheets ? 'rgba(16, 185, 129, 0.3)' : isMemory ? 'rgba(168, 85, 247, 0.3)' : isReminders ? 'rgba(241, 215, 167, 0.3)' : isDrive ? 'rgba(56, 189, 248, 0.3)' : 'rgba(234, 179, 8, 0.3)';
                                 const color = isDocs ? '#38bdf8' : isSheets ? '#6ee7b7' : isMemory ? '#d8b4fe' : isReminders ? '#F1D7A7' : isDrive ? '#7dd3fc' : '#F1D7A7';
 
                                 return (
@@ -1859,7 +1859,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                               </span>
                               {m.telemetry.latencyMetrics.retryOccurred && (
                                 <>
-                                  <span style={{ backgroundColor: 'rgba(197, 160, 89, 0.15)', border: '1px solid rgba(197, 160, 89, 0.3)', color: '#F1D7A7', padding: '1px 5px', borderRadius: '3px', fontWeight: 700 }}>
+                                  <span style={{ backgroundColor: 'rgba(241, 215, 167, 0.15)', border: '1px solid rgba(241, 215, 167, 0.3)', color: '#F1D7A7', padding: '1px 5px', borderRadius: '3px', fontWeight: 700 }}>
                                     🔄 Retried ({m.telemetry.latencyMetrics.retryReason}): +{m.telemetry.latencyMetrics.attempt2DurationMs}ms
                                   </span>
                                   <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '1px 5px', borderRadius: '3px' }}>
@@ -1871,7 +1871,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                           )}
 
                           {m.telemetry.toolsExecuted && m.telemetry.toolsExecuted.length > 0 ? (
-                            <div style={{ marginTop: '5px', backgroundColor: 'rgba(0, 0, 0, 0.45)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(197, 160, 89, 0.3)' }}>
+                            <div style={{ marginTop: '5px', backgroundColor: 'rgba(0, 0, 0, 0.45)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(241, 215, 167, 0.3)' }}>
                               <div style={{ fontWeight: 800, color: 'var(--color-amber-400)', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 🛠️ Tools Called ({m.telemetry.toolsExecuted.length}):
                               </div>
@@ -2139,7 +2139,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                     ? 'rgba(34, 197, 94, 0.25)'
                     : (voiceState === VOICE_STATES.SPEAKING)
                     ? 'rgba(239, 68, 68, 0.25)'
-                    : 'rgba(197, 160, 89, 0.15)',
+                    : 'rgba(241, 215, 167, 0.15)',
                   border: '1px solid ' + (
                     (voiceState === VOICE_STATES.LISTENING || voiceState === VOICE_STATES.AUTO_LISTENING)
                       ? '#22c55e'
@@ -2599,7 +2599,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
 
                     {/* Tools Invoked & Data Returned */}
                     {log.toolsExecuted && log.toolsExecuted.length > 0 && (
-                      <div style={{ backgroundColor: 'rgba(0,0,0,0.4)', padding: '8px', borderRadius: '6px', marginTop: '4px', border: '1px solid rgba(197, 160, 89, 0.3)' }}>
+                      <div style={{ backgroundColor: 'rgba(0,0,0,0.4)', padding: '8px', borderRadius: '6px', marginTop: '4px', border: '1px solid rgba(241, 215, 167, 0.3)' }}>
                         <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-amber-400)', marginBottom: '4px' }}>
                           🛠️ Tools Invoked ({log.toolsExecuted.length}):
                         </div>

@@ -224,7 +224,7 @@ export default function Inspections({ activeProject, selectedFolder }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#f43f5e' }}>
               <AlertTriangle size={14} /> {fixCount} Needs Fix
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#C5A059' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#F1D7A7' }}>
               <Clock size={14} /> {pendingCount} Pending
             </div>
           </div>
@@ -292,7 +292,7 @@ export default function Inspections({ activeProject, selectedFolder }) {
                 key={catName}
                 style={{
                   background: 'var(--color-zinc-950)',
-                  border: unpassedCriticalCount > 0 ? '1px solid rgba(197, 160, 89, 0.4)' : '1px solid var(--color-zinc-800)',
+                  border: unpassedCriticalCount > 0 ? '1px solid rgba(241, 215, 167, 0.4)' : '1px solid var(--color-zinc-800)',
                   borderRadius: '12px',
                   overflow: 'hidden'
                 }}
@@ -302,7 +302,7 @@ export default function Inspections({ activeProject, selectedFolder }) {
                   onClick={() => toggleCategoryCollapse(catName)}
                   style={{
                     padding: '12px 14px',
-                    background: unpassedCriticalCount > 0 ? 'rgba(197, 160, 89, 0.08)' : 'var(--color-zinc-900)',
+                    background: unpassedCriticalCount > 0 ? 'rgba(241, 215, 167, 0.08)' : 'var(--color-zinc-900)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -312,7 +312,7 @@ export default function Inspections({ activeProject, selectedFolder }) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <Folder size={18} style={{ color: unpassedCriticalCount > 0 ? '#C5A059' : 'var(--color-accent)' }} />
+                    <Folder size={18} style={{ color: unpassedCriticalCount > 0 ? '#F1D7A7' : 'var(--color-accent)' }} />
                     <span style={{ fontSize: '0.92rem', fontWeight: 700, color: '#fff' }}>
                       {catName}
                     </span>
@@ -320,7 +320,7 @@ export default function Inspections({ activeProject, selectedFolder }) {
                       {catTotal} {catTotal === 1 ? 'Rule' : 'Rules'}
                     </span>
                     {unpassedCriticalCount > 0 && (
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(197, 160, 89, 0.22)', color: '#F1D7A7', border: '1px solid rgba(197, 160, 89, 0.45)', padding: '1px 8px', borderRadius: '10px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(241, 215, 167, 0.22)', color: '#F1D7A7', border: '1px solid rgba(241, 215, 167, 0.45)', padding: '1px 8px', borderRadius: '10px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                         🔥 {unpassedCriticalCount} Watch-Out{unpassedCriticalCount > 1 ? 's' : ''}
                       </span>
                     )}
@@ -331,9 +331,9 @@ export default function Inspections({ activeProject, selectedFolder }) {
                       {catPassed}/{catTotal} Passed {catFix > 0 && <span style={{ color: '#f43f5e' }}>({catFix} Fix)</span>}
                     </div>
                     {isCollapsed ? (
-                      <ChevronDown size={18} style={{ color: unpassedCriticalCount > 0 ? '#C5A059' : 'var(--color-zinc-400)' }} />
+                      <ChevronDown size={18} style={{ color: unpassedCriticalCount > 0 ? '#F1D7A7' : 'var(--color-zinc-400)' }} />
                     ) : (
-                      <ChevronUp size={18} style={{ color: unpassedCriticalCount > 0 ? '#C5A059' : 'var(--color-zinc-400)' }} />
+                      <ChevronUp size={18} style={{ color: unpassedCriticalCount > 0 ? '#F1D7A7' : 'var(--color-zinc-400)' }} />
                     )}
                   </div>
                 </div>
@@ -351,9 +351,9 @@ export default function Inspections({ activeProject, selectedFolder }) {
                           key={item.id}
                           className="card settings-card"
                           style={{
-                            borderLeft: isPassed ? '4px solid #10b981' : isFix ? '4px solid #f43f5e' : isCritical ? '4px solid #C5A059' : '4px solid var(--color-zinc-700)',
-                            border: isCritical && !isPassed ? '1px solid rgba(197, 160, 89, 0.4)' : '1px solid var(--color-zinc-800)',
-                            background: isCritical && !isPassed ? 'rgba(197, 160, 89, 0.04)' : 'var(--color-zinc-900)',
+                            borderLeft: isPassed ? '4px solid #10b981' : isFix ? '4px solid #f43f5e' : isCritical ? '4px solid #F1D7A7' : '4px solid var(--color-zinc-700)',
+                            border: isCritical && !isPassed ? '1px solid rgba(241, 215, 167, 0.4)' : '1px solid var(--color-zinc-800)',
+                            background: isCritical && !isPassed ? 'rgba(241, 215, 167, 0.04)' : 'var(--color-zinc-900)',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '10px',
@@ -362,8 +362,8 @@ export default function Inspections({ activeProject, selectedFolder }) {
                         >
                           {/* Critical Watch-Out Header Badge */}
                           {isCritical && !isPassed && (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(197, 160, 89, 0.2)', color: '#F1D7A7', fontSize: '0.68rem', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase', width: 'fit-content', letterSpacing: '0.04em' }}>
-                              <AlertTriangle size={13} style={{ color: '#C5A059' }} />
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(241, 215, 167, 0.2)', color: '#F1D7A7', fontSize: '0.68rem', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase', width: 'fit-content', letterSpacing: '0.04em' }}>
+                              <AlertTriangle size={13} style={{ color: '#F1D7A7' }} />
                               🔥 CRITICAL INSPECTOR WATCH-OUT
                             </div>
                           )}
@@ -394,8 +394,8 @@ export default function Inspections({ activeProject, selectedFolder }) {
                           {item.note && (item.note.startsWith('CRITICAL') || item.note.startsWith('Ensure') || item.note.startsWith('Check') || item.note.startsWith('BUILDER REMINDER')) && (
                             <div
                               style={{
-                                backgroundColor: 'rgba(197, 160, 89, 0.12)',
-                                border: '1px solid rgba(197, 160, 89, 0.4)',
+                                backgroundColor: 'rgba(241, 215, 167, 0.12)',
+                                border: '1px solid rgba(241, 215, 167, 0.4)',
                                 borderRadius: '8px',
                                 padding: '8px 12px',
                                 color: '#F1D7A7',
@@ -406,7 +406,7 @@ export default function Inspections({ activeProject, selectedFolder }) {
                                 gap: '8px'
                               }}
                             >
-                              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px', color: '#C5A059' }} />
+                              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px', color: '#F1D7A7' }} />
                               <span>{item.note}</span>
                             </div>
                           )}
@@ -440,9 +440,9 @@ export default function Inspections({ activeProject, selectedFolder }) {
                               style={{
                                 padding: '6px 4px',
                                 borderRadius: '8px',
-                                border: item.status === 'pending' ? '1.5px solid #C5A059' : '1px solid var(--color-zinc-800)',
-                                background: item.status === 'pending' ? 'rgba(197, 160, 89, 0.15)' : 'var(--color-zinc-950)',
-                                color: item.status === 'pending' ? '#C5A059' : 'var(--color-zinc-400)',
+                                border: item.status === 'pending' ? '1.5px solid #F1D7A7' : '1px solid var(--color-zinc-800)',
+                                background: item.status === 'pending' ? 'rgba(241, 215, 167, 0.15)' : 'var(--color-zinc-950)',
+                                color: item.status === 'pending' ? '#F1D7A7' : 'var(--color-zinc-400)',
                                 fontSize: '0.75rem',
                                 fontWeight: item.status === 'pending' ? 700 : 500,
                                 cursor: 'pointer',
@@ -548,15 +548,15 @@ export default function Inspections({ activeProject, selectedFolder }) {
             padding: '11px 16px',
             fontSize: '0.85rem',
             fontWeight: 700,
-            border: '1px dashed rgba(197, 160, 89, 0.4)',
-            background: 'rgba(197, 160, 89, 0.08)',
+            border: '1px dashed rgba(241, 215, 167, 0.4)',
+            background: 'rgba(241, 215, 167, 0.08)',
             color: '#F1D7A7',
             borderRadius: '12px',
             cursor: 'pointer',
             transition: 'all 0.2s ease'
           }}
         >
-          <Plus size={17} style={{ color: '#C5A059' }} /> Add Custom Rule to {activeStage.shortName}
+          <Plus size={17} style={{ color: '#F1D7A7' }} /> Add Custom Rule to {activeStage.shortName}
         </button>
       </div>
 

@@ -187,7 +187,7 @@ export default function InviteScreen({ onUnlocked, googleUser, authError, signin
               color: '#ffffff',
               margin: 0
             }}>
-              SiteT<span style={{ color: 'var(--color-amber-500)', textShadow: '0 0 14px rgba(197, 160, 89, 0.7)' }}>A</span>ct<span style={{ color: 'var(--color-amber-500)', textShadow: '0 0 14px rgba(197, 160, 89, 0.7)' }}>I</span>x
+              SiteT<span style={{ color: 'var(--color-amber-500)', textShadow: '0 0 14px rgba(241, 215, 167, 0.7)' }}>A</span>ct<span style={{ color: 'var(--color-amber-500)', textShadow: '0 0 14px rgba(241, 215, 167, 0.7)' }}>I</span>x
             </h1>
             <span style={{ 
               fontSize: '0.9rem', 
@@ -202,9 +202,9 @@ export default function InviteScreen({ onUnlocked, googleUser, authError, signin
           <svg style={{ width: '38px', height: '38px', marginTop: '4px' }} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <defs>
               <linearGradient id="invite-gold" x1="0%" y1="100%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#C5A059" />
+                <stop offset="0%" stopColor="#D2B075" />
                 <stop offset="50%" stopColor="#F1D7A7" />
-                <stop offset="100%" stopColor="#B28741" />
+                <stop offset="100%" stopColor="#E1C28C" />
               </linearGradient>
             </defs>
             <path d="M50 15 L80 45 V85 H71 V45 L50 24 L29 45 V85 H20 V45 Z" fill="url(#invite-gold)" />
@@ -257,8 +257,8 @@ export default function InviteScreen({ onUnlocked, googleUser, authError, signin
             <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ 
                 fontSize: '0.8rem', 
-                backgroundColor: 'rgba(197, 160, 89, 0.05)',
-                border: '1px solid rgba(197, 160, 89, 0.15)',
+                backgroundColor: 'rgba(241, 215, 167, 0.05)',
+                border: '1px solid rgba(241, 215, 167, 0.15)',
                 borderRadius: '8px', 
                 padding: '10px 12px',
                 color: 'var(--color-zinc-300)',

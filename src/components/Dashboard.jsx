@@ -327,7 +327,7 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
       return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981', border: 'rgba(16, 185, 129, 0.3)' };
     }
     if (clean.includes('progress') || (clean.includes('started') && !clean.includes('not'))) {
-      return { bg: 'rgba(197, 160, 89, 0.15)', text: '#C5A059', border: 'rgba(197, 160, 89, 0.3)' };
+      return { bg: 'rgba(241, 215, 167, 0.15)', text: '#F1D7A7', border: 'rgba(241, 215, 167, 0.3)' };
     }
     return { bg: 'rgba(113, 113, 122, 0.15)', text: '#a1a1aa', border: 'rgba(113, 113, 122, 0.3)' };
   };
@@ -391,9 +391,9 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
                 fontSize: '0.7rem', 
                 padding: '2px 8px', 
                 borderRadius: '12px', 
-                backgroundColor: 'rgba(197, 160, 89, 0.12)',
+                backgroundColor: 'rgba(241, 215, 167, 0.12)',
                 color: 'var(--color-amber-400)', 
-                border: '1px solid rgba(197, 160, 89, 0.25)',
+                border: '1px solid rgba(241, 215, 167, 0.25)',
                 fontWeight: 600
               }}>
                 Saved Snapshot
@@ -421,8 +421,8 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
 
       {error && !data && (
         <div className="settings-card" style={{
-          border: '1px solid rgba(197, 160, 89, 0.35)',
-          backgroundColor: 'rgba(197, 160, 89, 0.04)',
+          border: '1px solid rgba(241, 215, 167, 0.35)',
+          backgroundColor: 'rgba(241, 215, 167, 0.04)',
           padding: '24px 18px',
           borderRadius: '12px',
           display: 'flex',
@@ -433,7 +433,7 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
           margin: '12px 0'
         }}>
           <div style={{
-            backgroundColor: 'rgba(197, 160, 89, 0.15)',
+            backgroundColor: 'rgba(241, 215, 167, 0.15)',
             color: 'var(--color-amber-500)',
             padding: '12px',
             borderRadius: '50%',
@@ -468,7 +468,7 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
         <div
           style={{
             backgroundColor: 'rgba(24, 24, 27, 0.95)',
-            border: '1px solid rgba(197, 160, 89, 0.35)',
+            border: '1px solid rgba(241, 215, 167, 0.35)',
             borderRadius: '10px',
             padding: '10px 14px',
             display: 'flex',
@@ -497,9 +497,9 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
                   padding: '4px 10px',
                   fontSize: '0.72rem',
                   height: '28px',
-                  borderColor: 'rgba(197, 160, 89, 0.4)',
+                  borderColor: 'rgba(241, 215, 167, 0.4)',
                   color: 'var(--color-amber-400)',
-                  backgroundColor: 'rgba(197, 160, 89, 0.08)',
+                  backgroundColor: 'rgba(241, 215, 167, 0.08)',
                   whiteSpace: 'nowrap'
                 }}
               >
@@ -530,8 +530,8 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
 
       {sheetWarnings.length > 0 && (
         <div style={{
-          backgroundColor: 'rgba(197, 160, 89, 0.08)',
-          border: '1px solid rgba(197, 160, 89, 0.3)',
+          backgroundColor: 'rgba(241, 215, 167, 0.08)',
+          border: '1px solid rgba(241, 215, 167, 0.3)',
           borderRadius: '10px',
           padding: '12px 14px',
           display: 'flex',
