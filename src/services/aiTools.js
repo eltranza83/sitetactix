@@ -809,6 +809,12 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
           success: true,
           found: false,
           state: 'NOT_INITIALIZED',
+          totalItems: 0,
+          totalPurchased: 0,
+          grandTotal: 0,
+          totalNeeded: 0,
+          items: [],
+          sections: [],
           projectId: targetProjectId,
           source: `Firestore (${projLabel} Purchasing Checklist)`,
           message: `The purchasing checklist for ${projLabel} has not been initialized yet. I will not import or create items unless you explicitly ask me to.`

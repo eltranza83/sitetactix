@@ -1157,15 +1157,15 @@ const PURCHASE_QUERY = /\b(purchas|buy|bought|needed|need|checklist|hardware|fix
 const FINANCE_QUERY = /\b(budget|spent|spend|paid|payment|owe|owed|balance|expense|receipt|invoice|draw|quote|contract|capital|money)\b/i;
 const INSPECTION_QUERY = /\b(inspection|inspect|framing|rough[ -]?in|foundation|municipal|permit)\b/i;
 const FINISH_QUERY = /\b(finish|paint|color|sheen|stucco|stone|cantera|tile|grout|shingle|fixture spec)\b/i;
-const DRIVE_QUERY = /\b(file|folder|document|drive|blueprint|plan|permit|photo|pdf)\b/i;
+const DRIVE_QUERY = /\b(files?|folders?|documents?|drive|blueprints?|plans?|permits?|photos?|pdfs?)\b/i;
 
 function getPurchasingTrade(query) {
   const normalized = String(query || '').toLowerCase();
   if (/\b(quartz|countertop|sink)\b/.test(normalized)) return 'quartz';
-  if (/\b(electrical|electrician|lighting)\b/.test(normalized)) return 'electrical';
-  if (/\b(plumb|faucet|toilet|shower)\b/.test(normalized)) return 'plumbing';
+  if (/\b(electric\w*|lighting)\b/.test(normalized)) return 'electrical';
+  if (/\b(plumb\w*|faucets?|toilets?|showers?)\b/.test(normalized)) return 'plumbing';
   if (/\b(hvac|air conditioning|mechanical)\b/.test(normalized)) return 'hvac';
-  if (/\b(paint|drywall)\b/.test(normalized)) return 'paint_drywall';
+  if (/\b(paint\w*|drywall)\b/.test(normalized)) return 'paint_drywall';
   return '';
 }
 
@@ -1184,6 +1184,11 @@ export function getAuthoritativeReadRoute(query = '') {
   // on the established Jarvis path, using the dashboard the user refreshed.
   if (FINANCE_QUERY.test(normalized)) return null;
 
+  // Drive and file searches require conversational folder/file resolution
+  // and parameter extraction against the project drive tree. Keep Drive queries
+  // on the established Jarvis tool-calling path.
+  if (DRIVE_QUERY.test(normalized)) return null;
+
   // “Paint color” and similar specification questions are finishes, while a
   // request to buy paint belongs to purchasing.
   if (FINISH_QUERY.test(normalized) && /\b(finish|color|sheen|stucco|stone|cantera|grout|shingle|spec)\b/i.test(normalized)) {
@@ -1193,7 +1198,7 @@ export function getAuthoritativeReadRoute(query = '') {
     return {
       toolName: 'get_purchasing_list',
       args: { trade: getPurchasingTrade(normalized), unpurchasedOnly: /\b(need|needed|still)\b/i.test(normalized) },
-      source: 'Firestore purchasing checklist'
+      source: 'Firestore Purchasing Checklist'
     };
   }
   if (INSPECTION_QUERY.test(normalized)) {
@@ -1201,9 +1206,6 @@ export function getAuthoritativeReadRoute(query = '') {
   }
   if (FINISH_QUERY.test(normalized)) {
     return { toolName: 'get_project_finishes', args: {}, source: 'Firestore finishes and specifications' };
-  }
-  if (DRIVE_QUERY.test(normalized)) {
-    return { toolName: 'get_drive_files', args: {}, source: 'Google Drive' };
   }
   return null;
 }
@@ -1241,12 +1243,19 @@ async function answerFromAuthoritativeSource(route, query, projectContext, corre
 
     return {
       text,
-      telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verified Lookup', durationMs: Date.now() - startedAt, toolsExecuted: [{ name: route.toolName, args: route.args, result }] }
+      telemetry: {
+        modelUsed: 'Authoritative Source Gate',
+        source: route.source,
+        sourcesUsed: [route.source],
+        intent: 'Verified Lookup',
+        durationMs: Date.now() - startedAt,
+        toolsExecuted: [{ name: route.toolName, args: route.args, result }]
+      }
     };
   } catch {
     return {
       text: `I could not verify that against the ${route.source} right now, so I will not guess.`,
-      telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, intent: 'Verification Unavailable', durationMs: Date.now() - startedAt, toolsExecuted: [{ name: route.toolName, args: route.args }] }
+      telemetry: { modelUsed: 'Authoritative Source Gate', source: route.source, sourcesUsed: [route.source], intent: 'Verification Unavailable', durationMs: Date.now() - startedAt, toolsExecuted: [{ name: route.toolName, args: route.args }] }
     };
   }
 }

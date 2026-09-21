@@ -68,7 +68,7 @@ describe('Google Drive Purchasing Document Discovery & Source of Truth Suite', (
     assert.ok(loadedDoc.includes('DocumentName: Purchasing Checklist.docx'));
   });
 
-  test('2. get_purchasing_list recognizes existing Drive document and never reports uninitialized', async () => {
+  test('2. get_purchasing_list respects Firestore-first architecture and does not auto-ingest Drive docs on read', async () => {
     const res = await executeClientToolCall('get_purchasing_list', {
       projectId: 'Lot 3',
       trade: 'quartz'
@@ -78,12 +78,9 @@ describe('Google Drive Purchasing Document Discovery & Source of Truth Suite', (
       driveTree: MOCK_LOT_3_DRIVE_TREE
     });
 
-    assert.equal(res.hasExistingDocument, true);
-    assert.equal(res.documentId, 'file_lot3_purchasing_checklist_doc_789');
-    assert.equal(res.documentName, 'Purchasing Checklist.docx');
-    assert.equal(res.resourceType, RESOURCE_TYPES.PROJECT_PURCHASING);
-    assert.ok(res.message.includes('Purchasing Checklist'));
-    assert.ok(!res.message.includes('not initialized'));
+    assert.equal(res.state, 'NOT_INITIALIZED');
+    assert.equal(res.source, 'Firestore (Lot 3 Purchasing Checklist)');
+    assert.match(res.message, /not been initialized yet/);
   });
 
   test('3. Provenance Truth: Project queries attribute strictly to Project Purchasing Checklist, NOT Master', async () => {

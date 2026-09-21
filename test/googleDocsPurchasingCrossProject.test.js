@@ -76,7 +76,7 @@ DocumentId: doc_lot_55_secure_uuid
 `;
 
 describe('Cross-Project Isolation & Stable ID Hierarchy Suite', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
     if (purchasingService?.storage?.memoryStore?.clear) {
       purchasingService.storage.memoryStore.clear();
@@ -84,6 +84,9 @@ describe('Cross-Project Isolation & Stable ID Hierarchy Suite', () => {
     saveProjectPurchasingDoc(localStorage, 'lot_3', LOT_3_INITIAL_DOC);
     saveProjectPurchasingDoc(localStorage, 'lot_37', LOT_37_INITIAL_DOC);
     saveProjectPurchasingDoc(localStorage, 'lot_55', LOT_55_INITIAL_DOC);
+    await purchasingService.migrateFromGoogleDocContent('lot_3', LOT_3_INITIAL_DOC);
+    await purchasingService.migrateFromGoogleDocContent('lot_37', LOT_37_INITIAL_DOC);
+    await purchasingService.migrateFromGoogleDocContent('lot_55', LOT_55_INITIAL_DOC);
     resetActiveSessionCognitiveState();
   });
 

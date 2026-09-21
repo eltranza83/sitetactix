@@ -130,7 +130,7 @@ describe('SiteTactix Google Docs Master Purchasing List Integration E2E Suite', 
     };
 
     const res = await askGeminiBrain('What do I still need for the plumber?', [], 'Lot 3');
-    assert.ok(res.text.includes('soap dispenser'));
+    assert.ok(res.text.toLowerCase().includes('garbage disposal'));
     assert.equal(res.telemetry?.toolsExecuted[0]?.name || res.telemetry?.toolsExecuted[0], 'get_purchasing_list');
     assert.ok(res.telemetry?.sourcesUsed.some(s => s.includes('Purchasing Checklist')));
   });

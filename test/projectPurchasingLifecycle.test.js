@@ -141,7 +141,8 @@ describe('Project Purchasing Lifecycle & Identity Architecture Suite', () => {
     };
 
     const result = await executeClientToolCall('get_purchasing_list', {
-      projectId: testProj
+      projectId: testProj,
+      initializeIfMissing: true
     }, projectContext);
 
     assert.equal(result.success, false);
@@ -176,7 +177,8 @@ describe('Project Purchasing Lifecycle & Identity Architecture Suite', () => {
 
     const toolRes = await executeClientToolCall('get_purchasing_list', {
       projectId: 'Lot 55',
-      unpurchasedOnly: true
+      unpurchasedOnly: true,
+      initializeIfMissing: true
     }, projectContext);
 
     assert.equal(toolRes.found, true);
@@ -192,6 +194,7 @@ describe('Project Purchasing Lifecycle & Identity Architecture Suite', () => {
   });
 
   test('6. Lot 3 Preservation: Lot 3 remains intact with 20 items', async () => {
+    await purchasingService.initializeProjectFromMaster('lot_3');
     const projectContext = { projectId: 'lot_3', activeProjectName: 'Lot 3' };
     const res = await executeClientToolCall('get_purchasing_list', {
       projectId: 'lot_3'
@@ -293,7 +296,8 @@ describe('Project Purchasing Lifecycle & Identity Architecture Suite', () => {
     // 1. Initial query executes JIT ingestion
     const toolRes = await executeClientToolCall('get_purchasing_list', {
       projectId: 'Lot 55',
-      unpurchasedOnly: true
+      unpurchasedOnly: true,
+      initializeIfMissing: true
     }, projectContext);
 
     assert.equal(toolRes.found, true);
