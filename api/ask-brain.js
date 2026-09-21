@@ -1,7 +1,7 @@
 import { HttpError, errorResponse, jsonResponse, requireScannerAccess } from './_lib/firebase-auth.js';
 import { determineTaskModel, AI_CONFIG } from './_lib/ai-config.js';
 import { fetchWithExponentialBackoff } from './_lib/ai-retry.js';
-import { AI_TOOL_DECLARATIONS } from './_lib/ai-tools-definitions.js';
+import { AI_TOOL_DECLARATIONS, selectRelevantToolDeclarations } from './_lib/ai-tools-definitions.js';
 import { resolveServerGeminiKey, readAndValidateJsonBody, sanitizeUpstreamAiError } from './_lib/ai-auth.js';
 
 export async function POST(request) {
@@ -114,9 +114,11 @@ export async function POST(request) {
       }
     };
 
+    let activeTools = AI_TOOL_DECLARATIONS;
     if (!forceNoTools) {
+      activeTools = selectRelevantToolDeclarations(userQuery, formattedContents);
       payload.tools = [
-        { functionDeclarations: AI_TOOL_DECLARATIONS }
+        { functionDeclarations: activeTools }
       ];
     }
 
@@ -180,6 +182,11 @@ export async function POST(request) {
       console.log('[API ask-brain] Tools invoked count:', toolCalls.length, '| Tools:', toolCalls.map(t => t.name).join(', '));
     }
 
+    const usageMetadata = data.usageMetadata || null;
+    const tokensUsed = typeof usageMetadata?.totalTokenCount === 'number' ? usageMetadata.totalTokenCount : null;
+    const promptTokens = typeof usageMetadata?.promptTokenCount === 'number' ? usageMetadata.promptTokenCount : null;
+    const outputTokens = typeof usageMetadata?.candidatesTokenCount === 'number' ? usageMetadata.candidatesTokenCount : null;
+
     return jsonResponse({
       text,
       toolCalls: toolCalls.length > 0 ? toolCalls : null,
@@ -188,6 +195,12 @@ export async function POST(request) {
         intent,
         durationMs,
         toolCalls: toolCalls.map(tc => ({ name: tc.name, args: tc.args || {} })),
+        toolsActiveCount: activeTools.length,
+        totalToolsCount: AI_TOOL_DECLARATIONS.length,
+        tokensUsed,
+        promptTokens,
+        outputTokens,
+        usageMetadata,
         timestamp: new Date().toISOString()
       }
     });

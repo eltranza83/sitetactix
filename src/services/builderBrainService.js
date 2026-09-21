@@ -275,6 +275,82 @@ export function saveProjectDriveTree(projectId, tree) {
 export const loadDriveTree = loadProjectDriveTree;
 
 /**
+ * Detects which project data domains are required for the current query.
+ * Employs a fail-open design: if the query is broad, ambiguous, or empty (e.g. initial boot/tests),
+ * ALL modules are loaded to prevent regressions.
+ */
+export function detectRequiredGroundingDomains(query = '', conversationHistory = []) {
+  const q = String(query || '').trim().toLowerCase();
+
+  let historyText = '';
+  if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+    historyText = conversationHistory
+      .slice(-3)
+      .map(c => {
+        if (Array.isArray(c.parts)) return c.parts.map(p => p?.text || '').join(' ');
+        return c.text || c.content || '';
+      })
+      .join(' ')
+      .toLowerCase();
+  }
+  const combined = `${historyText} ${q}`.trim();
+
+  // Fail-Open: If query is broad, an audit, or unspecified, include ALL domains
+  const broadPatterns = [
+    /\b(audit|status|overview|summary|briefing|how are we doing|full report|everything|all phases|entire project|whole project|update on lot|status of lot|check everything|project update)\b/i
+  ];
+  if (!q || broadPatterns.some(p => p.test(q))) {
+    return {
+      financials: true,
+      siteSetup: true,
+      inspections: true,
+      finishes: true,
+      reminders: true,
+      drive: true,
+      memories: true,
+      isBroad: true
+    };
+  }
+
+  // Domain detectors
+  const hasTrade = /\b(subcontractor\w*|contractor\w*|vendor\w*|plumber\w*|electrician\w*|framer\w*|framing|concrete|painter\w*|painting|hvac|roofer\w*|roofing|drywall\w*|mason\w*|trim\w*|cabinet\w*)\b/i.test(combined);
+  const hasExplicitMoney = /\b(owe\w*|pay\w*|paid|payment\w*|balance\w*|quote\w*|cost\w*|spent|spend\w*|expense\w*|invoice\w*|receipt\w*|check\w*|labor\w*|material cost|budget\w*|draw\w*|financial\w*|money|dollar\w*|price\w*|charge\w*)\b/i.test(combined);
+  const hasFinishes = /\b(purchas\w*|buy\w*|bought|fixture\w*|appliance\w*|hardware|material\w*|suppl\w*|need\w*|shopping|order\w*|item\w*|list\w*|install\w*|deliver\w*|paint\w*|color\w*|sheen\w*|stucco|tile\w*|finish\w*|spec\w*|selection\w*|roofing shingle|sherwin|cantera)\b/i.test(combined);
+  const hasInspections = /\b(inspect\w*|city|permit\w*|passed|failed|rough-in|slab|framing inspection|plumbing inspection|electrical inspection|foundation inspection|building department|inspector)\b/i.test(combined);
+  const hasSiteSetup = /\b(site setup|mobilization|silt|fence|water meter|hose bibb|port-a-potty|permit board|lot prep|lot mobilization)\b/i.test(combined);
+  const hasReminders = /\b(remind\w*|schedule\w*|call\w*|calendar|upcoming|task\w*|note\w*)\b/i.test(combined);
+  const hasDrive = /\b(drive|folder\w*|file\w*|pdf\w*|plan\w*|blueprint\w*|document\w*|sheet\w*|directory|upload\w*)\b/i.test(combined);
+
+  // If query is specifically about purchasing or municipal inspections for a trade and doesn't ask about money, omit heavy financial spreadsheet
+  const hasFinancials = hasExplicitMoney || (hasTrade && !hasFinishes && !hasInspections);
+
+  // If no specific domain identified, fail-open to ALL modules
+  if (!hasFinancials && !hasSiteSetup && !hasInspections && !hasFinishes && !hasReminders && !hasDrive) {
+    return {
+      financials: true,
+      siteSetup: true,
+      inspections: true,
+      finishes: true,
+      reminders: true,
+      drive: true,
+      memories: true,
+      isBroad: true
+    };
+  }
+
+  return {
+    financials: hasFinancials,
+    siteSetup: hasSiteSetup,
+    inspections: hasInspections,
+    finishes: hasFinishes,
+    reminders: hasReminders || hasInspections,
+    drive: hasDrive,
+    memories: true,
+    isBroad: false
+  };
+}
+
+/**
  * Builds grounded Markdown context for the Gemini system prompt.
  * This feeds your entire project ledger, sub-balances, expenses, site setup, municipal inspections, specs, and drive files directly into Gemini.
  */
@@ -292,8 +368,12 @@ export function buildGroundingSystemInstruction(context) {
     _timeGreeting = 'Good morning',
     _spanishTimeGreeting = 'Buenos días',
     currentTimeString = '',
-    currentDayString = ''
+    currentDayString = '',
+    query = '',
+    conversationHistory = []
   } = context;
+
+  const domains = detectRequiredGroundingDomains(query, conversationHistory || context.messages);
 
   const info = dashData?.projectInfo || {};
   const subs = Array.isArray(dashData?.subcontractors) ? dashData.subcontractors : (Array.isArray(dashData?.phases) ? dashData.phases : []);
@@ -376,15 +456,10 @@ export function buildGroundingSystemInstruction(context) {
 
   const memoryRecords = formatMemoriesForPrompt(memoriesData);
 
-  return `You are Jarvis, the expert AI Construction Field Co-Pilot for custom home builder ADEPEC HOMES / SiteTactix.
+  const moduleSections = [];
 
-CURRENT PROJECT CONTEXT:
-- Active Lot / Project: "${activeProjectName}"
-- Current Time: ${currentTimeString}, ${currentDayString}
-
-LIVE PROJECT DATA MODULE MANIFEST FOR "${activeProjectName}":
-
-======================================================================
+  if (domains.financials) {
+    moduleSections.push(`======================================================================
 [MODULE 1: LIVE FINANCIAL SPREADSHEET (Summary_Dashboard)] -> SOURCE: Google Sheets (Project Financials)
 ======================================================================
 (NOTE: Contains ONLY financial numbers, budgets, draws paid, hard costs, and subcontractor payments. Does NOT contain calendar reminders or schedules.)
@@ -394,35 +469,47 @@ LIVE PROJECT DATA MODULE MANIFEST FOR "${activeProjectName}":
 - Remaining Working Capital / Net Liquidity: ${workingCapital}
 
 SUBCONTRACTOR CONTRACTS, PAYMENTS & REMAINING BALANCES:
-${phaseRecords}
+${phaseRecords}`);
+  }
 
-======================================================================
+  if (domains.siteSetup) {
+    moduleSections.push(`======================================================================
 [MODULE 2: SITE SETUP & LOT MOBILIZATION] -> SOURCE: Site Setup Checklist Database
 ======================================================================
-${siteSetupRecords}
+${siteSetupRecords}`);
+  }
 
-======================================================================
+  if (domains.inspections) {
+    moduleSections.push(`======================================================================
 [MODULE 3: MUNICIPAL INSPECTION PROTOCOLS (6 BUILD STAGES)] -> SOURCE: Municipal Inspections
 ======================================================================
-${inspectionRecords}
+${inspectionRecords}`);
+  }
 
-======================================================================
+  if (domains.finishes) {
+    moduleSections.push(`======================================================================
 [MODULE 4: HOMEOWNER FINISH SPECIFICATIONS] -> SOURCE: Homeowner Specifications
 ======================================================================
-${specRecords}
+${specRecords}`);
+  }
 
-======================================================================
+  if (domains.reminders) {
+    moduleSections.push(`======================================================================
 [MODULE 5: PENDING FIELD REMINDERS] -> SOURCE: Field Reminders (SiteTactix App)
 ======================================================================
 (NOTE: In-app task and reminder list stored locally in SiteTactix app.)
-${reminderRecords}
+${reminderRecords}`);
+  }
 
-======================================================================
+  if (domains.drive) {
+    moduleSections.push(`======================================================================
 [MODULE 6: GOOGLE DRIVE FOLDER & FILE TREE] -> SOURCE: Google Drive
 ======================================================================
-${driveRecords}
+${driveRecords}`);
+  }
 
-======================================================================
+  // Persistent business memories and interaction preferences are always grounded
+  moduleSections.push(`======================================================================
 [MODULE 7: PERSISTENT BUSINESS & SITE MEMORIES (SECOND BRAIN)] -> SOURCE: J.A.R.V.I.S. Memory (Persistent Vault)
 ======================================================================
 (NOTE: Verbal builder notes, contractor preferences, and site facts stored in Firestore /memories.)
@@ -431,7 +518,17 @@ ${memoryRecords}
 ======================================================================
 [MODULE 8: USER PREFERENCES & INTERACTION STYLE (LEARNED & CONFIGURED)] -> SOURCE: J.A.R.V.I.S. Memory (Persistent Vault)
 ======================================================================
-${userPreferencesPrompt || 'Default: Concise, professional builder co-pilot.'}
+${userPreferencesPrompt || 'Default: Concise, professional builder co-pilot.'}`);
+
+  return `You are Jarvis, the expert AI Construction Field Co-Pilot for custom home builder ADEPEC HOMES / SiteTactix.
+
+CURRENT PROJECT CONTEXT:
+- Active Lot / Project: "${activeProjectName}"
+- Current Time: ${currentTimeString}, ${currentDayString}
+
+LIVE PROJECT DATA MODULE MANIFEST FOR "${activeProjectName}":
+
+${moduleSections.join('\n\n')}
 
 ======================================================================
 BEHAVIOR, VERIFICATION & CITATION RULES:
@@ -555,7 +652,7 @@ BEHAVIOR, VERIFICATION & CITATION RULES:
    - NEVER use robotic alert formats like "Suggestion:" or "Proactive Alert:". Sound like a competent human assistant.
    - If the user confirms a suggestion ("yeah", "sure", "go ahead", "check it"), execute the action immediately without asking twice.
    - If the user is concluding ("thanks", "got it", "that's all"), acknowledge cleanly without unsolicited suggestions or data dumps.
-
+${(domains.finishes || domains.isBroad) ? `
 14. FIRESTORE STRUCTURED PURCHASING ARCHITECTURE (SINGLE SOURCE OF TRUTH):
    - You manage project lot purchasing items and master templates strictly in Firestore via get_purchasing_list, add_purchasing_item, update_purchasing_item_status, remove_purchasing_item, export_purchasing_doc, and sync_purchasing_master_to_projects.
    - FIRESTORE IS THE AUTHORITATIVE SOURCE OF TRUTH: All purchasing items, quantities, and statuses (needed/purchased) live in the Firestore database (projects/{projectId}/purchasing_items). Never claim Google Docs or Google Drive is the purchasing database. Google Docs/PDFs are one-way exports only.
@@ -576,16 +673,16 @@ BEHAVIOR, VERIFICATION & CITATION RULES:
    - DEFAULT SCOPE = ACTIVE LOT ONLY: Target ONLY the currently active lot (e.g. Lot 3, Lot 37, Lot 55) unless explicitly managing Master.
    - PROVENANCE ATTRIBUTION: Attribute purchasing sources strictly to "Firestore (<Project Name> Purchasing Checklist)" (e.g. "Firestore (Lot 3 Purchasing Checklist)"). Attribute to "Firestore (Purchasing Master Template)" ONLY when explicitly referencing or managing the company-wide Master Template. Never cite Google Docs for purchasing.
    - DOMAIN BOUNDARIES: When the user asks purchasing questions ("what do I need to buy", "what do we still need to purchase", "what materials do we need for [trade]"), focus strictly on physical fixtures, materials, and hardware from the Firestore Purchasing Checklist (get_purchasing_list). Do NOT dump contractor contract quotes, balances, or payments from Google Sheets unless the user explicitly asked about money, cost, quotes, balances, or payments.
-   - NO UNPROMPTED FULLSCREEN VIEWERS: Output the items directly in your answer. Never emit [[ACTION:VIEW_FILE:...]] for purchasing list queries unless the user specifically and explicitly asks to open a full-screen file viewer.
-
+   - NO UNPROMPTED FULLSCREEN VIEWERS: Output the items directly in your answer. Never emit [[ACTION:VIEW_FILE:...]] for purchasing list queries unless the user specifically and explicitly asks to open a full-screen file viewer.` : ''}
+${(domains.drive || domains.isBroad) ? `
 15. GOOGLE DRIVE FOLDER & FILE SEARCH INSTRUCTIONS:
     - SPECIFIC FOLDER INQUIRIES: When the user asks about a specific folder or documents (e.g. "What's in the Purchasing List folder?", "What is in Google Doc Purchasing List?", "What is in App Folders / Google Doc Purchasing List?", "Find framing POs", "What files do we have in electrical?"):
       * You MUST call the 'get_drive_files' tool.
       * You MUST populate the 'folderName' argument with the specific folder name or path mentioned (e.g. { "folderName": "Google Doc Purchasing List" }, { "folderName": "Purchasing List" }, or { "folderName": "App Folders / Google Doc Purchasing List" }).
       * You MUST NEVER leave 'folderName' empty when the user explicitly queries a specific folder.
     - BROAD FOLDER HIERARCHY INQUIRIES: When the user asks broadly what folders exist (e.g. "What folders do we have?", "List our folders", "Show me our drive directories"):
-      * Call 'get_drive_files' with empty args {} to retrieve the complete directory hierarchy.
-
+      * Call 'get_drive_files' with empty args {} to retrieve the complete directory hierarchy.` : ''}
+${(domains.finishes || domains.isBroad) ? `
 16. FINISHES & MATERIAL SPECIFICATIONS INSTRUCTIONS:
     - FIRESTORE IS THE SINGLE AUTHORITATIVE SOURCE: All paint codes, stucco finishes, stone/cantera specs, tile/grout selections, roofing shingles, and fixtures live in Firestore (/projects/{projectId}/finishes) and are provided in [MODULE 4: HOMEOWNER FINISH SPECIFICATIONS].
     - RETRIEVAL MANDATE & ZERO-HALLUCINATION:
@@ -603,7 +700,38 @@ BEHAVIOR, VERIFICATION & CITATION RULES:
     - AMBIGUITY & CONSERVATIVE CLARIFICATION:
       * If an inquiry or change request is ambiguous because multiple records share the same category (e.g., "Roofing — Whole House" vs. "Roofing — Detached Garage"), DO NOT guess or pick one arbitrarily. Clarify with the user (e.g., "Which roofing specification do you want to update — Whole House or Detached Garage?").
     - DYNAMIC ATTRIBUTES ARE FIRST-CLASS DATA:
-      * Attributes like Texture, Sealant, Thickness, Warranty, Sheen, Grout Color, and Joint Size are first-class specifications. Always report them accurately when asked (e.g., "What's the stucco texture?", "What's the sealant on the Cantera?").`;
+      * Attributes like Texture, Sealant, Thickness, Warranty, Sheen, Grout Color, and Joint Size are first-class specifications. Always report them accurately when asked (e.g., "What's the stucco texture?", "What's the sealant on the Cantera?").` : ''}`;
+}
+
+/**
+ * Builds a lean, token-optimized system instruction for Second-Pass Multi-Intent Tool Synthesis.
+ * Strips the 15,000-token project spreadsheet and unused domain modules while preserving builder persona,
+ * user tone preferences, active business memories, and strict evidence-grounding rules.
+ */
+export function buildLeanSynthesisPrompt({
+  activeProjectName = 'Active Project',
+  toolTelemetryList = [],
+  userPreferencesPrompt = '',
+  memoriesData = []
+} = {}) {
+  const memoryRecords = formatMemoriesForPrompt(memoriesData);
+  const toolEvidence = formatToolResultsForSynthesis(toolTelemetryList);
+
+  return `You are Jarvis, the expert AI Construction Field Co-Pilot for custom home builder ADEPEC HOMES / SiteTactix on active lot "${activeProjectName}".
+
+[MULTI-INTENT TOOL EXECUTION OUTCOMES]
+The user issued a request that required tool execution and/or project data retrieval.
+Tool Outcomes (Grounded Evidence):
+${toolEvidence}
+
+${userPreferencesPrompt ? `[USER PREFERENCES & INTERACTION STYLE]\n${userPreferencesPrompt}\n\n` : ''}${memoryRecords && memoryRecords !== 'No saved memories yet.' ? `[ACTIVE BUSINESS MEMORIES]\n${memoryRecords}\n\n` : ''}UNIVERSAL EVIDENCE-TO-INTENT SYNTHESIS RULES:
+1. EVIDENCE VS RESPONSE: The tool outcomes above are raw EVIDENCE, not your verbatim response. Determine the user's semantic intent from their question and reason over this evidence:
+${getSemanticPromptGuidelines()}
+2. STRICT GROUNDING RULE: You may ONLY state financial figures, dollar amounts, contractor quotes, balances, payments, fixtures, materials, and dates that appear EXACTLY in the tool outcomes above. Do NOT invent, assume, or estimate items or numbers.
+3. STRICT ERROR TRUTH RULE: If a tool execution reports readError: true, state: 'DOCUMENT_READ_ERROR', or contains an error message, you MUST report the exact error to the user (e.g. "I found your Purchasing Checklist in Google Drive, but couldn't read its contents: [error]"). You are STRICTLY FORBIDDEN from stating that a document has zero items or no pending items when a read error occurred.
+4. If a tool succeeded (e.g. saving a reminder/memory or retrieving a list), clearly confirm or format it in your response.
+5. If a tool failed, clearly and concisely report what couldn't be completed without technical jargon.
+6. Provide ONE single, unified, coherent, and professional answer.`;
 }
 
 export function isPurchaseStatusMutationCommand(query = '') {
@@ -1400,7 +1528,10 @@ export async function askGeminiBrain(
   const currentTimeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const currentDayString = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
-  // Build the complete grounded system prompt
+  // Prepare clean conversation history
+  const historySource = (Array.isArray(messages) && messages.length > 0) ? messages : conversationHistory;
+
+  // Build the dynamic, domain-partitioned grounded system prompt
   const systemInstruction = buildGroundingSystemInstruction({
     activeProjectName,
     dashData,
@@ -1414,12 +1545,10 @@ export async function askGeminiBrain(
     timeGreeting,
     spanishTimeGreeting,
     currentTimeString,
-    currentDayString
+    currentDayString,
+    query,
+    conversationHistory: historySource
   });
-
-
-  // Prepare clean conversation history
-  const historySource = (Array.isArray(messages) && messages.length > 0) ? messages : conversationHistory;
   const recentHistory = historySource.slice(-6);
   const rawContents = [];
 
@@ -1956,23 +2085,14 @@ export async function askGeminiBrain(
         }));
         const toolsFailed = toolTelemetryList.filter(t => !t.success).map(t => ({ name: t.name, error: t.error }));
 
-        // 2. Perform Second-Pass Multi-Intent Synthesis via Gemini Cloud AI
+        // 2. Perform Second-Pass Multi-Intent Synthesis via Gemini Cloud AI with lean, token-optimized prompt
         // forceNoTools: true is strictly enforced to guarantee no infinite loops
-        const synthesisPrompt = `${systemInstruction}
-
-[MULTI-INTENT TOOL EXECUTION OUTCOMES]
-The user issued a request that required tool execution and/or project data retrieval.
-Tool Outcomes (Grounded Evidence):
-${formatToolResultsForSynthesis(toolTelemetryList)}
-
-UNIVERSAL EVIDENCE-TO-INTENT SYNTHESIS RULES:
-1. EVIDENCE VS RESPONSE: The tool outcomes above are raw EVIDENCE, not your verbatim response. Determine the user's semantic intent from their question and reason over this evidence:
-${getSemanticPromptGuidelines()}
-2. STRICT GROUNDING RULE: You may ONLY state financial figures, dollar amounts, contractor quotes, balances, payments, and dates that appear EXACTLY in the project manifest or tool outcomes above. Do NOT invent, assume, or estimate numbers.
-3. STRICT ERROR TRUTH RULE: If a tool execution reports readError: true, state: 'DOCUMENT_READ_ERROR', or contains an error message, you MUST report the exact error to the user (e.g. "I found your Purchasing Checklist in Google Drive, but couldn't read its contents: [error]"). You are STRICTLY FORBIDDEN from stating that a document has zero items or no pending items when a read error occurred.
-4. If a tool succeeded (e.g. saving a reminder/memory), clearly confirm it in your response.
-5. If a tool failed, clearly and concisely report what couldn't be completed without technical jargon.
-6. Provide ONE single, unified, coherent, and professional answer.`;
+        const synthesisPrompt = buildLeanSynthesisPrompt({
+          activeProjectName,
+          toolTelemetryList,
+          userPreferencesPrompt,
+          memoriesData
+        });
 
         let synthesisText = null;
         let synthTelemetry = null;
@@ -2043,7 +2163,11 @@ ${getSemanticPromptGuidelines()}
               groundingStatus: groundingReport.status,
               synthesisMode: 'cloud_synthesis',
               sourcesUsed,
-              memoriesGroundedCount: memoriesData?.length || 0
+              memoriesGroundedCount: memoriesData?.length || 0,
+              tokensUsed: ((data.telemetry?.tokensUsed || 0) + (synthTelemetry?.tokensUsed || 0)) || data.telemetry?.tokensUsed || synthTelemetry?.tokensUsed || null,
+              promptTokens: ((data.telemetry?.promptTokens || 0) + (synthTelemetry?.promptTokens || 0)) || data.telemetry?.promptTokens || synthTelemetry?.promptTokens || null,
+              outputTokens: ((data.telemetry?.outputTokens || 0) + (synthTelemetry?.outputTokens || 0)) || data.telemetry?.outputTokens || synthTelemetry?.outputTokens || null,
+              usageMetadata: synthTelemetry?.usageMetadata || data.telemetry?.usageMetadata || null
             }
           };
         }
@@ -2078,6 +2202,10 @@ ${getSemanticPromptGuidelines()}
             sourcesUsed,
             cognitiveInitiative: cognitiveDecision,
             memoriesGroundedCount: memoriesData?.length || 0,
+            tokensUsed: data.telemetry?.tokensUsed || null,
+            promptTokens: data.telemetry?.promptTokens || null,
+            outputTokens: data.telemetry?.outputTokens || null,
+            usageMetadata: data.telemetry?.usageMetadata || null,
             latencyMetrics: {
               attempt1DurationMs,
               attempt2DurationMs,
@@ -2111,6 +2239,10 @@ ${getSemanticPromptGuidelines()}
             cognitiveInitiative: cognitiveDecision,
             memoriesGroundedCount: memoriesData?.length || 0,
             toolsExecuted: [],
+            tokensUsed: data.telemetry?.tokensUsed || null,
+            promptTokens: data.telemetry?.promptTokens || null,
+            outputTokens: data.telemetry?.outputTokens || null,
+            usageMetadata: data.telemetry?.usageMetadata || null,
             latencyMetrics: {
               attempt1DurationMs,
               attempt2DurationMs,

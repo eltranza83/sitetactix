@@ -526,3 +526,105 @@ export async function executeWeatherTool({ latitude = 32.7767, longitude = -96.7
     };
   }
 }
+
+/**
+ * Functional clusters of AI tools for dynamic, quota-aware subsetting.
+ */
+export const AI_TOOL_CLUSTERS = {
+  FINANCIALS: [
+    'get_vendor_history',
+    'get_subcontractor_balance',
+    'search_receipts',
+    'stage_manual_transaction',
+    'get_project_budget'
+  ],
+  INSPECTIONS_SCHEDULE: [
+    'get_municipal_inspections',
+    'get_project_schedule',
+    'get_weather_for_jobsite',
+    'get_site_setup'
+  ],
+  PURCHASING_FINISHES: [
+    'get_purchasing_list',
+    'add_purchasing_item',
+    'update_purchasing_item_status',
+    'remove_purchasing_item',
+    'remove_purchasing_section',
+    'sync_purchasing_master_to_projects',
+    'get_purchasing_audit_log',
+    'deprecate_purchasing_master_item',
+    'get_project_finishes',
+    'get_homeowner_specs',
+    'save_finish_spec'
+  ],
+  DRIVE_DOCUMENTS: [
+    'get_drive_files',
+    'open_drive_document',
+    'open_drive_folder',
+    'navigate_app_tab'
+  ],
+  MEMORY_PREFERENCES: [
+    'save_memory',
+    'search_memories',
+    'list_memories',
+    'update_memory',
+    'delete_memory',
+    'list_user_preferences',
+    'confirm_user_preference',
+    'deactivate_user_preference',
+    'reset_user_preferences'
+  ]
+};
+
+/**
+ * Select a targeted subset of AI tool declarations based on user query and recent history.
+ * Employs a fail-open design: defaults to all tools if query is broad, ambiguous, or multi-domain.
+ */
+export function selectRelevantToolDeclarations(query = '', conversationHistory = []) {
+  const q = String(query || '').trim().toLowerCase();
+
+  let historyText = '';
+  if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+    historyText = conversationHistory
+      .slice(-3)
+      .map(c => Array.isArray(c.parts) ? c.parts.map(p => p.text || '').join(' ') : (c.text || c.content || ''))
+      .join(' ')
+      .toLowerCase();
+  }
+  const combined = `${historyText} ${q}`.trim();
+
+  // Fail-open: Broad, audit, or empty queries receive all 33 tools
+  const broadPatterns = [
+    /\b(audit|status|overview|summary|briefing|how are we doing|full report|everything|all phases|entire project)\b/i,
+    /\b(check everything|full project|project update)\b/i
+  ];
+  if (!q || broadPatterns.some(p => p.test(q))) {
+    return AI_TOOL_DECLARATIONS;
+  }
+
+  const selectedNames = new Set(AI_TOOL_CLUSTERS.MEMORY_PREFERENCES);
+
+  const hasTrade = /\b(subcontractor\w*|contractor\w*|vendor\w*|plumber\w*|electrician\w*|framer\w*|framing|concrete|painter\w*|painting|hvac|roofer\w*|roofing|drywall\w*|mason\w*|trim\w*|cabinet\w*)\b/i.test(combined);
+  const hasExplicitMoney = /\b(owe\w*|pay\w*|paid|payment\w*|balance\w*|quote\w*|cost\w*|spent|spend\w*|expense\w*|invoice\w*|receipt\w*|check\w*|labor\w*|material cost|budget\w*|draw\w*|financial\w*|money|dollar\w*|price\w*|charge\w*)\b/i.test(combined);
+  const hasPurchasing = /\b(purchas\w*|buy\w*|bought|fixture\w*|appliance\w*|hardware|material\w*|suppl\w*|need\w*|shopping|order\w*|item\w*|list\w*|install\w*|deliver\w*|paint\w*|color\w*|sheen\w*|stucco|tile\w*|finish\w*|spec\w*|selection\w*|roofing shingle|sherwin|cantera)\b/i.test(combined);
+
+  const hasInspections = /\b(inspect\w*|city|permit\w*|passed|failed|rough-in|slab|framing inspection|plumbing inspection|electrical inspection|foundation inspection|site setup|mobilization|silt|meter|water meter|weather|rain|forecast|schedule\w*|reminder\w*|call\w*)\b/i.test(combined);
+
+  // If query is specifically about purchasing/materials or inspections for a trade and doesn't ask about money, omit financial accounting tools
+  const hasFinancials = hasExplicitMoney || (hasTrade && !hasPurchasing && !hasInspections);
+  const hasDrive = /\b(drive|folder\w*|file\w*|pdf\w*|plan\w*|blueprint\w*|document\w*|sheet\w*|directory|open|navigate|tab\w*)\b/i.test(combined);
+
+  // If no specific domain pattern matched, fail-open to full tool declarations
+  if (!hasFinancials && !hasInspections && !hasPurchasing && !hasDrive) {
+    return AI_TOOL_DECLARATIONS;
+  }
+
+  if (hasFinancials) AI_TOOL_CLUSTERS.FINANCIALS.forEach(n => selectedNames.add(n));
+  if (hasInspections) AI_TOOL_CLUSTERS.INSPECTIONS_SCHEDULE.forEach(n => selectedNames.add(n));
+  if (hasPurchasing) AI_TOOL_CLUSTERS.PURCHASING_FINISHES.forEach(n => selectedNames.add(n));
+  if (hasDrive) AI_TOOL_CLUSTERS.DRIVE_DOCUMENTS.forEach(n => selectedNames.add(n));
+
+  const toolMap = new Map(AI_TOOL_DECLARATIONS.map(t => [t.name, t]));
+  return Array.from(selectedNames).map(name => toolMap.get(name)).filter(Boolean);
+}
+

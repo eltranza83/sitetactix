@@ -1776,7 +1776,6 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                     >
                       <div style={{ whiteSpace: 'pre-wrap' }}>{isUser ? m.text : formatMessageDisplay(m.text)}</div>
 
-
                       {/* Developer Diagnostics Telemetry Panel */}
                       {devMode && m.telemetry && (
                         <div
@@ -1797,6 +1796,11 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                             {m.telemetry.durationMs !== undefined && (
                               <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.2)', color: '#86efac', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
                                 ⏱️ {m.telemetry.durationMs}ms
+                              </span>
+                            )}
+                            {m.telemetry.tokensUsed && (
+                              <span style={{ backgroundColor: 'rgba(234, 179, 8, 0.2)', color: '#fde047', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                ⚡ {m.telemetry.tokensUsed.toLocaleString()} tokens ({m.telemetry.promptTokens?.toLocaleString() || 0} in / {m.telemetry.outputTokens?.toLocaleString() || 0} out)
                               </span>
                             )}
                           </div>

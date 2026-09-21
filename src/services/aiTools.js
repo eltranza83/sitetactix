@@ -3,7 +3,7 @@ import { loadStoredAppState, persistStagedItems } from './appStorage.js';
 /**
  * Client-Side AI Tool Executors, Data Retrieval & Diagnostic Test Suite
  */
-import { AI_TOOL_DECLARATIONS, executeWeatherTool } from '../../api/_lib/ai-tools-definitions.js';
+import { AI_TOOL_DECLARATIONS, AI_TOOL_CLUSTERS, selectRelevantToolDeclarations, executeWeatherTool } from '../../api/_lib/ai-tools-definitions.js';
 import {
   saveMemory,
   getMemories,
@@ -43,7 +43,7 @@ import { executeClientAction, ACTION_TYPES } from './clientActionService.js';
 import { fetchGoogleDocText } from './googleDrive.js';
 import { normalizeSpreadsheetDate, getTodayCalendarDate } from './sheetsDataService.js';
 
-export { AI_TOOL_DECLARATIONS, executeWeatherTool };
+export { AI_TOOL_DECLARATIONS, AI_TOOL_CLUSTERS, selectRelevantToolDeclarations, executeWeatherTool };
 
 /**
  * Explicit Tool Classification & Provenance Registry
