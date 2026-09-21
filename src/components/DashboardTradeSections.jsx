@@ -29,27 +29,41 @@ const requiresPayeeTracking = (phaseName, catName) => {
   return PAYEE_REQUIRED_KEYWORDS.some(kw => combined.includes(kw));
 };
 
+import { getCategorySortRank, formatCategoryTitle } from '../config/tradesConfig.js';
+
+export { getCategorySortRank, formatCategoryTitle };
+
+function parseCurrencyNumber(val) {
+  if (typeof val === 'number') return val;
+  return parseFloat(String(val || 0).replace(/[^0-9.-]/g, '')) || 0;
+}
+
 function PhaseMetricGroup({ sub }) {
   const safeFormat = (val) => {
-    const num = typeof val === 'number' ? val : parseFloat(String(val || 0).replace(/[^0-9.-]/g, '')) || 0;
+    const num = parseCurrencyNumber(val);
     const hasCents = Math.abs(num % 1) > 0.009;
     return `$${num.toLocaleString('en-US', { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 })}`;
   };
 
   const phaseTotal = sub.totalSpent || (
-    (parseFloat(String(sub.totalMaterial || 0).replace(/[^0-9.-]/g, '')) || 0) +
-    (parseFloat(String(sub.totalLabor || 0).replace(/[^0-9.-]/g, '')) || 0)
+    parseCurrencyNumber(sub.totalMaterial) +
+    parseCurrencyNumber(sub.totalLabor)
   );
+
+  const totalNum = parseCurrencyNumber(phaseTotal);
+  const matNum = parseCurrencyNumber(sub.totalMaterial);
+  const labNum = parseCurrencyNumber(sub.totalLabor);
+  const hasPhaseActivity = totalNum > 0 || matNum > 0 || labNum > 0;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
       <div style={{
         fontWeight: 700,
-        color: '#F1D7A7',
-        backgroundColor: 'rgba(241, 215, 167, 0.1)',
+        color: hasPhaseActivity ? '#F1D7A7' : '#71717a',
+        backgroundColor: hasPhaseActivity ? 'rgba(241, 215, 167, 0.1)' : 'rgba(255, 255, 255, 0.03)',
         padding: '3px 4px',
         borderRadius: '5px',
-        border: '1px solid rgba(241, 215, 167, 0.2)',
+        border: hasPhaseActivity ? '1px solid rgba(241, 215, 167, 0.2)' : '1px solid rgba(255, 255, 255, 0.06)',
         fontSize: 'clamp(0.58rem, 2vw, 0.66rem)',
         textAlign: 'center',
         whiteSpace: 'nowrap',
@@ -63,11 +77,11 @@ function PhaseMetricGroup({ sub }) {
 
       <div style={{
         fontWeight: 700,
-        color: '#60a5fa',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        color: hasPhaseActivity ? '#60a5fa' : '#71717a',
+        backgroundColor: hasPhaseActivity ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.03)',
         padding: '3px 4px',
         borderRadius: '5px',
-        border: '1px solid rgba(59, 130, 246, 0.2)',
+        border: hasPhaseActivity ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(255, 255, 255, 0.06)',
         fontSize: 'clamp(0.58rem, 2vw, 0.66rem)',
         textAlign: 'center',
         whiteSpace: 'nowrap',
@@ -81,11 +95,11 @@ function PhaseMetricGroup({ sub }) {
 
       <div style={{
         fontWeight: 700,
-        color: '#34d399',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        color: hasPhaseActivity ? '#34d399' : '#52525b',
+        backgroundColor: hasPhaseActivity ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.02)',
         padding: '3px 4px',
         borderRadius: '5px',
-        border: '1px solid rgba(16, 185, 129, 0.2)',
+        border: hasPhaseActivity ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255, 255, 255, 0.05)',
         fontSize: 'clamp(0.58rem, 2vw, 0.66rem)',
         textAlign: 'center',
         whiteSpace: 'nowrap',
@@ -117,6 +131,13 @@ export default function DashboardTradeSections({
     return `$${num.toLocaleString('en-US', { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 })}`;
   };
 
+  const sortedCategories = [...safeCategories].sort((a, b) => {
+    const rankA = getCategorySortRank(a.name);
+    const rankB = getCategorySortRank(b.name);
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
   return (
     <div>
       <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-zinc-200)', marginBottom: '10px' }}>
@@ -124,15 +145,21 @@ export default function DashboardTradeSections({
       </h3>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {safeCategories.map((cat) => {
+        {sortedCategories.map((cat) => {
           const isExpanded = !!expandedCategories[cat.name];
           const catSubs = safeSubcontractors.filter(sub => sub.category === cat.name);
+          const catPaid = parseCurrencyNumber(cat.totalPaid);
+          const catMat = parseCurrencyNumber(cat.totalMaterial);
+          const catLab = parseCurrencyNumber(cat.totalLabor);
+          const hasCatActivity = catPaid > 0 || catMat > 0 || catLab > 0;
 
           return (
             <div
               key={cat.name}
               style={{
-                border: isExpanded ? '1px solid rgba(241, 215, 167, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+                border: isExpanded
+                  ? '1px solid rgba(241, 215, 167, 0.3)'
+                  : (hasCatActivity ? '1px solid rgba(241, 215, 167, 0.18)' : '1px solid rgba(255, 255, 255, 0.06)'),
                 borderRadius: '10px',
                 overflow: 'hidden',
                 backgroundColor: 'rgba(24, 24, 27, 0.85)',
@@ -162,16 +189,16 @@ export default function DashboardTradeSections({
                   <span style={{
                     fontSize: '0.86rem',
                     fontWeight: 800,
-                    color: '#F1D7A7',
+                    color: hasCatActivity || isExpanded ? '#F1D7A7' : 'rgba(241, 215, 167, 0.72)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.02em',
                     lineHeight: '1.2',
-                    textShadow: '0 0 12px rgba(241, 215, 167, 0.25)',
+                    textShadow: hasCatActivity || isExpanded ? '0 0 12px rgba(241, 215, 167, 0.25)' : 'none',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
                   }}>
-                    {cat.name}
+                    {formatCategoryTitle(cat.name)}
                   </span>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -186,54 +213,57 @@ export default function DashboardTradeSections({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
                   <div style={{
                     fontWeight: 700,
-                    color: '#F1D7A7',
-                    backgroundColor: 'rgba(241, 215, 167, 0.12)',
+                    color: hasCatActivity ? '#F1D7A7' : '#71717a',
+                    backgroundColor: hasCatActivity ? 'rgba(241, 215, 167, 0.12)' : 'rgba(255, 255, 255, 0.03)',
                     padding: '3px 4px',
                     borderRadius: '5px',
-                    border: '1px solid rgba(241, 215, 167, 0.25)',
+                    border: hasCatActivity ? '1px solid rgba(241, 215, 167, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
                     fontSize: 'clamp(0.58rem, 2vw, 0.68rem)',
                     textAlign: 'center',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     minWidth: 0,
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    opacity: hasCatActivity ? 1 : 0.75
                   }}>
                     Mat: {safeFormat(cat.totalMaterial || 0)}
                   </div>
 
                   <div style={{
                     fontWeight: 700,
-                    color: '#60a5fa',
-                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    color: hasCatActivity ? '#60a5fa' : '#71717a',
+                    backgroundColor: hasCatActivity ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.03)',
                     padding: '3px 4px',
                     borderRadius: '5px',
-                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    border: hasCatActivity ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
                     fontSize: 'clamp(0.58rem, 2vw, 0.68rem)',
                     textAlign: 'center',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     minWidth: 0,
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    opacity: hasCatActivity ? 1 : 0.75
                   }}>
                     Lab: {safeFormat(cat.totalLabor || 0)}
                   </div>
 
                   <div style={{
                     fontWeight: 700,
-                    color: '#34d399',
-                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    color: hasCatActivity ? '#34d399' : '#52525b',
+                    backgroundColor: hasCatActivity ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.02)',
                     padding: '3px 4px',
                     borderRadius: '5px',
-                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    border: hasCatActivity ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(255, 255, 255, 0.05)',
                     fontSize: 'clamp(0.58rem, 2vw, 0.68rem)',
                     textAlign: 'center',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     minWidth: 0,
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    opacity: hasCatActivity ? 1 : 0.75
                   }}>
                     Spent: {safeFormat(cat.totalPaid || 0)}
                   </div>
