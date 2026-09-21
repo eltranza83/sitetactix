@@ -158,14 +158,16 @@ export default function DashboardTradeSections({
               key={cat.name}
               style={{
                 border: isExpanded
-                  ? '1px solid rgba(241, 215, 167, 0.3)'
-                  : (hasCatActivity ? '1px solid rgba(241, 215, 167, 0.18)' : '1px solid rgba(255, 255, 255, 0.06)'),
+                  ? '1px solid rgba(255, 255, 255, 0.3)'
+                  : (hasCatActivity ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(255, 255, 255, 0.06)'),
                 borderRadius: '10px',
                 overflow: 'hidden',
                 backgroundColor: 'rgba(24, 24, 27, 0.85)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
-                boxShadow: isExpanded ? '0 6px 20px rgba(0, 0, 0, 0.3), 0 0 12px rgba(241, 215, 167, 0.08)' : '0 2px 8px rgba(0, 0, 0, 0.2)',
+                boxShadow: isExpanded
+                  ? '0 6px 20px rgba(0, 0, 0, 0.3), 0 0 12px rgba(255, 255, 255, 0.06)'
+                  : '0 2px 8px rgba(0, 0, 0, 0.2)',
                 transition: 'all 0.25s ease'
               }}
             >
@@ -189,11 +191,11 @@ export default function DashboardTradeSections({
                   <span style={{
                     fontSize: '0.86rem',
                     fontWeight: 800,
-                    color: hasCatActivity || isExpanded ? '#F1D7A7' : 'rgba(241, 215, 167, 0.72)',
+                    color: hasCatActivity || isExpanded ? '#FFFFFF' : 'rgba(244, 244, 245, 0.65)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.02em',
                     lineHeight: '1.2',
-                    textShadow: hasCatActivity || isExpanded ? '0 0 12px rgba(241, 215, 167, 0.25)' : 'none',
+                    textShadow: hasCatActivity || isExpanded ? '0 0 10px rgba(255, 255, 255, 0.2)' : 'none',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
@@ -205,7 +207,7 @@ export default function DashboardTradeSections({
                     <span style={{ color: 'var(--color-zinc-400)', fontSize: '0.7rem', fontWeight: 600 }}>
                       {cat.phasesCount} Phase{cat.phasesCount > 1 ? 's' : ''}
                     </span>
-                    {isExpanded ? <ChevronUp size={16} style={{ color: '#F1D7A7' }} /> : <ChevronDown size={16} style={{ color: 'var(--color-zinc-500)' }} />}
+                    {isExpanded ? <ChevronUp size={16} style={{ color: '#FFFFFF' }} /> : <ChevronDown size={16} style={{ color: 'var(--color-zinc-500)' }} />}
                   </div>
                 </div>
 
