@@ -57,13 +57,25 @@
   --font-syne: 'DM Sans', 'Syne', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.4);
-  --shadow-amber: 0 4px 14px 0 rgba(212, 183, 135, 0.22);
+  /* Refined Elevation Hierarchy */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.5);
+  --shadow-modal: 0 20px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(212, 183, 135, 0.15);
+  --shadow-amber: 0 4px 16px 0 rgba(212, 183, 135, 0.24);
+  --shadow-glow: 0 0 20px rgba(212, 183, 135, 0.18);
 
-  --transition-all: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Radius Consistency */
+  --border-radius-sm: 6px;
+  --border-radius-md: 9px;
   --border-radius: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-full: 9999px;
+
+  /* Spring and Transition Timings */
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-all: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -73,6 +85,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+*:focus-visible {
+  outline: 2px solid var(--st-gold);
+  outline-offset: 2px;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--st-bg);
@@ -80,10 +97,14 @@ body {
   line-height: 1.5;
   overflow-x: hidden;
   padding-bottom: env(safe-area-inset-bottom);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 button, input, select, textarea {
   font-family: inherit;
+  color: inherit;
 }
 
 /* Scrollbars */
@@ -340,18 +361,49 @@ button, input, select, textarea {
   }
 }
 
+/* Tablet Layout (640px - 1023px) */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .app-header {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    padding: 12px 24px !important;
+    height: 72px !important;
+  }
+
+  .logo-section {
+    align-items: flex-start !important;
+  }
+
+  .mobile-header-logo {
+    width: 155px !important;
+  }
+
+  .header-project-section {
+    width: auto !important;
+  }
+
+  .app-header .mobile-jarvis-btn {
+    position: static !important;
+  }
+
+  .app-content {
+    padding: 24px 24px calc(90px + env(safe-area-inset-bottom, 20px)) 24px !important;
+    max-width: 900px !important;
+  }
+}
+
 /* Header */
 .app-header {
-  background: rgba(21, 23, 25, 0.88);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  padding: 14px 20px 10px 20px;
+  background: rgba(21, 23, 25, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  padding: 12px 18px 10px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid var(--st-line);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -518,25 +570,27 @@ button, input, select, textarea {
   cursor: not-allowed;
 }
 
-/* Navigation Bar */
+/* Navigation Bar (Mobile / Tablet) */
 .app-nav {
-  background-color: rgba(28, 30, 32, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: rgba(21, 23, 25, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--st-line);
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.5);
   display: flex;
-  padding: 8px 10px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 12px)) 8px;
   justify-content: space-around;
   position: sticky;
   bottom: 0;
   z-index: 50;
+  width: 100%;
 }
 
 .nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 3px;
   background: none;
   border: none;
@@ -544,12 +598,13 @@ button, input, select, textarea {
   font-family: var(--font-sans);
   font-size: 0.72rem;
   font-weight: 500;
-  padding: 6px 2px;
+  padding: 6px 4px;
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--border-radius-md);
+  transition: var(--transition-fast);
   flex: 1;
   min-width: 0;
+  min-height: 50px;
   position: relative;
   white-space: nowrap;
 }
@@ -562,6 +617,7 @@ button, input, select, textarea {
 .nav-item.active {
   color: var(--st-gold);
   font-weight: 700;
+  background-color: rgba(212, 183, 135, 0.08);
   text-shadow: 0 0 12px rgba(212, 183, 135, 0.35);
 }
 
@@ -574,7 +630,7 @@ button, input, select, textarea {
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--st-gold), transparent);
   border-radius: 2px;
-  box-shadow: 0 0 8px var(--st-gold);
+  box-shadow: 0 0 10px var(--st-gold);
 }
 
 /* Login Screen */
@@ -1005,7 +1061,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-size: 1.05rem;
 }
 
-/* Spinner */
+/* Spinner & Skeleton Loading States */
 .spinner-container {
   display: flex;
   flex-direction: column;
@@ -1016,12 +1072,58 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--color-zinc-800);
-  border-top-color: var(--color-amber-500);
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--st-line);
+  border-top-color: var(--st-gold);
   border-radius: 50%;
-  animation: spin 1s infinite linear;
+  animation: spin 0.85s infinite linear;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--st-soft) 25%,
+    var(--st-panel-elevated) 50%,
+    var(--st-soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s infinite ease-in-out;
+  border-radius: var(--border-radius-sm);
+  display: block;
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  width: 100%;
+}
+
+.skeleton-title {
+  height: 20px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  width: 60%;
+}
+
+.skeleton-card {
+  background-color: var(--st-panel);
+  border: 1px solid var(--st-line);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .alert-box {
@@ -1453,19 +1555,26 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.75);
+  background-color: rgba(0, 0, 0, 0.80);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1500;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-  animation: modalFadeIn 0.2s ease-out;
+  padding: 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: modalFadeIn 0.22s ease-out;
 }
 
 .modal-container {
   width: 100%;
-  animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  max-width: 540px;
+  background-color: var(--st-panel);
+  border: 1px solid var(--st-line);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  animation: modalSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes modalFadeIn {
@@ -1474,8 +1583,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 @keyframes modalSlideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from { transform: translateY(18px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 @keyframes toastSlideDown {
@@ -1489,8 +1598,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* Tactile Spring Button Press Feedback & Micro-Interactions */
-button:active, .btn:active {
-  transform: scale(0.97) !important;
+.btn:active,
+.studio-nav-item:active,
+.sliding-toggle-btn:active,
+.nav-item:active,
+.blueprint-action-button:active,
+.project-profile-row:active {
+  transform: scale(0.98);
   transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
