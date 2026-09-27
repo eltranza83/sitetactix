@@ -76,65 +76,16 @@ export default function DashboardContractorDetail({
       overflow: 'hidden',
       transition: 'all 0.2s ease'
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--st-line)', paddingBottom: '12px', position: 'relative' }}>
-        <div style={{ flex: 1, minWidth: 0, paddingRight: '40px' }}>
-          <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--st-text)', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>
-            {selectedSub.payee}
-          </h4>
-          <p style={{ fontSize: '0.78rem', color: 'var(--st-muted)', marginTop: '4px', marginBottom: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Phase: <strong style={{ color: 'var(--st-gold)', fontWeight: 600 }}>{selectedSub.phase}</strong> ({selectedSub.category})
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={() => onViewPhasePhotos({ category: selectedSub.category, phase: selectedSub.phase })}
-              style={{
-                background: 'rgba(212, 183, 135, 0.1)',
-                border: '1px solid rgba(212, 183, 135, 0.3)',
-                borderRadius: '20px',
-                color: 'var(--st-gold)',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                padding: '5px 12px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                transition: 'var(--transition-all)'
-              }}
-            >
-              <Camera size={13} /> View Phase Photos
-            </button>
-            <button
-              type="button"
-              onClick={handleCopySummary}
-              style={{
-                background: 'var(--st-gold)',
-                color: '#151719',
-                border: '1px solid var(--st-gold)',
-                borderRadius: '20px',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                padding: '5px 14px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(212, 183, 135, 0.22)',
-                transition: 'var(--transition-all)'
-              }}
-            >
-              {copied ? <Check size={13} style={{ color: '#151719' }} /> : <Copy size={13} />}
-              {copied ? 'Copied!' : 'Copy Summary'}
-            </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderBottom: '1px solid var(--st-line)', paddingBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--st-text)', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>
+              {selectedSub.payee}
+            </h4>
+            <p style={{ fontSize: '0.78rem', color: 'var(--st-muted)', marginTop: '4px', marginBottom: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Phase: <strong style={{ color: 'var(--st-gold)', fontWeight: 600 }}>{selectedSub.phase}</strong> ({selectedSub.category})
+            </p>
           </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'absolute', right: '0', top: '0' }}>
           <button
             type="button"
             onClick={onClearSelection}
@@ -148,11 +99,66 @@ export default function DashboardContractorDetail({
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: '8px',
+              flexShrink: 0,
               transition: 'var(--transition-all)'
             }}
             title="Clear Selection"
           >
             <X size={16} />
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+          <button
+            type="button"
+            onClick={() => onViewPhasePhotos({ category: selectedSub.category, phase: selectedSub.phase })}
+            style={{
+              flex: 1,
+              background: 'rgba(212, 183, 135, 0.1)',
+              border: '1px solid rgba(212, 183, 135, 0.3)',
+              borderRadius: '20px',
+              color: 'var(--st-gold)',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              padding: '6px 10px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+              transition: 'var(--transition-all)'
+            }}
+          >
+            <Camera size={13} style={{ flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>View Phase Photos</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleCopySummary}
+            style={{
+              flex: 1,
+              background: 'var(--st-gold)',
+              color: '#151719',
+              border: '1px solid var(--st-gold)',
+              borderRadius: '20px',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              padding: '6px 10px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+              boxShadow: '0 2px 8px rgba(212, 183, 135, 0.22)',
+              transition: 'var(--transition-all)'
+            }}
+          >
+            {copied ? <Check size={13} style={{ color: '#151719', flexShrink: 0 }} /> : <Copy size={13} style={{ flexShrink: 0 }} />}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{copied ? 'Copied!' : 'Copy Summary'}</span>
           </button>
         </div>
       </div>
