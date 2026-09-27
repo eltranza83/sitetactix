@@ -15,9 +15,9 @@ export default function DashboardContractorSearch({
   onShowToast
 }) {
   return (
-    <div id="contractor-lookup-container" className="settings-card" style={{ border: '1px solid var(--color-zinc-800)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-zinc-200)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Search size={16} style={{ color: 'var(--color-amber-500)' }} />
+    <div id="contractor-lookup-container" className="settings-card" style={{ border: '1px solid var(--st-line)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '0.95rem', fontWeight: 700, color: 'var(--st-text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+        <Search size={16} style={{ color: 'var(--st-gold)' }} />
         Contractor Balance Lookup
       </h3>
 
@@ -30,7 +30,7 @@ export default function DashboardContractorSearch({
           onChange={(e) => onSearchTermChange(e.target.value)}
           style={{ width: '100%', paddingLeft: '36px' }}
         />
-        <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-zinc-600)' }} />
+        <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--st-muted)' }} />
 
         {searchTerm && suggestions.length > 0 && (
           <div style={{
@@ -38,13 +38,13 @@ export default function DashboardContractorSearch({
             top: 'calc(100% + 4px)',
             left: 0,
             width: '100%',
-            backgroundColor: 'var(--color-zinc-950)',
-            border: '1px solid var(--color-zinc-800)',
+            backgroundColor: 'var(--st-panel)',
+            border: '1px solid var(--st-line)',
             borderRadius: '8px',
             zIndex: 900,
-            maxHeight: '180px',
+            maxHeight: '200px',
             overflowY: 'auto',
-            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.8)'
+            boxShadow: '0 12px 32px rgba(0,0,0,0.6)'
           }}>
             {suggestions.map(sub => (
               <div
@@ -54,7 +54,7 @@ export default function DashboardContractorSearch({
                   padding: '10px 12px',
                   fontSize: '0.8rem',
                   cursor: 'pointer',
-                  borderBottom: '1px solid var(--color-zinc-900)',
+                  borderBottom: '1px solid var(--st-line)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center'
@@ -62,10 +62,10 @@ export default function DashboardContractorSearch({
                 className="project-profile-row"
               >
                 <div>
-                  <span style={{ fontWeight: 600, color: 'var(--color-zinc-200)' }}>{sub.payee}</span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--color-zinc-500)', marginLeft: '6px' }}>({sub.phase})</span>
+                  <span style={{ fontWeight: 600, color: 'var(--st-text)' }}>{sub.payee}</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--st-muted)', marginLeft: '6px' }}>({sub.phase})</span>
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-zinc-400)', fontWeight: 600 }}>{formatCurrency(sub.remainingBalance)}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--st-gold)', fontWeight: 600 }}>{formatCurrency(sub.remainingBalance)}</span>
               </div>
             ))}
           </div>

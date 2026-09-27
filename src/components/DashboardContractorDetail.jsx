@@ -62,46 +62,47 @@ export default function DashboardContractorDetail({
 
   return (
     <div style={{
-      background: 'linear-gradient(145deg, #18181c 0%, #0d0d0f 100%)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      border: '1px solid rgba(241, 215, 167, 0.38)',
-      boxShadow: '0 12px 32px rgba(0, 0, 0, 0.7), 0 0 20px rgba(241, 215, 167, 0.12)',
-      borderRadius: '16px',
-      padding: '16px 14px',
+      backgroundColor: 'var(--st-soft)',
+      border: '1px solid var(--st-line)',
+      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+      borderRadius: '10px',
+      padding: '16px',
       display: 'flex',
       flexDirection: 'column',
       gap: '14px',
-      marginTop: '8px',
+      marginTop: '6px',
       width: '100%',
-      maxWidth: '100%',
       boxSizing: 'border-box',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      transition: 'all 0.2s ease'
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px', position: 'relative' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--st-line)', paddingBottom: '12px', position: 'relative' }}>
         <div style={{ flex: 1, minWidth: 0, paddingRight: '40px' }}>
-          <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedSub.payee}</h4>
-          <p style={{ fontSize: '0.76rem', color: 'var(--color-zinc-400)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Phase: <strong style={{ color: 'var(--color-amber-400)' }}>{selectedSub.phase}</strong> ({selectedSub.category})
+          <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--st-text)', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>
+            {selectedSub.payee}
+          </h4>
+          <p style={{ fontSize: '0.78rem', color: 'var(--st-muted)', marginTop: '4px', marginBottom: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Phase: <strong style={{ color: 'var(--st-gold)', fontWeight: 600 }}>{selectedSub.phase}</strong> ({selectedSub.category})
           </p>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '10px', flexWrap: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => onViewPhasePhotos({ category: selectedSub.category, phase: selectedSub.phase })}
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(241, 215, 167, 0.35)',
+                background: 'rgba(212, 183, 135, 0.1)',
+                border: '1px solid rgba(212, 183, 135, 0.3)',
                 borderRadius: '20px',
-                color: 'var(--color-amber-400)',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                padding: '4px 10px',
+                color: 'var(--st-gold)',
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                padding: '5px 12px',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '6px',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                flexShrink: 0
+                flexShrink: 0,
+                transition: 'var(--transition-all)'
               }}
             >
               <Camera size={13} /> View Phase Photos
@@ -110,43 +111,44 @@ export default function DashboardContractorDetail({
               type="button"
               onClick={handleCopySummary}
               style={{
-                background: 'linear-gradient(135deg, #f1d7a7 0%, #a37c35 100%)',
-                color: '#0a0a0a',
-                border: 'none',
+                background: 'var(--st-gold)',
+                color: '#151719',
+                border: '1px solid var(--st-gold)',
                 borderRadius: '20px',
-                fontSize: '0.7rem',
-                fontWeight: 800,
-                padding: '5px 12px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '5px 14px',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '6px',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(241, 215, 167, 0.3)'
+                boxShadow: '0 2px 8px rgba(212, 183, 135, 0.22)',
+                transition: 'var(--transition-all)'
               }}
             >
-              {copied ? <Check size={13} style={{ color: '#000000' }} /> : <Copy size={13} />}
+              {copied ? <Check size={13} style={{ color: '#151719' }} /> : <Copy size={13} />}
               {copied ? 'Copied!' : 'Copy Summary'}
             </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'absolute', right: '0', top: '0', height: '100%', maxHeight: '32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'absolute', right: '0', top: '0' }}>
           <button
             type="button"
             onClick={onClearSelection}
             style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: 'var(--color-zinc-400)',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--st-line)',
+              color: 'var(--st-muted)',
               cursor: 'pointer',
               padding: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: '8px',
-              transition: 'all 0.15s'
+              transition: 'var(--transition-all)'
             }}
             title="Clear Selection"
           >
@@ -156,43 +158,43 @@ export default function DashboardContractorDetail({
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ padding: '10px 4px', backgroundColor: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '10px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
-          <span style={{ fontSize: '0.64rem', color: 'var(--color-zinc-400)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', display: 'block' }}>
+        <div style={{ padding: '10px 6px', backgroundColor: 'var(--st-panel)', border: '1px solid var(--st-line)', borderRadius: '8px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
+          <span style={{ fontSize: '0.66rem', color: 'var(--st-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em', display: 'block' }}>
             Quote
           </span>
-          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.originalQuote), fontWeight: 800, color: '#ffffff', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.originalQuote), fontWeight: 700, color: 'var(--st-text)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {safeFormatCurrency(selectedSub.originalQuote)}
           </div>
         </div>
-        <div style={{ padding: '10px 4px', backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '10px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
-          <span style={{ fontSize: '0.64rem', color: '#60a5fa', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', display: 'block' }}>
+        <div style={{ padding: '10px 6px', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
+          <span style={{ fontSize: '0.66rem', color: '#7dd3fc', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em', display: 'block' }}>
             Paid ({laborPayments.length})
           </span>
-          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.totalLabor || selectedSub.totalPaid || 0), fontWeight: 800, color: '#60a5fa', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.totalLabor || selectedSub.totalPaid || 0), fontWeight: 700, color: '#7dd3fc', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {safeFormatCurrency(selectedSub.totalLabor || selectedSub.totalPaid || 0)}
           </div>
         </div>
-        <div style={{ padding: '10px 4px', backgroundColor: 'rgba(241, 215, 167, 0.1)', border: '1px solid rgba(241, 215, 167, 0.35)', borderRadius: '10px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
-          <span style={{ fontSize: '0.64rem', color: 'var(--color-amber-400)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', display: 'block' }}>
+        <div style={{ padding: '10px 6px', backgroundColor: 'rgba(212, 183, 135, 0.1)', border: '1px solid rgba(212, 183, 135, 0.3)', borderRadius: '8px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
+          <span style={{ fontSize: '0.66rem', color: 'var(--st-gold)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em', display: 'block' }}>
             Balance
           </span>
-          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.remainingBalance), fontWeight: 800, color: 'var(--color-amber-400)', marginTop: '4px', textShadow: '0 0 10px rgba(241, 215, 167, 0.3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.remainingBalance), fontWeight: 700, color: 'var(--st-gold)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {safeFormatCurrency(selectedSub.remainingBalance)}
           </div>
         </div>
       </div>
 
       <div>
-        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-zinc-400)', display: 'block', marginBottom: '6px' }}>
+        <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--st-muted)', display: 'block', marginBottom: '8px' }}>
           Payment History Logs ({laborPayments.length})
         </span>
 
         {laborPayments.length === 0 ? (
-          <p style={{ fontSize: '0.72rem', color: 'var(--color-zinc-600)', fontStyle: 'italic', padding: '6px 0' }}>
+          <p style={{ fontSize: '0.72rem', color: 'var(--st-muted)', fontStyle: 'italic', padding: '6px 0', margin: 0 }}>
             No labor payments recorded yet for this contractor.
           </p>
         ) : (
-          <div style={{ maxHeight: '120px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {laborPayments.map((p, idx) => {
               const lab = parseFloat(String(p.laborCost || '').replace(/[^0-9.-]/g, '')) || 0;
               return (
@@ -200,20 +202,21 @@ export default function DashboardContractorDetail({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '6px 8px',
-                  backgroundColor: 'var(--color-zinc-900)',
-                  borderRadius: '4px',
-                  fontSize: '0.72rem',
-                  color: 'var(--color-zinc-300)'
+                  padding: '8px 10px',
+                  backgroundColor: 'var(--st-panel)',
+                  border: '1px solid var(--st-line)',
+                  borderRadius: '6px',
+                  fontSize: '0.74rem',
+                  color: 'var(--st-text)'
                 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 600 }}>{p.vendor}</span>
-                    <span style={{ fontSize: '0.62rem', color: 'var(--color-zinc-500)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--st-text)' }}>{p.vendor}</span>
+                    <span style={{ fontSize: '0.66rem', color: 'var(--st-muted)' }}>
                       Date: {p.date} {p.checkNumber && p.checkNumber !== 'N/A' ? `- Check: ${p.checkNumber}` : ''}
                     </span>
                   </div>
 
-                  <div style={{ textAlign: 'right', fontWeight: 700, color: 'var(--color-blue-400)' }}>
+                  <div style={{ textAlign: 'right', fontWeight: 700, color: '#7dd3fc', fontSize: '0.82rem' }}>
                     {safeFormatCurrency(lab)}
                   </div>
                 </div>

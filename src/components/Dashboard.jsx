@@ -311,11 +311,11 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
   const selectSubcontractor = (sub) => {
     setSelectedSub(sub);
     setSearchTerm('');
-    // Smooth scroll the lookup box directly to the top edge of the viewport
+    // Smooth scroll the lookup box into comfortable view without slamming against top edge
     setTimeout(() => {
       const el = document.getElementById('contractor-lookup-container');
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }, 80);
   };
