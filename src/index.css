@@ -123,21 +123,11 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   flex: 1;
+  width: 100%;
   min-width: 0;
   min-height: 100vh;
   position: relative;
-  background-color: var(--st-panel);
-  max-width: 600px;
-  margin: 0 auto;
-  border-left: 1px solid var(--st-line);
-  border-right: 1px solid var(--st-line);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
-}
-
-@media (min-width: 768px) and (max-width: 1023px) {
-  .app-main {
-    max-width: 860px;
-  }
+  background-color: var(--st-bg);
 }
 
 /* Desktop & Ultrawide Studio Workspace (>= 1024px) */
@@ -455,6 +445,10 @@ button, input, select, textarea {
 /* Main Content Area */
 .app-content {
   flex: 1;
+  width: 100%;
+  max-width: 1360px;
+  margin: 0 auto;
+  box-sizing: border-box;
   padding: 20px 20px calc(90px + env(safe-area-inset-bottom, 20px)) 20px;
   display: flex;
   flex-direction: column;
