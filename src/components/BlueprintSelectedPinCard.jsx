@@ -54,23 +54,23 @@ export default function BlueprintSelectedPinCard({
   }, [attachments, googleToken]);
 
   return (
-    <div style={{ backgroundColor: 'var(--color-zinc-950)', border: '1px solid var(--color-zinc-800)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', animation: 'slideUp 0.2s ease-out' }}>
+    <div style={{ backgroundColor: 'var(--st-panel)', border: '1px solid var(--st-line)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', animation: 'slideUp 0.2s ease-out', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: tradeSectionsConfig[pin.category]?.color || '#fff', fontWeight: 800, letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: tradeSectionsConfig[pin.category]?.color || 'var(--st-gold)', fontWeight: 800, letterSpacing: '0.08em' }}>
             {tradeSectionsConfig[pin.category]?.label || 'General'}
           </span>
-          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>{pin.phase}</h4>
+          <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '0.95rem', fontWeight: 700, color: 'var(--st-text)' }}>{pin.phase}</h4>
         </div>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', color: 'var(--color-zinc-500)', cursor: 'pointer' }}
+          style={{ background: 'none', border: 'none', color: 'var(--st-muted)', cursor: 'pointer' }}
         >
           <X size={16} />
         </button>
       </div>
 
-      <p style={{ fontSize: '0.8rem', color: 'var(--color-zinc-300)', lineHeight: 1.4, backgroundColor: 'var(--color-zinc-900)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-zinc-800)' }}>
+      <p style={{ fontSize: '0.8rem', color: 'var(--st-text)', lineHeight: 1.4, backgroundColor: 'var(--st-soft)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--st-line)' }}>
         {pin.note}
       </p>
 

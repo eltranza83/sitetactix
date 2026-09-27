@@ -114,8 +114,8 @@ async function drawAdepecHeader(pdf, title, subtitle) {
   pdf.rect(0, 0, pageWidth, 38, 'F');
 
   try {
-    const logoDataUrl = await renderSvgAssetToPngDataUrl('/adepec-logo-dark.svg', 420, 462);
-    pdf.addImage(logoDataUrl, 'PNG', margin - 1, 4, 31, 34, undefined, 'FAST');
+    const logoDataUrl = await renderSvgAssetToPngDataUrl('/logo-horizontal.svg', 600, 220);
+    pdf.addImage(logoDataUrl, 'PNG', margin - 1, 7, 56, 20.5, undefined, 'FAST');
   } catch (err) {
     console.error('Failed to render Adepec logo asset in PDF:', err);
     pdf.setTextColor(255, 255, 255);

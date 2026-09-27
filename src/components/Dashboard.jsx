@@ -385,15 +385,15 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff' }}>Financial Dashboard</h2>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.35rem', fontWeight: 700, color: 'var(--st-text)', letterSpacing: '-0.02em' }}>Financial Dashboard</h2>
             {isCached && (
               <span style={{ 
-                fontSize: '0.7rem', 
+                fontSize: '0.68rem', 
                 padding: '2px 8px', 
-                borderRadius: '12px', 
-                backgroundColor: 'rgba(241, 215, 167, 0.12)',
-                color: 'var(--color-amber-400)', 
-                border: '1px solid rgba(241, 215, 167, 0.25)',
+                borderRadius: '6px', 
+                backgroundColor: 'rgba(212, 183, 135, 0.12)',
+                color: 'var(--st-gold)', 
+                border: '1px solid rgba(212, 183, 135, 0.3)',
                 fontWeight: 600
               }}>
                 Saved Snapshot
@@ -401,7 +401,7 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
             )}
           </div>
           {data?.projectInfo?.address && (
-            <p style={{ fontSize: '0.78rem', color: 'var(--color-zinc-500)', marginTop: '2px' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--st-muted)', marginTop: '2px' }}>
               {data.projectInfo.address.toLowerCase().startsWith('n/a')
                 ? data.projectInfo.cityStateZip || ''
                 : `${data.projectInfo.address}${data.projectInfo.cityStateZip ? `, ${data.projectInfo.cityStateZip}` : ''}`}

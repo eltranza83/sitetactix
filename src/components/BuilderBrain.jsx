@@ -1104,10 +1104,10 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
         style={{
           display: 'flex',
           gap: '6px',
-          backgroundColor: 'var(--color-zinc-950)',
+          backgroundColor: 'var(--st-soft)',
           padding: '4px',
           borderRadius: '10px',
-          border: '1px solid var(--color-zinc-800)',
+          border: '1px solid var(--st-line)',
           flexWrap: 'wrap'
         }}
       >
@@ -1115,13 +1115,13 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
           onClick={() => setActiveSubTab('site_setup')}
           style={{
             flex: '1 1 120px',
-            padding: '10px 8px',
+            padding: '9px 10px',
             borderRadius: '8px',
-            border: 'none',
-            backgroundColor: activeSubTab === 'site_setup' ? 'var(--color-amber-500)' : 'transparent',
-            color: activeSubTab === 'site_setup' ? '#000' : 'var(--color-zinc-400)',
-            fontSize: '0.82rem',
-            fontWeight: 800,
+            border: activeSubTab === 'site_setup' ? '1px solid var(--st-line)' : '1px solid transparent',
+            backgroundColor: activeSubTab === 'site_setup' ? 'var(--st-panel)' : 'transparent',
+            color: activeSubTab === 'site_setup' ? 'var(--st-gold)' : 'var(--st-muted)',
+            fontSize: '0.80rem',
+            fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -1129,7 +1129,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             gap: '6px',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
-            boxShadow: activeSubTab === 'site_setup' ? '0 2px 8px rgba(241, 215, 167, 0.25)' : 'none'
+            boxShadow: activeSubTab === 'site_setup' ? '0 1px 4px rgba(0, 0, 0, 0.25)' : 'none'
           }}
         >
           <Flag size={15} />
@@ -1140,13 +1140,13 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
           onClick={() => setActiveSubTab('phases')}
           style={{
             flex: '1 1 120px',
-            padding: '10px 8px',
+            padding: '9px 10px',
             borderRadius: '8px',
-            border: 'none',
-            backgroundColor: activeSubTab === 'phases' ? 'var(--color-amber-500)' : 'transparent',
-            color: activeSubTab === 'phases' ? '#000' : 'var(--color-zinc-400)',
-            fontSize: '0.82rem',
-            fontWeight: 800,
+            border: activeSubTab === 'phases' ? '1px solid var(--st-line)' : '1px solid transparent',
+            backgroundColor: activeSubTab === 'phases' ? 'var(--st-panel)' : 'transparent',
+            color: activeSubTab === 'phases' ? 'var(--st-gold)' : 'var(--st-muted)',
+            fontSize: '0.80rem',
+            fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -1154,7 +1154,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             gap: '6px',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
-            boxShadow: activeSubTab === 'phases' ? '0 2px 8px rgba(241, 215, 167, 0.25)' : 'none'
+            boxShadow: activeSubTab === 'phases' ? '0 1px 4px rgba(0, 0, 0, 0.25)' : 'none'
           }}
         >
           <CheckSquare size={15} />
@@ -1165,13 +1165,13 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
           onClick={() => setActiveSubTab('specs')}
           style={{
             flex: '1 1 120px',
-            padding: '10px 8px',
+            padding: '9px 10px',
             borderRadius: '8px',
-            border: 'none',
-            backgroundColor: activeSubTab === 'specs' ? 'var(--color-amber-500)' : 'transparent',
-            color: activeSubTab === 'specs' ? '#000' : 'var(--color-zinc-400)',
-            fontSize: '0.82rem',
-            fontWeight: 800,
+            border: activeSubTab === 'specs' ? '1px solid var(--st-line)' : '1px solid transparent',
+            backgroundColor: activeSubTab === 'specs' ? 'var(--st-panel)' : 'transparent',
+            color: activeSubTab === 'specs' ? 'var(--st-gold)' : 'var(--st-muted)',
+            fontSize: '0.80rem',
+            fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -1179,7 +1179,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             gap: '6px',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
-            boxShadow: activeSubTab === 'specs' ? '0 2px 8px rgba(241, 215, 167, 0.25)' : 'none'
+            boxShadow: activeSubTab === 'specs' ? '0 1px 4px rgba(0, 0, 0, 0.25)' : 'none'
           }}
         >
           <Palette size={15} />
@@ -1190,13 +1190,13 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
           onClick={() => setActiveSubTab('vault')}
           style={{
             flex: '1 1 120px',
-            padding: '10px 8px',
+            padding: '9px 10px',
             borderRadius: '8px',
-            border: 'none',
-            backgroundColor: activeSubTab === 'vault' ? 'var(--color-amber-500)' : 'transparent',
-            color: activeSubTab === 'vault' ? '#000' : 'var(--color-zinc-400)',
-            fontSize: '0.82rem',
-            fontWeight: 800,
+            border: activeSubTab === 'vault' ? '1px solid var(--st-line)' : '1px solid transparent',
+            backgroundColor: activeSubTab === 'vault' ? 'var(--st-panel)' : 'transparent',
+            color: activeSubTab === 'vault' ? 'var(--st-gold)' : 'var(--st-muted)',
+            fontSize: '0.80rem',
+            fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -1204,7 +1204,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             gap: '6px',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
-            boxShadow: activeSubTab === 'vault' ? '0 2px 8px rgba(241, 215, 167, 0.25)' : 'none'
+            boxShadow: activeSubTab === 'vault' ? '0 1px 4px rgba(0, 0, 0, 0.25)' : 'none'
           }}
         >
           <Brain size={15} />
@@ -1314,7 +1314,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
 
             {/* Sync Notifications */}
             {syncSuccessToast && (
-              <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--st-greenbg)', border: '1px solid rgba(157, 204, 174, 0.3)', color: 'var(--st-green)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={14} />
                 <span>{syncSuccessToast}</span>
               </div>
@@ -1349,7 +1349,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {sheetSyncStatus === 'synced' && (
-                  <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                  <span style={{ color: 'var(--st-green)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                     <CheckCircle2 size={13} /> Google Sheet: Synced ✓
                   </span>
                 )}
@@ -1509,8 +1509,9 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                           </span>
                           <span
                             style={{
-                              backgroundColor: isWholeHouse ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
-                              color: isWholeHouse ? '#34d399' : '#60a5fa',
+                              backgroundColor: isWholeHouse ? 'var(--st-greenbg)' : 'rgba(59, 130, 246, 0.12)',
+                              color: isWholeHouse ? 'var(--st-green)' : '#60a5fa',
+                              border: isWholeHouse ? '1px solid rgba(157, 204, 174, 0.3)' : 'none',
                               fontSize: '0.65rem',
                               fontWeight: 700,
                               padding: '1px 6px',
@@ -2005,12 +2006,14 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                 </span>
                 <span
                   style={{
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    color: '#34d399',
-                    fontSize: '0.72rem',
-                    fontWeight: 700
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    backgroundColor: 'var(--st-greenbg)',
+                    color: 'var(--st-green)',
+                    border: '1px solid rgba(157, 204, 174, 0.25)',
+                    fontSize: '0.70rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.02em'
                   }}
                 >
                   Site Prep & Utilities
@@ -2069,8 +2072,8 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             {siteSetupCompletedCount === siteSetupProtocol.inspectionChecklist.length && siteSetupProtocol.inspectionChecklist.length > 0 && (
               <div
                 style={{
-                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  backgroundColor: 'var(--st-greenbg)',
+                  border: '1px solid rgba(157, 204, 174, 0.3)',
                   borderRadius: '8px',
                   padding: '10px 14px',
                   display: 'flex',
@@ -2083,22 +2086,23 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1.2rem' }}>✅</span>
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#34d399' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--st-green)', fontFamily: 'var(--font-display)' }}>
                       Site Setup Complete — Lot Mobilized
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--color-zinc-400)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--st-muted)' }}>
                       All {siteSetupProtocol.inspectionChecklist.length} mobilization requirements verified for {projectName}.
                     </div>
                   </div>
                 </div>
                 <span
                   style={{
-                    backgroundColor: '#10b981',
-                    color: '#000',
+                    backgroundColor: 'rgba(157, 204, 174, 0.2)',
+                    color: 'var(--st-green)',
+                    border: '1px solid rgba(157, 204, 174, 0.4)',
                     padding: '3px 8px',
                     borderRadius: '6px',
                     fontSize: '0.72rem',
-                    fontWeight: 800,
+                    fontWeight: 700,
                     whiteSpace: 'nowrap'
                   }}
                 >
@@ -2335,18 +2339,18 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 700, color: 'var(--st-text)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     2. Site Mobilization Readiness Audit
                   </span>
                   <span
                     style={{
-                      fontSize: '0.72rem',
-                      backgroundColor: siteSetupCompletedCount === siteSetupProtocol.inspectionChecklist.length ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.15)',
-                      color: siteSetupCompletedCount === siteSetupProtocol.inspectionChecklist.length ? '#10b981' : '#34d399',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      fontSize: '0.70rem',
+                      backgroundColor: 'var(--st-greenbg)',
+                      color: 'var(--st-green)',
+                      border: '1px solid rgba(157, 204, 174, 0.3)',
                       padding: '2px 8px',
-                      borderRadius: '12px',
-                      fontWeight: 800
+                      borderRadius: '5px',
+                      fontWeight: 600
                     }}
                   >
                     {siteSetupCompletedCount}/{siteSetupProtocol.inspectionChecklist.length} Passed
@@ -2366,7 +2370,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#34d399'
+                      color: 'var(--st-green)'
                     }}
                   >
                     {isSiteAuditExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -2409,9 +2413,9 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                         value={newSetupAuditInput}
                         onChange={(e) => setNewSetupAuditInput(e.target.value)}
                         autoFocus
-                        style={{ flex: 1, backgroundColor: 'var(--color-zinc-900)', border: '1px solid #34d399', borderRadius: '6px', padding: '6px 10px', color: 'var(--color-zinc-100)', fontSize: '0.82rem', outline: 'none' }}
+                        style={{ flex: 1, backgroundColor: 'var(--st-soft)', border: '1px solid var(--st-line)', borderRadius: '6px', padding: '6px 10px', color: 'var(--st-text)', fontSize: '0.82rem', outline: 'none' }}
                       />
-                      <button type="submit" style={{ padding: '0 12px', backgroundColor: '#10b981', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '0.75rem', cursor: 'pointer' }}>
+                      <button type="submit" style={{ padding: '0 12px', backgroundColor: 'var(--st-gold)', color: '#151719', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}>
                         Add
                       </button>
                       <button type="button" onClick={() => setShowAddSetupAudit(false)} style={{ background: 'none', color: 'var(--color-zinc-400)', border: 'none', cursor: 'pointer', fontSize: '0.75rem' }}>
@@ -2436,8 +2440,8 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                             gap: '8px',
                             padding: '8px 10px',
                             borderRadius: '6px',
-                            backgroundColor: isChecked ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-zinc-900)',
-                            border: '1px solid ' + (isChecked ? 'rgba(16, 185, 129, 0.3)' : 'var(--color-zinc-800)'),
+                            backgroundColor: isChecked ? 'rgba(38, 57, 46, 0.4)' : 'var(--st-soft)',
+                            border: '1px solid ' + (isChecked ? 'rgba(157, 204, 174, 0.3)' : 'var(--st-line)'),
                             transition: 'all 0.15s'
                           }}
                         >
@@ -2452,9 +2456,9 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                   if (e.key === 'Escape') setEditingSetupAuditId(null);
                                 }}
                                 autoFocus
-                                style={{ flex: 1, backgroundColor: 'var(--color-zinc-950)', border: '1px solid #34d399', borderRadius: '4px', padding: '4px 8px', color: 'var(--color-zinc-100)', fontSize: '0.82rem', outline: 'none' }}
+                                style={{ flex: 1, backgroundColor: 'var(--st-panel)', border: '1px solid var(--st-gold)', borderRadius: '4px', padding: '4px 8px', color: 'var(--st-text)', fontSize: '0.82rem', outline: 'none' }}
                               />
-                              <button onClick={() => handleSaveEditSetupAudit(chk.id)} style={{ background: '#10b981', color: '#000', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}>
+                              <button onClick={() => handleSaveEditSetupAudit(chk.id)} style={{ background: 'var(--st-gold)', color: '#151719', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}>
                                 <Check size={14} />
                               </button>
                               <button onClick={() => setEditingSetupAuditId(null)} style={{ background: 'none', color: 'var(--color-zinc-400)', border: 'none', cursor: 'pointer' }}>
@@ -2471,13 +2475,13 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                   type="checkbox"
                                   checked={isChecked}
                                   onChange={() => {}}
-                                  style={{ width: '16px', height: '16px', accentColor: '#10b981', cursor: 'pointer' }}
+                                  style={{ width: '16px', height: '16px', accentColor: 'var(--st-gold)', cursor: 'pointer' }}
                                 />
                                 <span
                                   style={{
                                     fontSize: '0.85rem',
                                     fontWeight: 600,
-                                    color: isChecked ? '#34d399' : 'var(--color-zinc-200)',
+                                    color: isChecked ? 'var(--st-muted)' : 'var(--st-text)',
                                     textDecoration: isChecked ? 'line-through' : 'none'
                                   }}
                                 >
@@ -2540,11 +2544,11 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                   style={{
                     padding: '9px 10px',
                     borderRadius: '8px',
-                    border: '1px solid ' + (isPassed ? '#10b981' : (isActive ? 'var(--color-amber-500)' : 'var(--color-zinc-800)')),
+                    border: '1px solid ' + (isPassed ? 'rgba(157, 204, 174, 0.4)' : (isActive ? 'var(--st-gold)' : 'var(--st-line)')),
                     backgroundColor: isPassed
-                      ? (isActive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.12)')
-                      : (isActive ? 'rgba(241, 215, 167, 0.15)' : 'var(--color-zinc-900)'),
-                    color: isPassed ? '#34d399' : (isActive ? 'var(--color-amber-500)' : 'var(--color-zinc-300)'),
+                      ? (isActive ? 'var(--st-greenbg)' : 'rgba(38, 57, 46, 0.5)')
+                      : (isActive ? 'var(--st-soft)' : 'var(--st-panel)'),
+                    color: isPassed ? 'var(--st-green)' : (isActive ? 'var(--st-gold)' : 'var(--st-muted)'),
                     fontSize: '0.8rem',
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -2561,8 +2565,8 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                   {isPassed ? (
                     <span
                       style={{
-                        backgroundColor: '#10b981',
-                        color: '#000',
+                        backgroundColor: 'var(--st-green)',
+                        color: '#151719',
                         borderRadius: '50%',
                         width: '16px',
                         height: '16px',
@@ -2578,7 +2582,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                     </span>
                   ) : (
                     total > 0 && (
-                      <span style={{ fontSize: '0.70rem', color: passed > 0 ? '#34d399' : 'var(--color-zinc-400)' }}>
+                      <span style={{ fontSize: '0.70rem', color: passed > 0 ? 'var(--st-green)' : 'var(--st-muted)' }}>
                         ({passed}/{total})
                       </span>
                     )
@@ -2616,11 +2620,12 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                 <span
                   style={{
                     padding: '2px 8px',
-                    borderRadius: '4px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    color: '#34d399',
+                    borderRadius: '5px',
+                    backgroundColor: 'var(--st-greenbg)',
+                    color: 'var(--st-green)',
+                    border: '1px solid rgba(157, 204, 174, 0.3)',
                     fontSize: '0.72rem',
-                    fontWeight: 700
+                    fontWeight: 600
                   }}
                 >
                   {currentPhase.trade}
@@ -2679,8 +2684,8 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
             {getPhaseCheckCounts(currentPhase).isPassed && (
               <div
                 style={{
-                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  backgroundColor: 'var(--st-greenbg)',
+                  border: '1px solid rgba(157, 204, 174, 0.3)',
                   borderRadius: '8px',
                   padding: '10px 14px',
                   display: 'flex',
@@ -2693,22 +2698,23 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1.2rem' }}>✅</span>
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#34d399' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--st-green)', fontFamily: 'var(--font-display)' }}>
                       Stage Complete — Ready for City Inspection
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--color-zinc-400)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--st-muted)' }}>
                       All {getPhaseCheckCounts(currentPhase).total} pre-inspection checks verified for {projectName}.
                     </div>
                   </div>
                 </div>
                 <span
                   style={{
-                    backgroundColor: '#10b981',
-                    color: '#000',
+                    backgroundColor: 'rgba(157, 204, 174, 0.2)',
+                    color: 'var(--st-green)',
+                    border: '1px solid rgba(157, 204, 174, 0.4)',
                     padding: '3px 8px',
                     borderRadius: '6px',
                     fontSize: '0.72rem',
-                    fontWeight: 800,
+                    fontWeight: 700,
                     whiteSpace: 'nowrap'
                   }}
                 >
@@ -3168,18 +3174,18 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 700, color: 'var(--st-text)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         2. Pre-Inspection Readiness Audit
                       </span>
                       <span
                         style={{
-                          fontSize: '0.72rem',
-                          backgroundColor: isAllPassed ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.15)',
-                          color: isAllPassed ? '#10b981' : '#34d399',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          fontSize: '0.70rem',
+                          backgroundColor: isAllPassed ? 'var(--st-greenbg)' : 'rgba(255, 255, 255, 0.05)',
+                          color: isAllPassed ? 'var(--st-green)' : 'var(--st-muted)',
+                          border: isAllPassed ? '1px solid rgba(157, 204, 174, 0.3)' : '1px solid var(--st-line)',
                           padding: '2px 8px',
-                          borderRadius: '12px',
-                          fontWeight: 800
+                          borderRadius: '5px',
+                          fontWeight: 600
                         }}
                       >
                         {passedAuditCount}/{totalAuditCount} Passed
@@ -3199,7 +3205,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#34d399'
+                          color: 'var(--st-green)'
                         }}
                       >
                         {isAuditExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -3244,9 +3250,9 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                 value={newAuditInput}
                                 onChange={(e) => setNewAuditInput(e.target.value)}
                                 autoFocus
-                                style={{ flex: 1, backgroundColor: 'var(--color-zinc-900)', border: '1px solid #34d399', borderRadius: '6px', padding: '6px 10px', color: 'var(--color-zinc-100)', fontSize: '0.82rem', outline: 'none' }}
+                                style={{ flex: 1, backgroundColor: 'var(--st-soft)', border: '1px solid var(--st-line)', borderRadius: '6px', padding: '6px 10px', color: 'var(--st-text)', fontSize: '0.82rem', outline: 'none' }}
                               />
-                              <button type="submit" style={{ padding: '0 12px', backgroundColor: '#10b981', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '0.75rem', cursor: 'pointer' }}>
+                              <button type="submit" style={{ padding: '0 12px', backgroundColor: 'var(--st-gold)', color: '#151719', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}>
                                 Add
                               </button>
                               <button type="button" onClick={() => setAddingAuditSubId(null)} style={{ background: 'none', color: 'var(--color-zinc-400)', border: 'none', cursor: 'pointer', fontSize: '0.75rem' }}>
@@ -3270,8 +3276,8 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                     gap: '8px',
                                     padding: '8px 10px',
                                     borderRadius: '6px',
-                                    backgroundColor: checked ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-zinc-900)',
-                                    border: '1px solid ' + (checked ? 'rgba(16, 185, 129, 0.3)' : 'var(--color-zinc-800)'),
+                                    backgroundColor: checked ? 'rgba(38, 57, 46, 0.4)' : 'var(--st-soft)',
+                                    border: '1px solid ' + (checked ? 'rgba(157, 204, 174, 0.3)' : 'var(--st-line)'),
                                     transition: 'all 0.15s'
                                   }}
                                 >
@@ -3286,9 +3292,9 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                           if (e.key === 'Escape') setEditingAuditId(null);
                                         }}
                                         autoFocus
-                                        style={{ flex: 1, backgroundColor: 'var(--color-zinc-950)', border: '1px solid #34d399', borderRadius: '4px', padding: '4px 8px', color: 'var(--color-zinc-100)', fontSize: '0.82rem', outline: 'none' }}
+                                        style={{ flex: 1, backgroundColor: 'var(--st-panel)', border: '1px solid var(--st-gold)', borderRadius: '4px', padding: '4px 8px', color: 'var(--st-text)', fontSize: '0.82rem', outline: 'none' }}
                                       />
-                                      <button onClick={() => handleSaveEditAudit(null, chk.id)} style={{ background: '#10b981', color: '#000', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}>
+                                      <button onClick={() => handleSaveEditAudit(null, chk.id)} style={{ background: 'var(--st-gold)', color: '#151719', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}>
                                         <Check size={14} />
                                       </button>
                                       <button onClick={() => setEditingAuditId(null)} style={{ background: 'none', color: 'var(--color-zinc-400)', border: 'none', cursor: 'pointer' }}>
@@ -3302,9 +3308,9 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                           type="checkbox"
                                           checked={checked}
                                           onChange={() => {}}
-                                          style={{ width: '16px', height: '16px', accentColor: '#10b981', cursor: 'pointer' }}
+                                          style={{ width: '16px', height: '16px', accentColor: 'var(--st-gold)', cursor: 'pointer' }}
                                         />
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: checked ? '#34d399' : 'var(--color-zinc-200)', textDecoration: checked ? 'line-through' : 'none' }}>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: checked ? 'var(--st-muted)' : 'var(--st-text)', textDecoration: checked ? 'line-through' : 'none' }}>
                                           {chk.text}
                                         </span>
                                       </div>
@@ -3368,10 +3374,11 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                     <span
                                       style={{
                                         fontSize: '0.68rem',
-                                        backgroundColor: subAllDone ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                                        color: subAllDone ? '#34d399' : 'var(--color-zinc-400)',
+                                        backgroundColor: subAllDone ? 'var(--st-greenbg)' : 'rgba(255, 255, 255, 0.06)',
+                                        color: subAllDone ? 'var(--st-green)' : 'var(--st-muted)',
+                                        border: subAllDone ? '1px solid rgba(157, 204, 174, 0.3)' : 'none',
                                         padding: '1px 6px',
-                                        borderRadius: '10px',
+                                        borderRadius: '6px',
                                         fontWeight: 700
                                       }}
                                     >
@@ -3408,7 +3415,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        color: '#34d399',
+                                        color: 'var(--st-green)',
                                         cursor: 'pointer'
                                       }}
                                     >
@@ -3429,9 +3436,9 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                           value={newAuditInput}
                                           onChange={(e) => setNewAuditInput(e.target.value)}
                                           autoFocus
-                                          style={{ flex: 1, backgroundColor: 'var(--color-zinc-950)', border: '1px solid #34d399', borderRadius: '4px', padding: '4px 8px', color: 'var(--color-zinc-100)', fontSize: '0.8rem', outline: 'none' }}
+                                          style={{ flex: 1, backgroundColor: 'var(--st-panel)', border: '1px solid var(--st-line)', borderRadius: '4px', padding: '4px 8px', color: 'var(--st-text)', fontSize: '0.8rem', outline: 'none' }}
                                         />
-                                        <button type="submit" style={{ padding: '0 10px', backgroundColor: '#10b981', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 800, fontSize: '0.72rem', cursor: 'pointer' }}>
+                                        <button type="submit" style={{ padding: '0 10px', backgroundColor: 'var(--st-gold)', color: '#151719', border: 'none', borderRadius: '4px', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}>
                                           Add
                                         </button>
                                         <button type="button" onClick={() => setAddingAuditSubId(null)} style={{ background: 'none', color: 'var(--color-zinc-400)', border: 'none', cursor: 'pointer', fontSize: '0.72rem' }}>
@@ -3455,8 +3462,8 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                               gap: '6px',
                                               padding: '6px 8px',
                                               borderRadius: '4px',
-                                              backgroundColor: checked ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-zinc-950)',
-                                              border: '1px solid ' + (checked ? 'rgba(16, 185, 129, 0.3)' : 'var(--color-zinc-800)'),
+                                              backgroundColor: checked ? 'rgba(38, 57, 46, 0.4)' : 'var(--st-soft)',
+                                              border: '1px solid ' + (checked ? 'rgba(157, 204, 174, 0.3)' : 'var(--st-line)'),
                                               transition: 'all 0.15s'
                                             }}
                                           >
@@ -3471,9 +3478,9 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                                     if (e.key === 'Escape') setEditingAuditId(null);
                                                   }}
                                                   autoFocus
-                                                  style={{ flex: 1, backgroundColor: 'var(--color-zinc-950)', border: '1px solid #34d399', borderRadius: '4px', padding: '3px 6px', color: 'var(--color-zinc-100)', fontSize: '0.8rem', outline: 'none' }}
+                                                  style={{ flex: 1, backgroundColor: 'var(--st-panel)', border: '1px solid var(--st-gold)', borderRadius: '4px', padding: '3px 6px', color: 'var(--st-text)', fontSize: '0.8rem', outline: 'none' }}
                                                 />
-                                                <button onClick={() => handleSaveEditAudit(sub.id, chk.id)} style={{ background: '#10b981', color: '#000', border: 'none', borderRadius: '4px', padding: '3px 6px', cursor: 'pointer' }}>
+                                                <button onClick={() => handleSaveEditAudit(sub.id, chk.id)} style={{ background: 'var(--st-gold)', color: '#151719', border: 'none', borderRadius: '4px', padding: '3px 6px', cursor: 'pointer' }}>
                                                   <Check size={12} />
                                                 </button>
                                                 <button onClick={() => setEditingAuditId(null)} style={{ background: 'none', color: 'var(--color-zinc-400)', border: 'none', cursor: 'pointer' }}>
@@ -3487,9 +3494,9 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
                                                     type="checkbox"
                                                     checked={checked}
                                                     onChange={() => {}}
-                                                    style={{ width: '15px', height: '15px', accentColor: '#10b981', cursor: 'pointer' }}
+                                                    style={{ width: '15px', height: '15px', accentColor: 'var(--st-gold)', cursor: 'pointer' }}
                                                   />
-                                                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: checked ? '#34d399' : 'var(--color-zinc-200)', textDecoration: checked ? 'line-through' : 'none' }}>
+                                                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: checked ? 'var(--st-muted)' : 'var(--st-text)', textDecoration: checked ? 'line-through' : 'none' }}>
                                                     {chk.text}
                                                   </span>
                                                 </div>
