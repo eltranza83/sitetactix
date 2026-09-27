@@ -11,13 +11,35 @@ import { STATUS_MESSAGES } from './services/appErrors';
 import ToastNotification from './components/ToastNotification';
 import DashboardErrorBoundary from './components/DashboardErrorBoundary';
 
-const Scanner = lazy(() => import('./components/Scanner'));
-const EditForm = lazy(() => import('./components/EditForm'));
-const Settings = lazy(() => import('./components/Settings'));
-const InviteScreen = lazy(() => import('./components/InviteScreen'));
-const Dashboard = lazy(() => import('./components/Dashboard'));
-const BlueprintPinboard = lazy(() => import('./components/BlueprintPinboard'));
-const BuilderBrain = lazy(() => import('./components/BuilderBrain'));
+function lazyWithRetry(componentImport) {
+  return lazy(async () => {
+    const hasReloaded = sessionStorage.getItem('sitetactix_chunk_reload');
+    try {
+      const module = await componentImport();
+      if (!module || typeof module !== 'object' || !('default' in module) || !module.default) {
+        throw new Error('Module has no default export or chunk is stale');
+      }
+      sessionStorage.removeItem('sitetactix_chunk_reload');
+      return module;
+    } catch (error) {
+      if (!hasReloaded) {
+        sessionStorage.setItem('sitetactix_chunk_reload', '1');
+        console.warn('[SiteTactix] Stale deployment chunk detected, refreshing page...', error);
+        window.location.reload();
+        return new Promise(() => {});
+      }
+      throw error;
+    }
+  });
+}
+
+const Scanner = lazyWithRetry(() => import('./components/Scanner'));
+const EditForm = lazyWithRetry(() => import('./components/EditForm'));
+const Settings = lazyWithRetry(() => import('./components/Settings'));
+const InviteScreen = lazyWithRetry(() => import('./components/InviteScreen'));
+const Dashboard = lazyWithRetry(() => import('./components/Dashboard'));
+const BlueprintPinboard = lazyWithRetry(() => import('./components/BlueprintPinboard'));
+const BuilderBrain = lazyWithRetry(() => import('./components/BuilderBrain'));
 
 function IronManIcon({ size = 18 }) {
   return (

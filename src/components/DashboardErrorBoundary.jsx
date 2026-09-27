@@ -16,6 +16,17 @@ export default class DashboardErrorBoundary extends React.Component {
   }
 
   handleReset = () => {
+    const errorMsg = String(this.state.error?.message || this.state.error || '').toLowerCase();
+    if (
+      errorMsg.includes('default') ||
+      errorMsg.includes('chunk') ||
+      errorMsg.includes('failed to fetch') ||
+      errorMsg.includes('dynamically imported') ||
+      errorMsg.includes('loading')
+    ) {
+      window.location.reload();
+      return;
+    }
     this.setState({ hasError: false, error: null });
     if (this.props.onReset) {
       this.props.onReset();
