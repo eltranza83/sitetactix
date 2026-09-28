@@ -11,9 +11,11 @@ export default function DashboardKpiCards({ projectInfo = {} }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
       <div style={{
-        backgroundColor: 'var(--st-panel)',
+        backgroundColor: 'rgba(18, 20, 25, 0.75)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
         border: '1px solid var(--st-line)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+        boxShadow: 'var(--shadow-sm), var(--specular-highlight)',
         borderRadius: '12px',
         padding: '12px 6px',
         display: 'flex',
@@ -32,9 +34,11 @@ export default function DashboardKpiCards({ projectInfo = {} }) {
       </div>
 
       <div style={{
-        backgroundColor: 'var(--st-panel)',
-        border: '1px solid rgba(212, 183, 135, 0.35)',
-        boxShadow: '0 2px 8px rgba(212, 183, 135, 0.08)',
+        backgroundColor: 'rgba(18, 20, 25, 0.75)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(212, 183, 135, 0.3)',
+        boxShadow: 'var(--shadow-sm), inset 0 1px 0 0 rgba(212, 183, 135, 0.25)',
         borderRadius: '12px',
         padding: '12px 6px',
         display: 'flex',
@@ -53,9 +57,11 @@ export default function DashboardKpiCards({ projectInfo = {} }) {
       </div>
 
       <div style={{
-        backgroundColor: 'var(--st-panel)',
-        border: '1px solid rgba(157, 204, 174, 0.35)',
-        boxShadow: '0 2px 8px rgba(157, 204, 174, 0.08)',
+        backgroundColor: 'rgba(18, 20, 25, 0.75)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(157, 204, 174, 0.3)',
+        boxShadow: 'var(--shadow-sm), inset 0 1px 0 0 rgba(157, 204, 174, 0.25)',
         borderRadius: '12px',
         padding: '12px 6px',
         display: 'flex',
