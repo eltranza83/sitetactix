@@ -303,16 +303,37 @@ export const ACTION_EXECUTORS = {
       };
     }
 
-    // Execute Client Window Open if in browser environment
-    let windowOpened = false;
-    if (typeof window !== 'undefined' && typeof window.open === 'function') {
+    // Execute In-App Document Open if callback provided, otherwise attempt window.open
+    let inAppOpened = false;
+    if (typeof context?.onOpenDocument === 'function') {
+      try {
+        context.onOpenDocument({
+          ...file,
+          id: file.id || null,
+          fileId: file.id || null,
+          name: file.name,
+          fileName: file.name,
+          folderName: targetFile.folderPath || targetFile.folderName || 'Google Drive',
+          folderPath: targetFile.folderPath || targetFile.folderName || 'Google Drive',
+          webViewLink: fileLink,
+          mimeType: file.mimeType || 'application/pdf'
+        });
+        inAppOpened = true;
+      } catch (cbErr) {
+        console.warn('[ClientAction] onOpenDocument callback error:', cbErr);
+      }
+    }
+
+    // Fallback: Execute Client Window Open if in browser environment and not opened in-app
+    let windowOpened = inAppOpened;
+    if (!inAppOpened && typeof window !== 'undefined' && typeof window.open === 'function') {
       try {
         const opened = window.open(fileLink, '_blank', 'noopener,noreferrer');
         windowOpened = Boolean(opened);
       } catch (wErr) {
         console.warn('[ClientAction] window.open failed:', wErr);
       }
-    } else {
+    } else if (!inAppOpened) {
       windowOpened = true; // Non-browser/testing environment simulation
     }
 

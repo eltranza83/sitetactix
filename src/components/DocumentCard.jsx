@@ -4,11 +4,12 @@ import { FileText, Folder, ExternalLink, AlertTriangle, FileSpreadsheet, Image a
 export default function DocumentCard({ file, folderName, error, onOpen }) {
   if (!file && !error) return null;
 
-  const fileName = file?.name || 'Document';
+  const fileName = file?.fileName || file?.name || 'Document';
+  const fileId = file?.fileId || file?.id;
   const isPdf = fileName.toLowerCase().endsWith('.pdf');
   const isSheet = fileName.toLowerCase().includes('.sheet') || fileName.toLowerCase().endsWith('.xlsx') || fileName.toLowerCase().endsWith('.csv');
   const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(fileName);
-  const link = file?.webViewLink || (file?.id ? `https://drive.google.com/file/d/${file.id}/view` : null);
+  const link = file?.webViewLink || (fileId ? `https://drive.google.com/file/d/${fileId}/view` : null);
 
   const getIcon = () => {
     if (error) return <AlertTriangle size={18} style={{ color: '#ef4444' }} />;
@@ -16,6 +17,24 @@ export default function DocumentCard({ file, folderName, error, onOpen }) {
     if (isImage) return <ImageIcon size={18} style={{ color: '#a855f7' }} />;
     if (isPdf) return <FileText size={18} style={{ color: '#F1D7A7' }} />;
     return <FileText size={18} style={{ color: '#60a5fa' }} />;
+  };
+
+  const handleOpenClick = (e) => {
+    if (onOpen) {
+      if (e && typeof e.preventDefault === 'function') e.preventDefault();
+      onOpen({
+        ...file,
+        id: fileId,
+        fileId: fileId,
+        name: fileName,
+        fileName: fileName,
+        folderName: folderName || file?.folderName,
+        webViewLink: link,
+        mimeType: file?.mimeType
+      });
+    } else if (link && typeof window !== 'undefined') {
+      window.open(link, '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (
@@ -34,7 +53,17 @@ export default function DocumentCard({ file, folderName, error, onOpen }) {
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+      <div
+        onClick={onOpen ? handleOpenClick : undefined}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          minWidth: 0,
+          cursor: onOpen ? 'pointer' : 'default',
+          flex: 1
+        }}
+      >
         <div
           style={{
             width: '34px',
@@ -72,31 +101,50 @@ export default function DocumentCard({ file, folderName, error, onOpen }) {
       </div>
 
       {link && !error && (
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => {
-            if (onOpen) onOpen(file);
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            backgroundColor: 'var(--color-amber-500)',
-            color: '#000',
-            fontSize: '0.75rem',
-            fontWeight: 800,
-            borderRadius: '6px',
-            textDecoration: 'none',
-            flexShrink: 0,
-            transition: 'opacity 0.2s'
-          }}
-        >
-          <span>Open</span>
-          <ExternalLink size={13} />
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={handleOpenClick}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              backgroundColor: 'var(--color-amber-500)',
+              color: '#000',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'opacity 0.2s'
+            }}
+          >
+            <span>Open</span>
+            <ExternalLink size={13} />
+          </button>
+          {onOpen && (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open in external Google Drive"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                color: 'var(--color-zinc-400)',
+                textDecoration: 'none'
+              }}
+            >
+              <ExternalLink size={14} />
+            </a>
+          )}
+        </div>
       )}
     </div>
   );

@@ -1517,6 +1517,7 @@ export async function askGeminiBrain(
     activeProjectName,
     projectName: activeProjectName,
     onNavigateTab: options?.onNavigateTab,
+    onOpenDocument: options?.onOpenDocument,
     items: reminders,
     pendingR,
     dashboardData: dashData,

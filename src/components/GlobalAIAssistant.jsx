@@ -685,7 +685,8 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
       const forceDeepReasoning = false;
       const answerPayload = await askGeminiBrain(query, [], projectName, apiKey, currentDashboard, projectId, messages, currentLiveTree, fileAttachment, forceDeepReasoning, googleToken, {
         onNavigateTab,
-        projectFolderId: activeProject?.folderId || selectedFolder?.id || null
+        projectFolderId: activeProject?.folderId || selectedFolder?.id || null,
+        onOpenDocument: (file) => setActivePreviewFile(file)
       });
       const answer = typeof answerPayload === 'object' && answerPayload.text !== undefined ? answerPayload.text : String(answerPayload || '');
       const telemetry = typeof answerPayload === 'object' && answerPayload.telemetry ? answerPayload.telemetry : null;
@@ -864,6 +865,28 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages((prev) => [...prev, aiMsg]);
+
+      // Auto-open in-app document viewer modal when an open document action occurred, or when explicitly requested
+      const isOpenRequest =
+        actionDocTools.some(t => t.name === 'open_drive_document' && t.result?.success !== false) ||
+        /\b(open|show|pull up|bring up|view|display|abrir|abre|mostrar|muestra)\b/i.test(query);
+
+      if (attachedDocs.length > 0 && isOpenRequest) {
+        const docToOpen = attachedDocs.find(d => !d.error) || attachedDocs[0];
+        if (docToOpen && (docToOpen.id || docToOpen.fileId || docToOpen.webViewLink)) {
+          setActivePreviewFile({
+            ...docToOpen,
+            id: docToOpen.id || docToOpen.fileId,
+            fileId: docToOpen.id || docToOpen.fileId,
+            name: docToOpen.name || docToOpen.fileName,
+            fileName: docToOpen.name || docToOpen.fileName,
+            folderName: docToOpen.folderName,
+            webViewLink: docToOpen.webViewLink,
+            mimeType: docToOpen.mimeType
+          });
+        }
+      }
+
       speakText(cleanAnswer, query);
 
 
@@ -1068,9 +1091,18 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         clearTimeout(silenceDebounceTimer);
       }
 
-      // Conversational pause buffer (shorter for PTT, natural for continuous)
-      const debounceDelayMs = isPttMode ? 1000 : 1300;
+      // Adaptive Language-Aware Conversational Pause Buffer:
+      // Spanish phrases have more syllables and natural syntactic pauses between clauses.
+      const isSpanishQuery = aiLanguage === 'es' ||
+        /[áéíóúüñ¿¡]/i.test(combined) ||
+        /\b(el|la|los|las|un|una|del|por|para|con|este|esta|lote|plomero|electricista|dinero|gastado|cuanto|cuánto|quien|quién|recordatorio|buenos|noches|moches|dias|tardes|hola|subcontratista|factura|presupuesto|abrir|abre|mostrar|muestra)\b/i.test(combined);
+
+      const debounceDelayMs = isSpanishQuery
+        ? (isPttMode ? 2000 : 2500)
+        : (isPttMode ? 1200 : 1500);
+
       silenceDebounceTimer = setTimeout(() => {
+        silenceDebounceTimer = null;
         commitUtterance(latestTranscript);
       }, debounceDelayMs);
     };
@@ -1083,16 +1115,27 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
 
     rec.onend = () => {
       if (voiceSmRef.current.currentSessionId !== recSessionId) return;
+
+      // Premature Cutoff Guard:
+      // If user paused mid-sentence and silence debounce timer is actively counting down,
+      // do NOT cancel the timer and force an immediate cutoff.
       if (silenceDebounceTimer) {
-        clearTimeout(silenceDebounceTimer);
-        silenceDebounceTimer = null;
+        if (!isCommitted && voiceSmRef.current.state === VOICE_STATES.LISTENING) {
+          try {
+            rec.start();
+            return;
+          } catch {}
+        }
+        return;
       }
+
       // In PTT mode, ending recognition returns to IDLE unless thinking/speaking
       if (voiceSmRef.current.mode === VOICE_MODES.PUSH_TO_TALK && voiceSmRef.current.state === VOICE_STATES.LISTENING) {
         if (!isCommitted && latestTranscript) {
           commitUtterance(latestTranscript);
+        } else if (!isCommitted) {
+          voiceSmRef.current.transition(VOICE_STATES.IDLE, 'rec_ended_ptt');
         }
-        voiceSmRef.current.transition(VOICE_STATES.IDLE, 'rec_ended_ptt');
       }
     };
 
@@ -1901,6 +1944,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                               file={doc}
                               folderName={doc.folderName}
                               error={doc.error}
+                              onOpen={(f) => setActivePreviewFile(f)}
                             />
                           ))}
                         </div>
@@ -1914,6 +1958,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                               key={vIdx}
                               file={{ name: vf.fileName, id: vf.fileId, webViewLink: `https://drive.google.com/file/d/${vf.fileId}/view` }}
                               folderName={vf.folderName}
+                              onOpen={(f) => setActivePreviewFile(f)}
                             />
                           ))}
                         </div>

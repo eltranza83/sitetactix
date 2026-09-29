@@ -1541,7 +1541,8 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
         documentId: args.documentId
       }, {
         driveTree,
-        activeProjectName: projectContext?.activeProject?.name || projectContext?.projectName || 'Lot 3'
+        activeProjectName: projectContext?.activeProject?.name || projectContext?.projectName || 'Lot 3',
+        onOpenDocument: projectContext?.onOpenDocument
       });
       resultPayload = actionRes;
       break;

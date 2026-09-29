@@ -202,4 +202,24 @@ describe('Generalized Client Actions Framework Suite', () => {
     assert.doesNotMatch(failureSynthesis, /^Opened/); // Never claims opened
   });
 
+  it('10. OPEN_DOCUMENT In-App Viewer Callback: Invokes onOpenDocument when provided in context', async () => {
+    let openedDoc = null;
+    const result = await executeClientAction(ACTION_TYPES.OPEN_DOCUMENT, {
+      fileName: 'floor plan'
+    }, {
+      driveTree: mockDriveTree,
+      activeProjectName: 'Lot 3',
+      onOpenDocument: (doc) => {
+        openedDoc = doc;
+      }
+    });
+
+    assert.strictEqual(result.success, true);
+    assert.ok(openedDoc, 'onOpenDocument must be called');
+    assert.strictEqual(openedDoc.name, 'Lot 3 Floor Plan Review.pdf');
+    assert.strictEqual(openedDoc.id, 'f_fp_1');
+    assert.strictEqual(openedDoc.folderName, 'Floor Plans');
+    assert.strictEqual(openedDoc.webViewLink, 'https://drive.google.com/file/d/f_fp_1/view');
+  });
+
 });
