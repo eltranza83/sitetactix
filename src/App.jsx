@@ -1,13 +1,12 @@
 import GlobalAIAssistant from './components/GlobalAIAssistant';
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { Camera, Settings as SettingsIcon, Sparkles, Folder, LogIn, FileText, TrendingUp, MapPin, Check, Database, Trash2, X, Zap, ChevronDown } from 'lucide-react';
+import { Camera, Settings as SettingsIcon, Sparkles, Folder, LogIn, FileText, TrendingUp, MapPin, Check, Trash2, X, Zap, ChevronDown, CloudLightning } from 'lucide-react';
 import StagingCard from './components/StagingCard';
 import { useGoogleAuth } from './hooks/useGoogleAuth';
 import { useInvoiceSync } from './hooks/useInvoiceSync';
 import { useInviteGate } from './hooks/useInviteGate';
 import { useProjects } from './hooks/useProjects';
 import { useStagedDocuments } from './hooks/useStagedDocuments';
-import { STATUS_MESSAGES } from './services/appErrors';
 import ToastNotification from './components/ToastNotification';
 import DashboardErrorBoundary from './components/DashboardErrorBoundary';
 
@@ -186,6 +185,7 @@ export default function App() {
     handleAdjustTimer,
     handleResetTimer,
     handleUpdateDraftField,
+    updateStagedItem,
     removeStagedItem
   } = useStagedDocuments({
     activeProject,
@@ -194,11 +194,10 @@ export default function App() {
   });
   const {
     uploading,
+    uploadStatusText,
     history,
-    hasUnprocessedUploads,
-    triggeringSync,
-    handleTriggerAppsScriptSync,
-    handleSyncToDrive,
+    handleOneShotSync,
+    handleSyncAllDrafts,
     handleViewPDF,
     handleClearHistory,
     handleDeleteHistoryItem
@@ -209,6 +208,7 @@ export default function App() {
     projects,
     stagedItems,
     removeStagedItem,
+    updateStagedItem,
     handleSessionExpired,
     setError,
     setSuccess
@@ -515,54 +515,6 @@ export default function App() {
 
       {/* 2. Main Content */}
       <main className="app-content">
-        {activeProject?.folderId && hasUnprocessedUploads && (
-          <div className="settings-card" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between', 
-            gap: '12px', 
-            border: '1px solid rgba(16, 185, 129, 0.3)', 
-            backgroundColor: 'rgba(16, 185, 129, 0.08)',
-            padding: '10px 14px',
-            borderRadius: '10px',
-            marginTop: '-4px',
-            marginBottom: '10px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-              <Database size={16} style={{ color: 'var(--color-emerald-400)', flexShrink: 0 }} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--color-zinc-200)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                Files uploaded! Sync spreadsheet?
-              </span>
-            </div>
-            <button 
-              onClick={handleTriggerAppsScriptSync}
-              className="btn btn-primary" 
-              style={{ 
-                width: 'auto', 
-                padding: '5px 12px',
-                fontSize: '0.75rem',
-                fontWeight: 700, 
-                backgroundColor: 'var(--color-emerald-500)',
-                color: '#000',
-                border: 'none',
-                height: '28px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-              disabled={triggeringSync}
-            >
-              {triggeringSync ? (
-                <>
-                  <div className="spinner" style={{ width: '10px', height: '10px', borderWidth: '1.2px', borderColor: '#000', borderTopColor: 'transparent', margin: 0 }}></div>
-                  {STATUS_MESSAGES.syncingSpreadsheet}
-                </>
-              ) : (
-                "Sync Now"
-              )}
-            </button>
-          </div>
-        )}
 
         {/* Tab view routing */}
         <Suspense fallback={<LazyScreenFallback />}>
@@ -666,14 +618,62 @@ export default function App() {
               </div>
             ) : invoicesSubTab === 'staged' ? (
               <div key="staged-subtab" className="slide-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Staged Drafts ({stagedItems.length})</h2>
-                  {stagedItems.length > 0 && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--color-zinc-500)', fontStyle: 'italic' }}>
-                      Saved locally on device
-                    </span>
-                  )}
-                </div>
+                {(() => {
+                  const activeProjectDrafts = stagedItems.filter(item => {
+                    const lot = (item.metadata?.lotNumber || '').trim().toLowerCase();
+                    const projName = (activeProject?.name || '').trim().toLowerCase();
+                    return !lot || lot === projName;
+                  });
+                  const activeProjectDraftsCount = activeProjectDrafts.length;
+
+                  return (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Staged Drafts ({stagedItems.length})</h2>
+                        {stagedItems.length > 0 && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-zinc-500)', fontStyle: 'italic' }}>
+                            Saved locally on device
+                          </span>
+                        )}
+                      </div>
+                      {stagedItems.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleSyncAllDrafts}
+                          disabled={uploading !== null || activeProjectDraftsCount === 0}
+                          className="btn btn-primary"
+                          style={{
+                            width: 'auto',
+                            padding: '6px 14px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            backgroundColor: 'var(--color-amber-500)',
+                            color: '#18181b',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: (uploading !== null || activeProjectDraftsCount === 0) ? 'not-allowed' : 'pointer',
+                            opacity: (uploading !== null || activeProjectDraftsCount === 0) ? 0.6 : 1
+                          }}
+                        >
+                          {uploading === 'all' ? (
+                            <>
+                              <div className="spinner" style={{ width: '12px', height: '12px', borderWidth: '1.5px', borderColor: '#18181b', borderTopColor: 'transparent', margin: 0 }}></div>
+                              <span>{uploadStatusText || 'Syncing All...'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <CloudLightning size={14} />
+                              <span>Sync All ({activeProjectDraftsCount})</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {!googleToken && stagedItems.length > 0 && (
                   <div className="settings-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid var(--color-zinc-800)', marginBottom: '4px' }}>
@@ -707,14 +707,15 @@ export default function App() {
                         key={item.id}
                         stagedItem={item}
                         onEditClick={() => setEditingItemId(item.id)}
-                        onUploadClick={() => handleSyncToDrive(item.id)}
+                        onUploadClick={() => handleOneShotSync(item.id)}
                         onDeleteClick={() => handleDeleteStaged(item.id)}
                         onAdjustTimer={(minutes) => handleAdjustTimer(item.id, minutes)}
                         onResetTimer={() => handleResetTimer(item.id)}
                         onDescriptionChange={(val) => handleUpdateDraftField(item.id, 'description', val)}
                         onCostCategoryChange={(val) => handleUpdateDraftField(item.id, 'costCategory', val)}
                         onLotNumberChange={(val) => handleUpdateDraftField(item.id, 'lotNumber', val)}
-                        uploading={uploading === item.id}
+                        uploading={uploading === item.id || uploading === 'all'}
+                        uploadStatusText={uploading === item.id ? uploadStatusText : ''}
                         googleToken={googleToken}
                         selectedFolder={selectedFolder}
                       />

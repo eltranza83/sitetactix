@@ -7,10 +7,9 @@ import {
 } from '../services/appStorage';
 import { STATUS_MESSAGES, getDriveErrorMessage, isAuthError } from '../services/appErrors';
 import { fetchDriveFileBlob } from '../services/googleDrive';
-import { syncInvoiceDocument } from '../services/invoiceUpload';
+import { buildHistoryLogs, syncInvoiceDocument } from '../services/invoiceUpload';
 import {
-  getHistoryFileId,
-  shouldFlagUnprocessedUpload
+  getHistoryFileId
 } from '../services/invoiceSyncState';
 import { triggerAppsScriptSync } from '../services/secureApi';
 import { syncUploadedInvoicesDirectly } from '../services/directSyncService';
@@ -54,11 +53,13 @@ export function useInvoiceSync({
   projects,
   stagedItems,
   removeStagedItem,
+  updateStagedItem,
   handleSessionExpired,
   setError,
   setSuccess
 }) {
   const [uploading, setUploading] = useState(null);
+  const [uploadStatusText, setUploadStatusText] = useState('');
   const [history, setHistory] = useState(() => loadStoredAppState().history);
   const [hasUnprocessedUploads, setHasUnprocessedUploads] = useState(() => (
     loadStoredAppState().hasUnprocessedUploads
@@ -110,41 +111,211 @@ export function useInvoiceSync({
     }
   };
 
-  const handleSyncToDrive = async (id) => {
+  const handleOneShotSync = async (id) => {
     const itemToSync = stagedItems.find(item => item.id === id);
     if (!itemToSync) return;
 
+    const targetFolderId = activeProject?.folderId || selectedFolder?.id;
     setError(null);
     setUploading(id);
+    setUploadStatusText('Uploading PDF...');
 
+    let driveUploadResult = null;
     try {
-      const result = await syncInvoiceDocument({
-        item: itemToSync,
-        googleToken,
-        selectedFolder,
-        projects
-      });
+      if (itemToSync.driveFileId) {
+        driveUploadResult = {
+          hasDriveUpload: true,
+          driveFileId: itemToSync.driveFileId,
+          webViewLink: itemToSync.driveFileLink,
+          logs: buildHistoryLogs(itemToSync.metadata, {
+            idPrefix: itemToSync.driveFileId,
+            link: itemToSync.driveFileLink
+          })
+        };
+      } else {
+        driveUploadResult = await syncInvoiceDocument({
+          item: itemToSync,
+          googleToken,
+          selectedFolder,
+          projects
+        });
 
-      saveHistory([...result.logs, ...history]);
-
-      if (shouldFlagUnprocessedUpload(result)) {
-        setHasUnprocessedUploads(true);
-        setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, true);
+        if (updateStagedItem && driveUploadResult.driveFileId) {
+          updateStagedItem(id, {
+            driveFileId: driveUploadResult.driveFileId,
+            driveFileLink: driveUploadResult.webViewLink
+          });
+        }
       }
 
-      setSuccess(result.successMessage);
+      if (!driveUploadResult.hasDriveUpload) {
+        saveHistory([...driveUploadResult.logs, ...history]);
+        removeStagedItem(id);
+        setSuccess(driveUploadResult.successMessage);
+        setTimeout(() => setSuccess(null), 4000);
+        return;
+      }
 
+      setUploadStatusText('Updating spreadsheet...');
+
+      if (!targetFolderId) {
+        throw new Error('Please select an active project folder before syncing.');
+      }
+
+      if (googleToken) {
+        try {
+          await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
+        } catch (directErr) {
+          console.warn('Direct sync failed, attempting Apps Script fallback:', directErr);
+          await triggerAppsScriptSync(targetFolderId);
+        }
+      } else {
+        await triggerAppsScriptSync(targetFolderId);
+      }
+
+      saveHistory([...driveUploadResult.logs, ...history]);
       removeStagedItem(id);
+      setHasUnprocessedUploads(false);
+      setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, false);
+      setSuccess('Synced directly to spreadsheet & Drive!');
       setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
-      console.error(err);
+      console.error('One-shot sync failed:', err);
       if (isAuthError(err)) {
         handleSessionExpired();
       } else {
-        setError(getDriveErrorMessage(err, 'save report'));
+        if (driveUploadResult?.hasDriveUpload && updateStagedItem) {
+          updateStagedItem(id, {
+            driveFileId: driveUploadResult.driveFileId || itemToSync.driveFileId,
+            driveFileLink: driveUploadResult.webViewLink || itemToSync.driveFileLink,
+            sheetSyncError: err.message || 'Spreadsheet sync failed'
+          });
+          setError(`PDF saved to Drive, but spreadsheet sync failed: ${err.message}. Tap to retry.`);
+        } else {
+          setError(getDriveErrorMessage(err, 'sync document'));
+        }
       }
     } finally {
       setUploading(null);
+      setUploadStatusText('');
+    }
+  };
+
+  const handleSyncAllDrafts = async () => {
+    const activeProjectDrafts = (stagedItems || []).filter(item => {
+      const lot = (item.metadata?.lotNumber || '').trim().toLowerCase();
+      const projName = (activeProject?.name || '').trim().toLowerCase();
+      return !lot || lot === projName;
+    });
+
+    if (activeProjectDrafts.length === 0) {
+      setError(`No drafts found for ${activeProject?.name || 'current project'}.`);
+      return;
+    }
+
+    const targetFolderId = activeProject?.folderId || selectedFolder?.id;
+    if (!targetFolderId && googleToken) {
+      setError('Please select an active project folder before syncing.');
+      return;
+    }
+
+    setError(null);
+    setUploading('all');
+
+    // Offline / Mock mode
+    if (!googleToken || !selectedFolder) {
+      for (let i = 0; i < activeProjectDrafts.length; i++) {
+        const item = activeProjectDrafts[i];
+        setUploadStatusText(`Downloading PDF (${i + 1}/${activeProjectDrafts.length})...`);
+        const result = await syncInvoiceDocument({ item, googleToken, selectedFolder, projects });
+        saveHistory([...result.logs, ...history]);
+        removeStagedItem(item.id);
+      }
+      setSuccess(`Downloaded ${activeProjectDrafts.length} document(s) to device!`);
+      setUploading(null);
+      setUploadStatusText('');
+      setTimeout(() => setSuccess(null), 4000);
+      return;
+    }
+
+    try {
+      const allLogs = [];
+      const successfulUploadIds = [];
+
+      for (let i = 0; i < activeProjectDrafts.length; i++) {
+        const item = activeProjectDrafts[i];
+        setUploadStatusText(`Uploading PDF (${i + 1}/${activeProjectDrafts.length})...`);
+
+        if (item.driveFileId) {
+          successfulUploadIds.push(item.id);
+          allLogs.push(...buildHistoryLogs(item.metadata, {
+            idPrefix: item.driveFileId,
+            link: item.driveFileLink
+          }));
+        } else {
+          try {
+            const uploadRes = await syncInvoiceDocument({
+              item,
+              googleToken,
+              selectedFolder,
+              projects
+            });
+            if (uploadRes.hasDriveUpload) {
+              successfulUploadIds.push(item.id);
+              if (updateStagedItem) {
+                updateStagedItem(item.id, {
+                  driveFileId: uploadRes.driveFileId,
+                  driveFileLink: uploadRes.webViewLink
+                });
+              }
+              allLogs.push(...uploadRes.logs);
+            }
+          } catch (uploadErr) {
+            console.error(`Failed to upload draft ${item.id}:`, uploadErr);
+          }
+        }
+      }
+
+      if (successfulUploadIds.length === 0) {
+        throw new Error('Failed to upload document PDFs to Google Drive.');
+      }
+
+      setUploadStatusText('Updating spreadsheet...');
+
+      if (googleToken) {
+        try {
+          await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
+        } catch (directErr) {
+          console.warn('Direct sync failed, attempting Apps Script fallback:', directErr);
+          await triggerAppsScriptSync(targetFolderId);
+        }
+      } else {
+        await triggerAppsScriptSync(targetFolderId);
+      }
+
+      saveHistory([...allLogs, ...history]);
+      successfulUploadIds.forEach(id => removeStagedItem(id));
+      setHasUnprocessedUploads(false);
+      setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, false);
+      setSuccess(`Successfully synced ${successfulUploadIds.length} document(s) directly to your spreadsheet!`);
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err) {
+      console.error('Sync all failed:', err);
+      if (isAuthError(err)) {
+        handleSessionExpired();
+      } else {
+        if (updateStagedItem) {
+          activeProjectDrafts.forEach(draft => {
+            if (draft.driveFileId) {
+              updateStagedItem(draft.id, { sheetSyncError: err.message || 'Spreadsheet sync failed' });
+            }
+          });
+        }
+        setError(`Spreadsheet sync failed: ${err.message}. Drafts remain safely on device to retry.`);
+      }
+    } finally {
+      setUploading(null);
+      setUploadStatusText('');
     }
   };
 
@@ -197,11 +368,14 @@ export function useInvoiceSync({
 
   return {
     uploading,
+    uploadStatusText,
     history,
     hasUnprocessedUploads,
     triggeringSync,
     handleTriggerAppsScriptSync,
-    handleSyncToDrive,
+    handleOneShotSync,
+    handleSyncToDrive: handleOneShotSync,
+    handleSyncAllDrafts,
     handleViewPDF,
     handleClearHistory,
     handleDeleteHistoryItem

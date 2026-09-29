@@ -221,12 +221,14 @@ export async function syncInvoiceDocument({
     throw new Error('No invoice splits had a valid amount to upload.');
   }
 
-  return {
-    logs: buildHistoryLogs(metadata, {
-      idPrefix: mainUploadResult.id,
-      link: mainUploadResult.webViewLink
-    }),
-    hasDriveUpload: true,
-    successMessage: 'Document report PDF synced successfully!'
-  };
-}
+    return {
+      logs: buildHistoryLogs(metadata, {
+        idPrefix: mainUploadResult.id,
+        link: mainUploadResult.webViewLink
+      }),
+      hasDriveUpload: true,
+      successMessage: 'Document report PDF synced successfully!',
+      driveFileId: mainUploadResult.id,
+      webViewLink: mainUploadResult.webViewLink
+    };
+  }

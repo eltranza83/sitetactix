@@ -169,6 +169,19 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
     saveStagedItems(updatedDrafts);
   };
 
+  const updateStagedItem = (id, updates) => {
+    const updatedDrafts = stagedItems.map(item => {
+      if (item.id === id) {
+        return {
+          ...item,
+          ...updates
+        };
+      }
+      return item;
+    });
+    saveStagedItems(updatedDrafts);
+  };
+
   return {
     stagedItems,
     animateBadge,
@@ -183,6 +196,7 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
     handleAdjustTimer,
     handleResetTimer,
     handleUpdateDraftField,
+    updateStagedItem,
     removeStagedItem
   };
 }

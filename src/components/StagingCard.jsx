@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit2, CloudLightning, FileText, CheckCircle, Trash2, Clock, Sparkles } from 'lucide-react';
+import { Edit2, CloudLightning, FileText, CheckCircle, Trash2, Clock, Sparkles, AlertCircle } from 'lucide-react';
 import { STATUS_MESSAGES } from '../services/appErrors';
 
 function formatTime(ms) {
@@ -27,6 +27,7 @@ export default function StagingCard({
   onCostCategoryChange,
   onLotNumberChange,
   uploading,
+  uploadStatusText,
   googleToken,
   selectedFolder
 }) {
@@ -345,7 +346,7 @@ export default function StagingCard({
             onClick={onEditClick}
             className="btn btn-secondary" 
             style={{ flex: 1, padding: '8px 10px', fontSize: '0.8rem', height: '36px', whiteSpace: 'nowrap' }}
-            disabled={uploading}
+            disabled={Boolean(uploading)}
           >
             <Edit2 size={12} /> Edit
           </button>
@@ -353,17 +354,29 @@ export default function StagingCard({
             type="button"
             onClick={onUploadClick}
             className="btn btn-primary" 
-            style={{ flex: 1.3, padding: '8px 10px', fontSize: '0.8rem', height: '36px', whiteSpace: 'nowrap' }}
-            disabled={uploading}
+            style={{ 
+              flex: 1.3, 
+              padding: '8px 10px', 
+              fontSize: '0.8rem', 
+              height: '36px', 
+              whiteSpace: 'nowrap',
+              backgroundColor: stagedItem.sheetSyncError ? '#f59e0b' : undefined,
+              color: stagedItem.sheetSyncError ? '#000' : undefined
+            }}
+            disabled={Boolean(uploading)}
           >
             {uploading ? (
               <>
                 <div className="spinner" style={{ width: '12px', height: '12px', borderWidth: '1.5px', borderColor: 'var(--color-zinc-950)', borderTopColor: 'transparent', margin: 0 }}></div>
-                {STATUS_MESSAGES.syncingSpreadsheet}
+                {uploadStatusText || STATUS_MESSAGES.syncingSpreadsheet}
               </>
             ) : isMockMode ? (
               <>
                 <CheckCircle size={12} /> Download
+              </>
+            ) : stagedItem.sheetSyncError ? (
+              <>
+                <CloudLightning size={12} /> Retry Sheet Sync
               </>
             ) : (
               <>
@@ -373,6 +386,23 @@ export default function StagingCard({
           </button>
         </div>
       </div>
+
+      {stagedItem.sheetSyncError && (
+        <div style={{
+          fontSize: '0.72rem',
+          color: '#fbbf24',
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          borderRadius: '6px',
+          padding: '6px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <AlertCircle size={13} style={{ flexShrink: 0, color: '#fbbf24' }} />
+          <span>PDF safely saved in Drive. Spreadsheet sync pending — tap Retry to finish logging.</span>
+        </div>
+      )}
 
       {isMockMode && (
         <div style={{ fontSize: '0.65rem', color: 'var(--color-amber-500)', textAlign: 'center', marginTop: '2px', opacity: 0.8 }}>
