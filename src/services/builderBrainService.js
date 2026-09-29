@@ -389,11 +389,17 @@ export function buildGroundingSystemInstruction(context) {
       const name = s.phase || s.name || 'Trade';
       const payee = s.payee || s.contractor || 'Unassigned';
       const quote = s.originalQuote || s.quote || '$0.00';
-      const paid = s.totalSpent || s.totalPaid || '$0.00';
+      const subPaid = s.contractorPaid || s.totalLabor || s.totalPaid || '$0.00';
+      const phaseSpent = s.totalSpent || s.totalPaid || '$0.00';
       const bal = s.remainingBalance || '$0.00';
-      const payments = (s.payments || []).map(p => `    - Payment: ${p.amount || p.laborCost || p.materialCost || '$0.00'} to ${p.vendor || payee} on ${formatNaturalDate(p.date)} (Check #${p.checkNumber || 'N/A'}${p.description ? `, ${p.description}` : ''})`).join('\n');
+      const payments = (s.payments || []).map(p => {
+        const isLabor = p.laborCost && p.laborCost !== '$0.00' && p.laborCost !== '0';
+        const costType = isLabor ? 'Labor' : 'Material';
+        const costAmount = (isLabor ? p.laborCost : p.materialCost) || p.amount || '$0.00';
+        return `    - [${costType}] ${costAmount} to ${p.vendor || payee} on ${formatNaturalDate(p.date)} (Check #${p.checkNumber || 'N/A'}${p.description ? `, ${p.description}` : ''})`;
+      }).join('\n');
 
-      return `* Phase: "${name}" | Payee: "${payee}" | Quote: ${quote} | Paid: ${paid} | Remaining Balance: ${bal}${payments ? '\n' + payments : ''}`;
+      return `* Phase: "${name}" | Payee: "${payee}" | Quote: ${quote} | Sub Paid: ${subPaid} | Remaining Balance: ${bal} | Phase Spent: ${phaseSpent}${payments ? '\n' + payments : ''}`;
     }).join('\n');
   }
 
@@ -623,9 +629,15 @@ BEHAVIOR, VERIFICATION & CITATION RULES:
      * Respond with a natural, crisp 1-sentence time-of-day greeting: e.g. "Good evening. How can I help with ${activeProjectName} tonight?" (or in Spanish: "Buenas noches. ¿Cómo te ayudo con ${activeProjectName} hoy?").
      * ABSOLUTE PROHIBITION: NEVER volunteer gross budgets, draws paid, working capital, subcontractor balances, inspection checklists, or memories on greetings or casual chit-chat.
    - SPECIFIC DOMAIN QUERIES:
-     * When asked about a specific trade (e.g. "What do we owe the electrician?"), answer ONLY for that trade. Do NOT add unrelated trades, gross budgets, or inspection items.
+     * When asked about a specific trade or subcontractor (e.g. "What do we owe the electrician?", "How much did we pay Enrique Vallejo?", "What is the electrician's balance?"):
+       - Use STRICTLY the Subcontractor Payee section figures: Quote, Paid to Subcontractor, and Remaining Balance.
+       - NEVER add material store receipts (like Home Depot, Lowe's, lumber yards) to what was paid to the contractor. Material receipts belong to the phase material budget, not the subcontractor.
+       - Remaining Balance is the single authoritative amount owed to the subcontractor.
+       - Answer ONLY for that trade. Do NOT add unrelated trades, gross budgets, or inspection items.
    - FINANCIAL OVERVIEW QUERIES:
-     * When asked specifically about finances (e.g. "How much have we spent?", "What is our remaining budget?"), provide the requested financial figures accurately.
+     * When asked about overall category or phase spending (e.g. "How much have we spent on Electrical & Lighting?", "What is our electrical total?"):
+       - Provide the Phase Total Spent (combining labor and material receipts).
+     * When asked specifically about overall project finances (e.g. "How much have we spent?", "What is our remaining budget?"), provide the requested financial figures accurately.
    - PROJECT STATUS QUERIES:
      * When the user explicitly requests an overall project status (e.g. "Where are we at on ${activeProjectName}?", "Give me the status on ${activeProjectName}"), provide the relevant project status.
    - COMPREHENSIVE REPORTS:

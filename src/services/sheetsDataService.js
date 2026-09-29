@@ -243,6 +243,7 @@ export function findPhaseMeta(phaseName, phaseStatuses) {
 export function finalizeBlock(block, phaseStatuses = {}, fallbackSummaryMeta = null) {
   let payee = '';
   let originalQuote = '$0.00';
+  let contractorPaid = '$0.00';
   let totalPaid = '$0.00';
   let remainingBalance = '$0.00';
   let status = 'Not Started';
@@ -302,10 +303,12 @@ export function finalizeBlock(block, phaseStatuses = {}, fallbackSummaryMeta = n
       originalQuote = colI;
     }
 
-    // 3. Paid: Extract the last non-empty, non-zero paid value
+    // 3. Paid: Extract the last non-empty, non-zero contractor paid value (Col H)
     if (colH && colH !== '' && colH !== '$0.00' && !isFormulaError(colH)) {
+      contractorPaid = colH;
       totalPaid = colH;
-    } else if (colH && totalPaid === '$0.00') {
+    } else if (colH && contractorPaid === '$0.00') {
+      contractorPaid = colH;
       totalPaid = colH;
     }
 
@@ -357,6 +360,12 @@ export function finalizeBlock(block, phaseStatuses = {}, fallbackSummaryMeta = n
   const metaLaborTotal = (meta && typeof meta === 'object') ? meta.laborCost : '$0.00';
   const metaCombinedSpent = (meta && typeof meta === 'object') ? meta.combinedSpent : '$0.00';
 
+  // Subcontractor paid amount: Col H from the Payee section is the authoritative contractor paid figure.
+  // If Col H was empty or $0.00, fallback to metaLaborTotal from the summary dashboard if available.
+  const resolvedContractorPaid = (contractorPaid && contractorPaid !== '$0.00')
+    ? contractorPaid
+    : (metaLaborTotal && metaLaborTotal !== '$0.00' ? metaLaborTotal : '$0.00');
+
   // Fallback to placeholder payee if no custom payee is filled in
   if (!payee && block.rows.length > 0) {
     payee = String(block.rows[0][6] || '').trim();
@@ -372,6 +381,7 @@ export function finalizeBlock(block, phaseStatuses = {}, fallbackSummaryMeta = n
     phase: block.phase,
     payee: payee,
     originalQuote: originalQuote,
+    contractorPaid: resolvedContractorPaid,
     totalPaid: totalPaid,
     remainingBalance: remainingBalance,
     status: status,

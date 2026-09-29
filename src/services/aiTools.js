@@ -539,16 +539,54 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
         const contractor = (phase.payee || phase.contractor || '').toLowerCase();
         const payments = Array.isArray(phase.payments) ? phase.payments : [];
 
-        const isMatch = !query || phaseName.includes(query) || contractor.includes(query) ||
+        let isMatch = !query || phaseName.includes(query) || contractor.includes(query) ||
           payments.some(p => (p.vendor || p.payee || '').toLowerCase().includes(query) || (p.description || '').toLowerCase().includes(query));
+
+        if (!isMatch && query) {
+          const tradeEquivalents = [
+            { stem: 'electri', terms: ['electrician', 'electrical', 'electric'] },
+            { stem: 'plumb', terms: ['plumber', 'plumbing'] },
+            { stem: 'paint', terms: ['painter', 'painting', 'paint'] },
+            { stem: 'fram', terms: ['framer', 'framing', 'frame'] },
+            { stem: 'roof', terms: ['roofer', 'roofing', 'roof'] },
+            { stem: 'drywall', terms: ['sheetrock', 'drywall'] },
+            { stem: 'concrete', terms: ['foundation', 'concrete', 'cement'] },
+            { stem: 'hvac', terms: ['air conditioning', 'ac', 'hvac', 'heating', 'cooling'] }
+          ];
+
+          for (const eq of tradeEquivalents) {
+            const queryMatches = eq.terms.some(t => query.includes(t)) || query.startsWith(eq.stem);
+            const phaseMatches = eq.terms.some(t => phaseName.includes(t)) || phaseName.startsWith(eq.stem) || eq.terms.some(t => contractor.includes(t));
+            if (queryMatches && phaseMatches) {
+              isMatch = true;
+              break;
+            }
+          }
+        }
 
         if (isMatch) {
           const quote = parseAmount(phase.originalQuote || phase.contractAmount || phase.estimatedCost);
-          const totalPaid = parseAmount(phase.totalSpent || phase.totalPaid || payments.reduce((sum, p) => sum + parseAmount(p.amount || p.totalCost || p.materialCost || p.laborCost), 0));
-          const remainingBalance = parseAmount(phase.remainingBalance) || Math.max(0, quote - totalPaid);
+
+          // Resolve contractor paid strictly from Col H (contractorPaid) or labor totals/payments.
+          // NEVER use combined phase totalSpent (which includes material store receipts like Home Depot)!
+          let contractorPaid = 0;
+          if (phase.contractorPaid !== undefined && phase.contractorPaid !== null && phase.contractorPaid !== '') {
+            contractorPaid = parseAmount(phase.contractorPaid);
+          } else if (phase.totalLabor && parseAmount(phase.totalLabor) > 0) {
+            contractorPaid = parseAmount(phase.totalLabor);
+          } else if (payments.some(p => parseAmount(p.laborCost) > 0)) {
+            contractorPaid = payments.reduce((sum, p) => sum + parseAmount(p.laborCost), 0);
+          } else if (payments.length > 0) {
+            contractorPaid = payments.reduce((sum, p) => sum + parseAmount(p.amount || p.totalCost || p.laborCost), 0);
+          } else {
+            contractorPaid = parseAmount(phase.totalPaid);
+          }
+
+          const phaseSpent = parseAmount(phase.totalSpent || phase.totalPaid);
+          const remainingBalance = parseAmount(phase.remainingBalance) || Math.max(0, quote - contractorPaid);
 
           // For general queries (!query), only include phases with active contracts, balances, or payments
-          if (!query && quote === 0 && totalPaid === 0 && remainingBalance === 0) {
+          if (!query && quote === 0 && contractorPaid === 0 && remainingBalance === 0) {
             continue;
           }
 
@@ -556,11 +594,15 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
             phaseName: phase.phase || phase.name,
             contractor: phase.payee || phase.contractor,
             quote,
-            totalPaid,
+            totalPaid: contractorPaid,
+            contractorPaid,
+            phaseSpent,
             remainingBalance,
             payments: payments.map(p => ({
               date: p.date,
               amount: parseAmount(p.amount || p.totalCost || p.materialCost || p.laborCost),
+              laborCost: parseAmount(p.laborCost),
+              materialCost: parseAmount(p.materialCost),
               payee: p.vendor || p.payee,
               notes: p.description
             }))
