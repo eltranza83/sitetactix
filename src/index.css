@@ -4,6 +4,7 @@
 /* Billion Dollar Architecture: Obsidian Glass, Anodized Titanium & Champagne Specular Bevels */
 
 :root {
+  color-scheme: dark;
   /* SiteTactix Obsidian & Champagne Luxury Palette */
   --st-bg: #090a0c;
   --st-panel: rgba(18, 20, 24, 0.76);
@@ -118,6 +119,7 @@ body {
 button, input, select, textarea {
   font-family: inherit;
   color: inherit;
+  color-scheme: dark;
 }
 
 /* Scrollbars */
@@ -894,6 +896,23 @@ button, input, select, textarea {
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   border-color: var(--st-gold);
   box-shadow: 0 0 0 2px rgba(212, 183, 135, 0.25);
+}
+
+/* Fix native dropdown popups so options never render white-on-white */
+select,
+select.form-input,
+.form-select {
+  color-scheme: dark;
+  background-color: #141719;
+  color: var(--st-text);
+}
+
+select option,
+.form-input option,
+.form-select option {
+  background-color: #141719 !important;
+  color: #f4f4ef !important;
+  padding: 8px 12px;
 }
 
 /* Make native calendar date picker icon highly visible and golden-themed */
