@@ -6,6 +6,7 @@ import {
   resolveVoice,
   isFemaleVoice,
   isExplicitMaleVoice,
+  formatSpokenCurrency,
   splitIntoSpokenChunks
 } from '../src/services/voiceResolver.js';
 
@@ -127,6 +128,31 @@ describe('J.A.R.V.I.S. Mobile & Platform Voice Resolver Test Suite', () => {
     for (const chunk of chunks) {
       assert.ok(chunk.length <= 165, `Chunk must be under buffer limit: "${chunk}"`);
     }
+  });
+
+  test('10. Spoken Currency Normalization: Spanish converts dollar amounts to words without decimal commas', () => {
+    // Crucial fix: Prevents Spanish TTS synthesizers from reading "$15,000.00" as "15 dólares"
+    assert.equal(formatSpokenCurrency('$15,000.00', true), '15000 dólares');
+    assert.equal(formatSpokenCurrency('$5,000.00', true), '5000 dólares');
+    assert.equal(formatSpokenCurrency('$10,000.00', true), '10000 dólares');
+    assert.equal(formatSpokenCurrency('$15,000', true), '15000 dólares');
+    assert.equal(formatSpokenCurrency('$143.80', true), '143 dólares con 80 centavos');
+    assert.equal(formatSpokenCurrency('$1.00', true), '1 dólar');
+    assert.equal(formatSpokenCurrency('$0.50', true), '50 centavos');
+
+    // English mode preserves standard clean dollar format without .00
+    assert.equal(formatSpokenCurrency('$15,000.00', false), '$15,000');
+    assert.equal(formatSpokenCurrency('$6,000.00', false), '$6,000');
+    assert.equal(formatSpokenCurrency('$143.80', false), '$143.80');
+  });
+
+  test('11. Spoken Sentence Chunking in Spanish: Uses Spanish currency normalization', () => {
+    const sample = 'El presupuesto acordado para el electricista es de $15,000.00. Se le han pagado $5,000.00 hasta la fecha. El balance pendiente es de $10,000.00.';
+    const chunks = splitIntoSpokenChunks(sample, true);
+    assert.equal(chunks.length, 3);
+    assert.ok(chunks[0].includes('15000 dólares'));
+    assert.ok(chunks[1].includes('5000 dólares'));
+    assert.ok(chunks[2].includes('10000 dólares'));
   });
 
 });

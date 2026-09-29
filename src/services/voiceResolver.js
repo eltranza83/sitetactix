@@ -244,15 +244,48 @@ export function resolveVoice(voices, config, isSpanish = false) {
 }
 
 /**
+ * Normalizes monetary amounts for natural, unambiguous speech synthesis.
+ * In Spanish TTS engines, commas (e.g. $15,000.00) are treated as decimal separators,
+ * reading $15,000 as "15 dólares". Stripping commas and formatting explicit words
+ * ensures the engine speaks "quince mil dólares" and "143 dólares con 80 centavos".
+ */
+export function formatSpokenCurrency(str, isSpanish = false) {
+  if (!str || typeof str !== 'string') return '';
+
+  if (isSpanish) {
+    let result = str.replace(/\$\s*([0-9]{1,3}(?:,[0-9]{3})*|\d+)(?:\.([0-9]{1,2}))?/g, (_match, whole, cents) => {
+      const num = parseInt(whole.replace(/,/g, ''), 10);
+      const c = cents ? parseInt(cents.padEnd(2, '0'), 10) : 0;
+
+      if (num === 0 && c > 0) {
+        return c === 1 ? '1 centavo' : `${c} centavos`;
+      }
+      const dollarWord = num === 1 ? 'dólar' : 'dólares';
+      if (c > 0) {
+        const centWord = c === 1 ? 'centavo' : 'centavos';
+        return `${num} ${dollarWord} con ${c} ${centWord}`;
+      }
+      return `${num} ${dollarWord}`;
+    });
+
+    // Strip thousands commas when followed by currency words to prevent Spanish TTS decimal confusion:
+    result = result.replace(/\b([0-9]{1,3}(?:,[0-9]{3})+)\b(?=\s*(?:dólares|dolares|pesos|usd))/gi, (m) => m.replace(/,/g, ''));
+    return result;
+  }
+
+  // English: strip trailing .00 so "$6,000.00" becomes "$6,000", which English TTS engines natively read as "six thousand dollars"
+  return str.replace(/\$(\d+(?:,\d{3})*)\.00\b/g, '$$$1');
+}
+
+/**
  * Splits spoken text into clean, digestible sentence chunks.
  * Prevents mobile TTS engine timeouts (15s Android limit), buffer overflows,
  * and unnatural speech clipping on Samsung Galaxy and other mobile devices.
  */
-export function splitIntoSpokenChunks(str) {
+export function splitIntoSpokenChunks(str, isSpanish = false) {
   if (!str || typeof str !== 'string') return [];
 
-  const text = str
-    .replace(/\$(\d+(?:,\d{3})*)\.00\b/g, '$$$1')
+  const text = formatSpokenCurrency(str, isSpanish)
     .replace(/\b(vs|dr|mr|mrs|ms|approx|dept|est|apt|inc|corp)\.\s+/gi, '$1 ')
     .trim();
 

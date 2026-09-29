@@ -5,6 +5,7 @@ import {
   VOICE_STATES,
   VOICE_MODES,
   isExitIntent,
+  getExitReplyText,
   containsWakeWord,
   stripWakeWord
 } from '../src/services/voiceStateMachine.js';
@@ -99,7 +100,7 @@ describe('J.A.R.V.I.S. Continuous Voice State Machine Test Suite', () => {
   });
 
   test('6. Graceful Stand-down on Exit Phrases & Robust Intent Safeguards', () => {
-    // Valid standalone exit intents (various natural formulations)
+    // Valid standalone exit intents (various natural English formulations)
     assert.equal(isExitIntent('Jarvis, good night'), true);
     assert.equal(isExitIntent('goodnight jarvis'), true);
     assert.equal(isExitIntent("Okay Jarvis that's it for now"), true);
@@ -114,13 +115,48 @@ describe('J.A.R.V.I.S. Continuous Voice State Machine Test Suite', () => {
     assert.equal(isExitIntent('close conversation'), true);
     assert.equal(isExitIntent('back to app'), true);
 
-    // Safeguard cases (Legitimate conversational phrases that MUST NOT close assistant)
+    // Valid standalone exit intents (Spanish formulations)
+    assert.equal(isExitIntent('buenas noches'), true);
+    assert.equal(isExitIntent('buenas noches jarvis'), true);
+    assert.equal(isExitIntent('buenas moches'), true); // Tolerates acoustic/STT mistranscription
+    assert.equal(isExitIntent('buenas moches jarvis'), true);
+    assert.equal(isExitIntent('buena noche señor'), true);
+    assert.equal(isExitIntent('hasta luego jarvis'), true);
+    assert.equal(isExitIntent('hasta mañana'), true);
+    assert.equal(isExitIntent('adiós'), true);
+    assert.equal(isExitIntent('adios jarvis'), true);
+    assert.equal(isExitIntent('chao'), true);
+    assert.equal(isExitIntent('eso es todo por ahora'), true);
+    assert.equal(isExitIntent('es todo gracias'), true);
+    assert.equal(isExitIntent('a dormir'), true);
+    assert.equal(isExitIntent('descansa jarvis'), true);
+    assert.equal(isExitIntent('retírate'), true);
+    assert.equal(isExitIntent('apágate'), true);
+
+    // Safeguard cases (Legitimate conversational phrases in English & Spanish that MUST NOT close assistant)
     assert.equal(isExitIntent('We need good night lighting on the front porch'), false);
     assert.equal(isExitIntent('Did the plumber work last night?'), false);
     assert.equal(isExitIntent('Talk to the contractor later today about invoices'), false);
     assert.equal(isExitIntent('Close the quote for Lot 3 drywall'), false);
     assert.equal(isExitIntent('What is the total cost spent so far?'), false);
     assert.equal(isExitIntent('Stage a $50 expense for gas'), false);
+    assert.equal(isExitIntent('Necesitamos luces de noche en el porche'), false);
+    assert.equal(isExitIntent('El electricista trabajó anoche en el lote 3'), false);
+    assert.equal(isExitIntent('Hablar luego con el subcontratista sobre facturas'), false);
+    assert.equal(isExitIntent('Cerrar el presupuesto para la pintura'), false);
+    assert.equal(isExitIntent('¿Cuál es el costo total gastado hasta ahora?'), false);
+
+    // Spoken and visual farewell reply generation
+    assert.equal(getExitReplyText('good night jarvis'), 'Good night Sir. Standing down.');
+    assert.equal(getExitReplyText('talk to you later'), 'Talk to you later Sir. Standing down.');
+    assert.equal(getExitReplyText('goodbye'), 'Goodbye Sir. Standing down.');
+    assert.equal(getExitReplyText("that's all"), "Understood. That's all for now. Standing down.");
+    assert.equal(getExitReplyText('buenas noches jarvis'), 'Buenas noches Señor. Me retiro.');
+    assert.equal(getExitReplyText('buenas moches'), 'Buenas noches Señor. Me retiro.');
+    assert.equal(getExitReplyText('hasta luego'), 'Hasta luego Señor. Me retiro.');
+    assert.equal(getExitReplyText('adiós amigo'), 'Adiós Señor. Me retiro.');
+    assert.equal(getExitReplyText('eso es todo'), 'Entendido. Eso es todo por ahora Señor. Me retiro.');
+    assert.equal(getExitReplyText('descansa'), 'Buenas noches Señor. Me retiro.');
 
     const sm = new VoiceStateMachine({ mode: VOICE_MODES.CONTINUOUS_HANDS_FREE });
     sm.startListening('user_tap');

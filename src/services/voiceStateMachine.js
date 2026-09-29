@@ -54,7 +54,36 @@ export const EXIT_PHRASES = [
   'close conversation',
   'close app',
   'back to app',
-  'exit'
+  'exit',
+  // Spanish exit phrases
+  'buenas noches',
+  'hasta luego',
+  'hasta mañana',
+  'hasta manana',
+  'hasta pronto',
+  'nos vemos',
+  'adiós',
+  'adios',
+  'chao',
+  'chau',
+  'eso es todo',
+  'es todo',
+  'ya es todo',
+  'eso es todo por hoy',
+  'eso es todo por ahora',
+  'a dormir',
+  'descansa',
+  'duérmete',
+  'duermete',
+  'apágate',
+  'apagate',
+  'retírate',
+  'retirate',
+  'detente',
+  'deténte',
+  'cerrar',
+  'cierra',
+  'salir'
 ];
 
 export const WAKE_WORDS = [
@@ -92,18 +121,19 @@ export function isExitIntent(text = '') {
 
   // Strip leading conversational fillers / wake words (up to 3 passes)
   for (let i = 0; i < 3; i++) {
-    clean = clean.replace(/^(hey|hi|hello|ok|okay|alright|well|so|cool|great|perfect|thanks|thank you)\s+/, '');
+    clean = clean.replace(/^(hey|hi|hello|ok|okay|alright|well|so|cool|great|perfect|thanks|thank you|hola|bueno|oye|vale|gracias|muchas gracias)\s+/, '');
     clean = clean.replace(/^(jarvis)\s+/, '');
   }
 
   // Strip trailing polite closers / wake words (up to 3 passes)
   for (let i = 0; i < 3; i++) {
-    clean = clean.replace(/\s+(jarvis|sir|buddy|man|bro|thanks|thank you)$/, '');
+    clean = clean.replace(/\s+(jarvis|sir|buddy|man|bro|thanks|thank you|senor|señor|amigo|por favor|gracias|muchas gracias)$/, '');
   }
   clean = clean.trim();
 
   // Core exit patterns
   const exitPatterns = [
+    // English exit patterns
     /^good\s*night(\s+for\s+now)?$/,
     /^goodnight(\s+for\s+now)?$/,
     /^have a (good|great) (night|day|one)$/,
@@ -118,10 +148,56 @@ export function isExitIntent(text = '') {
     /^go to sleep$/,
     /^stop listening$/,
     /^(close|exit)(\s+(the\s+)?(conversation|assistant|app|chat))?$/,
-    /^back to (\s*the\s*)?app$/
+    /^back to (\s*the\s*)?app$/,
+
+    // Spanish exit patterns
+    /^(que\s+tengas?\s+)?(buenas\s*(noches|moches)|buena\s*noche)(\s+(por\s+hoy|por\s+ahora|amigo|senor|señor|descansa|que\s+descanses))?$/,
+    /^hasta\s*(luego|mañana|manana|pronto)$/,
+    /^nos\s*vemos(\s+luego|\s+mañana|\s+manana|\s+pronto)?$/,
+    /^(adios|adiós|chao|chau)(\s+(amigo|senor|señor))?$/,
+    /^(eso\s+es|es|ya\s+es|eso\s+seria|eso\s+sería)\s+(todo|it)(\s+(por\s+hoy|por\s+ahora))?$/,
+    /^(todo\s+bien\s+por\s+hoy|nada\s+mas|nada\s+más)$/,
+    /^(ve\s+a\s+|a\s+)?(dormir|descansar)$/,
+    /^(duermete|duérmete|descansa)$/,
+    /^(apagate|apágate|apagar|retirate|retírate|desconectate|desconéctate)$/,
+    /^(detente|deténte|deja\s+de\s+escuchar|silencio)$/,
+    /^(cierra|cerrar|salir)(\s+(la\s+)?(conversacion|conversación|asistente|app|chat))?$/
   ];
 
   return exitPatterns.some(pattern => pattern.test(clean));
+}
+
+/**
+ * Generates an appropriate spoken and visual farewell reply when an exit intent is triggered.
+ * Spanish farewell honors user preference: "Buenas noches Señor. Me retiro."
+ */
+export function getExitReplyText(text = '', isSpanishMode = false) {
+  const clean = String(text || '').toLowerCase().trim();
+  const isSpanish = isSpanishMode ||
+    /[áéíóúüñ¿¡]/i.test(clean) ||
+    /\b(buenas|noches|moches|noche|hasta|luego|mañana|manana|pronto|adios|adiós|chao|chau|todo|dormir|descansar|descansa|duermete|duérmete|retirate|retírate|apagate|apágate|gracias|senor|señor|amigo)\b/i.test(clean);
+
+  if (isSpanish) {
+    if (clean.includes('noche') || clean.includes('moche') || clean.includes('dormir') || clean.includes('descans') || clean.includes('duerm')) {
+      return 'Buenas noches Señor. Me retiro.';
+    }
+    if (clean.includes('luego') || clean.includes('vemos') || clean.includes('mañana') || clean.includes('manana') || clean.includes('pronto')) {
+      return 'Hasta luego Señor. Me retiro.';
+    }
+    if (clean.includes('adios') || clean.includes('adiós') || clean.includes('chao') || clean.includes('chau')) {
+      return 'Adiós Señor. Me retiro.';
+    }
+    if (clean.includes('todo') || clean.includes('nada')) {
+      return 'Entendido. Eso es todo por ahora Señor. Me retiro.';
+    }
+    return 'Entendido Señor. Me retiro.';
+  }
+
+  if (clean.includes('night')) return 'Good night Sir. Standing down.';
+  if (clean.includes('later') || clean.includes('catch you') || clean.includes('see you')) return 'Talk to you later Sir. Standing down.';
+  if (clean.includes('goodbye') || clean.includes('bye')) return 'Goodbye Sir. Standing down.';
+  if (clean.includes('that') && (clean.includes('it') || clean.includes('all'))) return "Understood. That's all for now. Standing down.";
+  return 'Understood. Standing down.';
 }
 
 /**

@@ -33,6 +33,7 @@ import {
   VOICE_STATES,
   VOICE_MODES,
   isExitIntent,
+  getExitReplyText,
   stripWakeWord
 } from '../services/voiceStateMachine';
 import {
@@ -461,12 +462,13 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         ? liveVoices.find(v => (selectedVoiceURI && (v.voiceURI === selectedVoiceURI || v.name === selectedVoiceURI)) || (currentConfig?.uri && (v.voiceURI === currentConfig.uri || v.name === currentConfig.name)))
         : null;
 
-      const isSpanish = /[áéíóúüñ¿¡]/i.test(text) || /\b(el|la|los|las|un|una|del|por|para|con|este|esta|lote|plomero|electricista|dinero|gastado|cuanto|quien|recordatorio|buenos|dias|tardes|hola|subcontratista|factura|presupuesto)\b/i.test(text);
+      const isSpanish = /[áéíóúüñ¿¡]/i.test(text) || /\b(el|la|los|las|un|una|del|por|para|con|este|esta|lote|plomero|electricista|dinero|gastado|cuanto|quien|recordatorio|buenos|noches|moches|dias|tardes|hola|subcontratista|factura|presupuesto)\b/i.test(text);
+      const isSpanishMode = isSpanish || aiLanguage === 'es' || /[áéíóúüñ¿¡]/i.test(userQuery) || /\b(el|la|los|las|un|una|del|por|para|con|este|esta|lote|plomero|electricista|dinero|gastado|cuanto|quien|recordatorio|buenos|noches|moches|dias|tardes|hola|subcontratista|factura|presupuesto)\b/i.test(userQuery);
 
       let targetVoice = null;
       let targetLang = 'en-GB';
 
-      if (isSpanish || aiLanguage === 'es') {
+      if (isSpanishMode) {
         const spanishVoice = resolveVoice(liveVoices, currentConfig, true);
         if (spanishVoice) {
           targetVoice = spanishVoice;
@@ -487,7 +489,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         }
       }
 
-      const chunks = splitIntoSpokenChunks(clean);
+      const chunks = splitIntoSpokenChunks(clean, isSpanishMode);
       if (chunks.length === 0) {
         if (typeof onFinished === 'function') onFinished();
         return;
@@ -626,17 +628,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
     // Handle Graceful Exit Intent & Auto-Close
     if (isExitIntent(query)) {
       voiceSmRef.current?.standDown('exit_intent_detected');
-      let replyText = 'Understood. Standing down.';
-      const qLow = query.toLowerCase();
-      if (qLow.includes('night')) {
-        replyText = 'Good night Sir. Standing down.';
-      } else if (qLow.includes('later') || qLow.includes('catch you') || qLow.includes('see you')) {
-        replyText = 'Talk to you later Sir. Standing down.';
-      } else if (qLow.includes('goodbye') || qLow.includes('bye')) {
-        replyText = 'Goodbye Sir. Standing down.';
-      } else if (qLow.includes('that') && (qLow.includes('it') || qLow.includes('all'))) {
-        replyText = "Understood. That's all for now. Standing down.";
-      }
+      const replyText = getExitReplyText(query, aiLanguage === 'es');
       const exitMsg = {
         sender: 'ai',
         text: replyText,
@@ -1020,17 +1012,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
       // Exit Intent Check
       if (isExitIntent(trimmed)) {
         voiceSmRef.current.standDown('exit_intent_detected');
-        let replyText = 'Understood. Standing down.';
-        const qLow = trimmed.toLowerCase();
-        if (qLow.includes('night')) {
-          replyText = 'Good night Sir. Standing down.';
-        } else if (qLow.includes('later') || qLow.includes('catch you') || qLow.includes('see you')) {
-          replyText = 'Talk to you later Sir. Standing down.';
-        } else if (qLow.includes('goodbye') || qLow.includes('bye')) {
-          replyText = 'Goodbye Sir. Standing down.';
-        } else if (qLow.includes('that') && (qLow.includes('it') || qLow.includes('all'))) {
-          replyText = "Understood. That's all for now. Standing down.";
-        }
+        const replyText = getExitReplyText(trimmed, aiLanguage === 'es');
         const exitMsg = {
           sender: 'ai',
           text: replyText,
