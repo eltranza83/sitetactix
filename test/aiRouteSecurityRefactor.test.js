@@ -4,7 +4,6 @@ import { POST as postAskBrain } from '../api/ask-brain.js';
 import { POST as postEmbedMemory } from '../api/embed-memory.js';
 import { POST as postObservePreference } from '../api/observe-preference.js';
 import { POST as postExtractDocument } from '../api/extract-document.js';
-import { POST as postAppsScriptSync } from '../api/apps-script-sync.js';
 import { resolveServerGeminiKey, sanitizeUpstreamAiError } from '../api/_lib/ai-auth.js';
 import { fetchWithExponentialBackoff } from '../api/_lib/ai-retry.js';
 
@@ -338,42 +337,7 @@ describe('AI Route Security Refactor & Error Sanitization Suite', () => {
     );
   });
 
-  it('apps-script-sync maps a timed out request to HTTP 504', async () => {
-    process.env.APPS_SCRIPT_URL = 'https://script.google.com/macros/s/test-script/exec';
 
-    globalThis.fetch = async (url) => {
-      const urlStr = String(url);
-      if (urlStr.includes('identitytoolkit.googleapis.com')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ users: [{ localId: 'user_123', email: 'admin@sitetactix.com' }] })
-        };
-      }
-      if (urlStr.includes('firestore.googleapis.com')) {
-        return { ok: true, status: 200, json: async () => ({}) };
-      }
-      if (urlStr.includes('script.google.com')) {
-        const err = new Error('The operation was aborted');
-        err.name = 'TimeoutError';
-        throw err;
-      }
-      return { ok: true, status: 200, json: async () => ({}) };
-    };
-
-    try {
-      const req = createMockRequest({
-        body: { folderId: 'folder_abc123' }
-      });
-
-      const res = await postAppsScriptSync(req);
-      assert.strictEqual(res.status, 504);
-      const data = await res.json();
-      assert.ok(data.error.includes('timed out'));
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
 
   it('ask-brain route returns HTTP 504 when upstream Gemini request times out', async () => {
     globalThis.fetch = async (url) => {

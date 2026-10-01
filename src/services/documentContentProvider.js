@@ -78,7 +78,7 @@ function resolveGoogleAccessToken(projectContext = {}) {
 export async function fetchDocumentContent(params = {}) {
   const {
     documentId,
-    fileName = 'Purchasing Checklist',
+    fileName: _fileName = 'Purchasing Checklist',
     modifiedTime = null,
     forceRefresh = false,
     projectContext = {}
@@ -167,52 +167,7 @@ export async function fetchDocumentContent(params = {}) {
     }
   }
 
-  // 4. Apps Script Webhook Fallback
-  const scriptUrl = projectContext?.scriptUrl ||
-    (typeof window !== 'undefined' ? (localStorage.getItem('jobscan_apps_script_url') || localStorage.getItem('jobscan_script_url') || localStorage.getItem('sitetactix_apps_script_url')) : null);
 
-  if (scriptUrl) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-      const response = await fetch(scriptUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'read_document_text',
-          fileId: documentId,
-          fileName
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const resData = await response.json();
-        if (resData.success) {
-          const textContent = resData.content || resData.text || '';
-          const resolvedModifiedTime = resData.modifiedTime || modifiedTime || new Date().toISOString();
-
-          contentCache.set(cacheKey, {
-            content: textContent,
-            modifiedTime: resolvedModifiedTime,
-            format: 'google_doc'
-          });
-
-          return {
-            success: true,
-            state: DOCUMENT_STATES.DOCUMENT_READ_SUCCESS,
-            content: textContent,
-            modifiedTime: resolvedModifiedTime,
-            format: 'google_doc',
-            isCached: false,
-            error: null
-          };
-        }
-      }
-    } catch {}
-  }
 
   return {
     success: false,
@@ -228,9 +183,9 @@ export async function fetchDocumentContent(params = {}) {
 export async function writeDocumentContent(params = {}) {
   const {
     documentId,
-    fileName = 'Purchasing Checklist',
+    fileName: _fileName = 'Purchasing Checklist',
     content = '',
-    expectedVersion = null,
+    expectedVersion: _expectedVersion = null,
     projectContext = {}
   } = params;
 
@@ -292,51 +247,7 @@ export async function writeDocumentContent(params = {}) {
     } catch {}
   }
 
-  // 3. Apps Script Webhook Fallback
-  const scriptUrl = projectContext?.scriptUrl ||
-    (typeof window !== 'undefined' ? (localStorage.getItem('jobscan_apps_script_url') || localStorage.getItem('jobscan_script_url') || localStorage.getItem('sitetactix_apps_script_url')) : null);
 
-  if (scriptUrl) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      const response = await fetch(scriptUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'write_document_text',
-          fileId: documentId,
-          fileName,
-          content: normalizedContent,
-          expectedVersion
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const resData = await response.json();
-        if (resData.success) {
-          clearDocumentContentCache(documentId);
-          const updatedTime = resData.updatedTime || new Date().toISOString();
-          const newCacheKey = documentId + ':' + updatedTime;
-          contentCache.set(newCacheKey, {
-            content,
-            modifiedTime: updatedTime,
-            format: 'google_doc'
-          });
-
-          return {
-            success: true,
-            state: DOCUMENT_STATES.DOCUMENT_WRITE_SUCCESS,
-            updatedTime,
-            error: null
-          };
-        }
-      }
-    } catch {}
-  }
 
   clearDocumentContentCache(documentId);
 

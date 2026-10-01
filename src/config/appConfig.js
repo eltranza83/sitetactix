@@ -4,7 +4,6 @@ export const STORAGE_KEYS = {
   firebaseAppId: 'sitetactix_firebase_app_id',
   googleClientId: 'sitetactix_google_client_id',
   geminiApiKey: 'sitetactix_gemini_api_key',
-  appsScriptUrl: 'sitetactix_apps_script_url',
 };
 
 const ENV = import.meta.env || {};
@@ -37,14 +36,4 @@ export function getStoredConfigValue(storageKey, fallback) {
   // Fallback to legacy key if exists
   const legacyKey = storageKey.replace('sitetactix_', 'jobscan_');
   return localStorage.getItem(legacyKey) || fallback;
-}
-
-export function getAccountAppsScriptUrlKey(email) {
-  if (!email) return STORAGE_KEYS.appsScriptUrl;
-  return `${STORAGE_KEYS.appsScriptUrl}_${String(email).trim().toLowerCase()}`;
-}
-
-export function getAccountAppsScriptSecretKey(email) {
-  if (!email) return 'jobscan_apps_script_secret';
-  return `jobscan_apps_script_secret_${String(email).trim().toLowerCase()}`;
 }

@@ -201,8 +201,7 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
     }
 
     if (!matchedSheetProp) {
-      console.warn(`Sheet tab for category "${tradeCat}" not found in spreadsheet.`);
-      continue;
+      throw new Error(`Sheet tab for category "${tradeCat}" was not found in spreadsheet.`);
     }
 
     const sheetTitle = matchedSheetProp.title;
@@ -267,8 +266,8 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
     });
 
     if (!rangeRes.ok) {
-      console.warn(`Failed to read sheet tab "${sheetTitle}":`, await rangeRes.text());
-      continue;
+      const errText = await rangeRes.text().catch(() => '');
+      throw new Error(`Failed to read sheet tab "${sheetTitle}": ${errText || rangeRes.statusText}`);
     }
 
     const rangeData = await rangeRes.json();
@@ -290,42 +289,42 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
 
     const phaseTarget = findTargetPhaseRow(rows, tradePh);
     if (!phaseTarget) {
-      console.warn(`Phase header "${tradePh}" not found in sheet "${sheetTitle}". Direct log skipped.`);
-      continue;
+      throw new Error(`Phase header "${tradePh}" not found in sheet "${sheetTitle}". Direct log skipped.`);
     }
 
     // If bounded phase block was full, insert a new row to expand the block safely
     if (phaseTarget.needsRowInsertion && phaseTarget.insertAtIndex !== null) {
-      try {
-        const batchUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`;
-        await fetch(batchUrl, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            requests: [{
-              insertDimension: {
-                range: {
-                  sheetId: matchedSheetProp.sheetId,
-                  dimension: 'ROWS',
-                  startIndex: phaseTarget.insertAtIndex,
-                  endIndex: phaseTarget.insertAtIndex + 1
-                },
-                inheritFromBefore: true
-              }
-            }]
-          })
-        });
-      } catch (insertErr) {
-        console.warn('Failed to insert row for expanded phase block, proceeding with explicit write:', insertErr);
+      const batchUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`;
+      const insertRes = await fetch(batchUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          requests: [{
+            insertDimension: {
+              range: {
+                sheetId: matchedSheetProp.sheetId,
+                dimension: 'ROWS',
+                startIndex: phaseTarget.insertAtIndex,
+                endIndex: phaseTarget.insertAtIndex + 1
+              },
+              inheritFromBefore: true
+            }
+          }]
+        })
+      });
+
+      if (!insertRes.ok) {
+        const errText = await insertRes.text().catch(() => '');
+        throw new Error(`Failed to insert row for expanded phase block in "${sheetTitle}": ${errText || insertRes.statusText}`);
       }
     }
 
     // Always write via explicit PUT to A{row}:F{row} (Zero generic :append)
     const updateUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/'${encodeURIComponent(sheetTitle)}'!A${phaseTarget.targetRowNumber}:F${phaseTarget.targetRowNumber}?valueInputOption=USER_ENTERED`;
-    await fetch(updateUrl, {
+    const updateRes = await fetch(updateUrl, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -333,6 +332,11 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
       },
       body: JSON.stringify({ values: [rowValues] })
     });
+
+    if (!updateRes.ok) {
+      const errText = await updateRes.text().catch(() => '');
+      throw new Error(`Failed to write invoice row to "${sheetTitle}": ${errText || updateRes.statusText}`);
+    }
 
     // Move file to Vendors / Stores / [Vendor Name] if vendor is confidently identified, else Unknown Vendors exception queue
     let destinationFolderId = null;

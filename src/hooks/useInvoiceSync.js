@@ -11,7 +11,6 @@ import { buildHistoryLogs, syncInvoiceDocument } from '../services/invoiceUpload
 import {
   getHistoryFileId
 } from '../services/invoiceSyncState';
-import { triggerAppsScriptSync } from '../services/secureApi';
 import { syncUploadedInvoicesDirectly } from '../services/directSyncService';
 
 function writePdfLoadingState(newWindow) {
@@ -71,41 +70,31 @@ export function useInvoiceSync({
     persistHistory(newHistory);
   };
 
-  const handleTriggerAppsScriptSync = async () => {
+  const handleTriggerDirectSync = async () => {
     const targetFolderId = activeProject?.folderId || selectedFolder?.id;
     if (!targetFolderId) {
       setError('Please select an active project folder before syncing.');
       return;
     }
+    if (!googleToken) {
+      setError('Connect Google Drive to sync with your spreadsheet.');
+      return;
+    }
     setTriggeringSync(true);
     setError(null);
     try {
-      if (googleToken) {
-        const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
-        setHasUnprocessedUploads(false);
-        setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, false);
-        setSuccess(
-          result.processedCount > 0
-            ? `Synced ${result.processedCount} invoice(s) directly to your spreadsheet!`
-            : 'Spreadsheet is up to date!'
-        );
-      } else {
-        await triggerAppsScriptSync(targetFolderId);
-        setHasUnprocessedUploads(false);
-        setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, false);
-        setSuccess('Spreadsheet sync triggered successfully!');
-      }
+      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
+      setHasUnprocessedUploads(false);
+      setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, false);
+      setSuccess(
+        result.processedCount > 0
+          ? `Synced ${result.processedCount} invoice(s) directly to your spreadsheet!`
+          : 'Spreadsheet is up to date!'
+      );
       setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
-      console.error('Direct sync failed, trying fallback:', err);
-      try {
-        await triggerAppsScriptSync(targetFolderId);
-        setHasUnprocessedUploads(false);
-        setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, false);
-        setSuccess('Spreadsheet sync triggered!');
-      } catch (fallbackErr) {
-        setError(getDriveErrorMessage(fallbackErr, 'trigger spreadsheet sync'));
-      }
+      console.error('Direct sync failed:', err);
+      setError(getDriveErrorMessage(err, 'sync spreadsheet'));
     } finally {
       setTriggeringSync(false);
     }
@@ -162,16 +151,11 @@ export function useInvoiceSync({
         throw new Error('Please select an active project folder before syncing.');
       }
 
-      if (googleToken) {
-        try {
-          await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
-        } catch (directErr) {
-          console.warn('Direct sync failed, attempting Apps Script fallback:', directErr);
-          await triggerAppsScriptSync(targetFolderId);
-        }
-      } else {
-        await triggerAppsScriptSync(targetFolderId);
+      if (!googleToken) {
+        throw new Error('Connect Google Drive to sync with your spreadsheet.');
       }
+
+      await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
 
       saveHistory([...driveUploadResult.logs, ...history]);
       removeStagedItem(id);
@@ -282,16 +266,15 @@ export function useInvoiceSync({
 
       setUploadStatusText('Updating spreadsheet...');
 
-      if (googleToken) {
-        try {
-          await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
-        } catch (directErr) {
-          console.warn('Direct sync failed, attempting Apps Script fallback:', directErr);
-          await triggerAppsScriptSync(targetFolderId);
-        }
-      } else {
-        await triggerAppsScriptSync(targetFolderId);
+      if (!targetFolderId) {
+        throw new Error('Please select an active project folder before syncing.');
       }
+
+      if (!googleToken) {
+        throw new Error('Connect Google Drive to sync with your spreadsheet.');
+      }
+
+      await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
 
       saveHistory([...allLogs, ...history]);
       successfulUploadIds.forEach(id => removeStagedItem(id));
@@ -372,7 +355,8 @@ export function useInvoiceSync({
     history,
     hasUnprocessedUploads,
     triggeringSync,
-    handleTriggerAppsScriptSync,
+    handleTriggerSync: handleTriggerDirectSync,
+    handleTriggerAppsScriptSync: handleTriggerDirectSync,
     handleOneShotSync,
     handleSyncToDrive: handleOneShotSync,
     handleSyncAllDrafts,

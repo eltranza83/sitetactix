@@ -1,4 +1,4 @@
-﻿# 🛡️ SiteTactix Production Security Baseline Report (v1.0.0-SEC)
+# 🛡️ SiteTactix Production Security Baseline Report (v1.0.0-SEC)
 
 **Audit Date:** August 20, 2026  
 **Git Baseline Tag:** `v1.0.0-SEC`  
@@ -50,7 +50,7 @@ This document establishes the official **v1.0.0-SEC** security baseline for the 
   - ✅ Cross-tenant memory access -> User B strictly blocked from reading or tampering with User A's memories.
   - ✅ Memory UID spoofing -> User B strictly rejected from creating memories stamped with User A's UID.
   - ✅ Admin override -> Admins retain access to manage memories for system maintenance.
-  - ✅ Document extraction, voice loop, and spreadsheet sync regression suites -> 100% passing.
+  - ✅ Document extraction, voice loop, and direct spreadsheet sync regression suites -> 100% passing.
 
 ### C. Production Build & Lint (`npm run build` & `npm run lint`)
 - **Status:** 0 lint errors, production bundle generated with 0 exposed sourcemaps or server secrets.
