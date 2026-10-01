@@ -3,7 +3,7 @@
  */
 
 export const AI_CONFIG = {
-  primaryModel: (typeof process !== 'undefined' && process.env?.GEMINI_MODEL) || 'gemini-3.5-flash-lite',
+  primaryModel: (typeof process !== 'undefined' && process.env?.GEMINI_MODEL) || 'gemini-3.1-flash-lite',
   reasoningModel: (typeof process !== 'undefined' && process.env?.GEMINI_REASONING_MODEL) || 'gemini-3.5-flash',
 
   

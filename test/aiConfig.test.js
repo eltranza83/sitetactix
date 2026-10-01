@@ -6,7 +6,7 @@ import { fetchWithExponentialBackoff } from '../api/_lib/ai-retry.js';
 
 describe('Centralized AI Configuration & Intent Routing', () => {
   test('primaryModel and reasoningModel defaults are set correctly', () => {
-    assert.equal(AI_CONFIG.primaryModel, 'gemini-3.5-flash-lite');
+    assert.equal(AI_CONFIG.primaryModel, 'gemini-3.1-flash-lite');
     assert.equal(AI_CONFIG.reasoningModel, 'gemini-3.5-flash');
   });
 
@@ -24,7 +24,7 @@ describe('Centralized AI Configuration & Intent Routing', () => {
     ];
 
     for (const q of fastQueries) {
-      assert.equal(determineTaskModel(q), 'gemini-3.5-flash-lite', `Expected Fast Path for: "${q}"`);
+      assert.equal(determineTaskModel(q), 'gemini-3.1-flash-lite', `Expected Fast Path for: "${q}"`);
     }
   });
 
@@ -45,11 +45,11 @@ describe('Centralized AI Configuration & Intent Routing', () => {
 
   test('determineTaskModel respects explicit forceDeepReasoning toggle', () => {
     const simpleQuery = 'What is the date today?';
-    assert.equal(determineTaskModel(simpleQuery, false), 'gemini-3.5-flash-lite');
+    assert.equal(determineTaskModel(simpleQuery, false), 'gemini-3.1-flash-lite');
     assert.equal(determineTaskModel(simpleQuery, true), 'gemini-3.5-flash');
 
     const purchasingQuery = 'we need a good night lighting on the porch';
-    assert.equal(determineTaskModel(purchasingQuery, false), 'gemini-3.5-flash-lite');
+    assert.equal(determineTaskModel(purchasingQuery, false), 'gemini-3.1-flash-lite');
     assert.equal(determineTaskModel(purchasingQuery, true), 'gemini-3.5-flash');
   });
 });

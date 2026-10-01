@@ -19,6 +19,7 @@ import {
   saveFinishSpec
 } from '../services/finishService';
 import { runAllAiToolDiagnostics } from '../services/aiTools';
+import { AI_CONFIG } from '../config/aiConfig';
 import {
   fetchProjectDriveTree,
   createFolder,
@@ -651,7 +652,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
     setIsLoading(true);
 
     try {
-      let currentLiveTree = driveTree || (typeof loadDriveTree === 'function' ? loadDriveTree(projectId) : null);
+      let currentLiveTree = driveTree || loadProjectDriveTree(projectId);
       if (googleToken && activeProject?.folderId) {
         fetchProjectDriveTree(googleToken, activeProject.folderId).then((freshTree) => {
           if (freshTree) {
@@ -898,7 +899,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         query,
-        modelUsed: telemetry?.modelUsed || 'gemini-flash-latest',
+        modelUsed: telemetry?.modelUsed || AI_CONFIG.primaryModel,
         source,
         httpStatus: telemetry?.errorCode ? `Notice (${telemetry.errorCode})` : '200 OK',
         intent: telemetry?.intent || 'Standard Lookup',
@@ -1813,7 +1814,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                         >
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', marginBottom: '4px' }}>
                             <span style={{ backgroundColor: 'rgba(168, 85, 247, 0.2)', color: '#d8b4fe', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
-                              🤖 {m.telemetry.modelUsed || 'gemini-3.6-flash'}
+                              🤖 {m.telemetry.modelUsed || AI_CONFIG.primaryModel}
                             </span>
                             <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
                               🎯 {m.telemetry.intent || 'Standard Lookup'}
@@ -2350,7 +2351,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                     Active Project: <span style={{ color: 'var(--color-amber-400)' }}>{projectName}</span>
                   </div>
                   <div style={{ fontSize: '0.70rem', color: 'var(--color-zinc-400)' }}>
-                    Model: <code style={{ color: '#86efac' }}>gemini-3.5-flash (GA Stable)</code>
+                    Primary: <code style={{ color: '#86efac' }}>{AI_CONFIG.primaryModel}</code> | Reasoning: <code style={{ color: '#93c5fd' }}>{AI_CONFIG.reasoningModel}</code>
                   </div>
                 </div>
                 <button
@@ -2387,7 +2388,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {(testSuiteData?.health?.toolHealth || [
                       { name: 'Open-Meteo Weather API', badge: '🟢 Operational', detail: 'REST Endpoint Active' },
-                      { name: 'Gemini Brain Engine', badge: '🟢 Operational', detail: 'gemini-3.5-flash (GA Stable)' },
+                      { name: 'Gemini Brain Engine', badge: '🟢 Operational', detail: `${AI_CONFIG.primaryModel} / ${AI_CONFIG.reasoningModel}` },
                       { name: 'Google Drive API', badge: googleToken ? '🟢 Authenticated' : '🟡 Offline Cache', detail: googleToken ? 'OAuth2 Bearer Token Valid' : 'Using Local Storage Drive Cache' },
                       { name: 'Sheets Ledger Engine', badge: '🟢 Operational', detail: 'Category Router Active' }
                     ]).map((t, idx) => (

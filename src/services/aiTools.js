@@ -1,5 +1,6 @@
 import { fetchDocumentContent, writeDocumentContent, DOCUMENT_STATES } from './documentContentProvider.js';
 import { loadStoredAppState, persistStagedItems } from './appStorage.js';
+import { AI_CONFIG } from '../config/aiConfig.js';
 /**
  * Client-Side AI Tool Executors, Data Retrieval & Diagnostic Test Suite
  */
@@ -2395,7 +2396,7 @@ export function evaluateSystemAndDataHealth(projectContext = {}) {
       name: 'Gemini Brain Engine',
       isHealthy: true,
       badge: '🟢 Operational',
-      detail: 'Model: gemini-flash-latest (High Quota)'
+      detail: `Model: ${AI_CONFIG.primaryModel} (High Quota)`
     },
     {
       id: 'google_drive_api',
