@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.3.9",
-  "releaseName": "Security rules & sync reliability",
+  "version": "1.3.10",
+  "releaseName": "Sync All draft cleanup fix",
   "type": "module",
   "scripts": {
     "dev": "vite",

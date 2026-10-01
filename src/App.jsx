@@ -186,7 +186,8 @@ export default function App() {
     handleResetTimer,
     handleUpdateDraftField,
     updateStagedItem,
-    removeStagedItem
+    removeStagedItem,
+    removeStagedItems
   } = useStagedDocuments({
     activeProject,
     setError,
@@ -208,6 +209,7 @@ export default function App() {
     projects,
     stagedItems,
     removeStagedItem,
+    removeStagedItems,
     updateStagedItem,
     handleSessionExpired,
     setError,

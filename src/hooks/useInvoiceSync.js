@@ -53,6 +53,7 @@ export function useInvoiceSync({
   projects,
   stagedItems,
   removeStagedItem,
+  removeStagedItems,
   updateStagedItem,
   handleSessionExpired,
   setError,
@@ -247,12 +248,20 @@ export function useInvoiceSync({
 
     // Offline / Mock mode
     if (!googleToken || !selectedFolder) {
+      const allOfflineLogs = [];
+      const successfulOfflineIds = [];
       for (let i = 0; i < activeProjectDrafts.length; i++) {
         const item = activeProjectDrafts[i];
         setUploadStatusText(`Downloading PDF (${i + 1}/${activeProjectDrafts.length})...`);
         const result = await syncInvoiceDocument({ item, googleToken, selectedFolder, projects });
-        saveHistory([...result.logs, ...history]);
-        removeStagedItem(item.id);
+        allOfflineLogs.push(...result.logs);
+        successfulOfflineIds.push(item.id);
+      }
+      saveHistory([...allOfflineLogs, ...history]);
+      if (typeof removeStagedItems === 'function' && successfulOfflineIds.length > 0) {
+        removeStagedItems(successfulOfflineIds);
+      } else {
+        successfulOfflineIds.forEach(id => removeStagedItem(id));
       }
       setSuccess(`Downloaded ${activeProjectDrafts.length} document(s) to device!`);
       setUploading(null);
@@ -340,7 +349,11 @@ export function useInvoiceSync({
       // Save history and remove only successful drafts
       const successfulIds = successfulDrafts.map(d => d.id);
       saveHistory([...allLogs, ...history]);
-      successfulIds.forEach(id => removeStagedItem(id));
+      if (typeof removeStagedItems === 'function' && successfulIds.length > 0) {
+        removeStagedItems(successfulIds);
+      } else {
+        successfulIds.forEach(id => removeStagedItem(id));
+      }
 
       // Keep failed drafts and update their error message
       if (updateStagedItem) {

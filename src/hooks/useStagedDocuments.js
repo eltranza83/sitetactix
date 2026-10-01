@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
 import { loadStoredAppState, persistStagedItems } from '../services/appStorage';
+import {
+  removeDraftById,
+  removeDraftsById,
+  updateDraftById,
+  addDraft,
+  saveDraftEdits,
+  adjustDraftTimer,
+  resetDraftTimer,
+  updateDraftField
+} from '../services/stagedDocumentOperations';
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -45,9 +55,17 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
     }
   }, []);
 
-  const saveStagedItems = (updatedDrafts) => {
-    setStagedItems(updatedDrafts);
-    persistStagedItems(updatedDrafts);
+  const saveStagedItems = (updater) => {
+    setStagedItems(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try {
+        persistStagedItems(next);
+      } catch (err) {
+        console.error('LocalStorage quota error:', err);
+        setError('Storage full! Draft saved in memory, but please sync items to free up browser space.');
+      }
+      return next;
+    });
   };
 
   const handleDataExtracted = async (scanItem) => {
@@ -70,16 +88,7 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
         timerDuration: 60 * 60 * 1000
       };
 
-      const updatedDrafts = [newDraft, ...stagedItems];
-      setStagedItems(updatedDrafts);
-
-      try {
-        persistStagedItems(updatedDrafts);
-      } catch (err) {
-        console.error('LocalStorage quota error:', err);
-        setError('Storage full! Draft saved in memory, but please sync items to free up browser space.');
-      }
-
+      saveStagedItems(prev => addDraft(prev, newDraft));
       setSuccess('Check/Invoice scanned and saved to Drafts!');
       setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
@@ -89,18 +98,7 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
   };
 
   const handleSaveStagedEdits = (updatedItem) => {
-    const updatedDrafts = stagedItems.map(item => {
-      if (item.id === editingItemId) {
-        return {
-          ...item,
-          metadata: updatedItem.metadata,
-          mainImageBase64: updatedItem.mainImageBase64,
-          secondaryImageBase64: updatedItem.secondaryImageBase64
-        };
-      }
-      return item;
-    });
-    saveStagedItems(updatedDrafts);
+    saveStagedItems(prev => saveDraftEdits(prev, editingItemId, updatedItem));
     setEditingItemId(null);
     setSuccess('Draft updated successfully!');
     setTimeout(() => setSuccess(null), 3000);
@@ -114,8 +112,11 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
   };
 
   const removeStagedItem = (id) => {
-    const updatedDrafts = stagedItems.filter(item => item.id !== id);
-    saveStagedItems(updatedDrafts);
+    saveStagedItems(prev => removeDraftById(prev, id));
+  };
+
+  const removeStagedItems = (ids) => {
+    saveStagedItems(prev => removeDraftsById(prev, ids));
   };
 
   const confirmDeleteDraft = () => {
@@ -127,59 +128,19 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
   };
 
   const handleAdjustTimer = (id, additionalMinutes) => {
-    const updatedDrafts = stagedItems.map(item => {
-      if (item.id === id) {
-        return {
-          ...item,
-          timerDuration: item.timerDuration + (additionalMinutes * 60 * 1000)
-        };
-      }
-      return item;
-    });
-    saveStagedItems(updatedDrafts);
+    saveStagedItems(prev => adjustDraftTimer(prev, id, additionalMinutes));
   };
 
   const handleResetTimer = (id) => {
-    const updatedDrafts = stagedItems.map(item => {
-      if (item.id === id) {
-        return {
-          ...item,
-          createdAt: Date.now(),
-          timerDuration: 60 * 60 * 1000
-        };
-      }
-      return item;
-    });
-    saveStagedItems(updatedDrafts);
+    saveStagedItems(prev => resetDraftTimer(prev, id));
   };
 
   const handleUpdateDraftField = (id, field, value) => {
-    const updatedDrafts = stagedItems.map(item => {
-      if (item.id === id) {
-        return {
-          ...item,
-          metadata: {
-            ...item.metadata,
-            [field]: value
-          }
-        };
-      }
-      return item;
-    });
-    saveStagedItems(updatedDrafts);
+    saveStagedItems(prev => updateDraftField(prev, id, field, value));
   };
 
   const updateStagedItem = (id, updates) => {
-    const updatedDrafts = stagedItems.map(item => {
-      if (item.id === id) {
-        return {
-          ...item,
-          ...updates
-        };
-      }
-      return item;
-    });
-    saveStagedItems(updatedDrafts);
+    saveStagedItems(prev => updateDraftById(prev, id, updates));
   };
 
   return {
@@ -197,6 +158,7 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
     handleResetTimer,
     handleUpdateDraftField,
     updateStagedItem,
-    removeStagedItem
+    removeStagedItem,
+    removeStagedItems
   };
 }
