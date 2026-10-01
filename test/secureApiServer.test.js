@@ -27,7 +27,7 @@ test('requireScannerAccess verifies identity and an access document', async () =
   const fetchImpl = async (url) => {
     requested.push(String(url));
     if (String(url).includes('accounts:lookup')) {
-      return Response.json({ users: [{ localId: 'uid-1', email: 'Builder@Example.com' }] });
+      return Response.json({ users: [{ localId: 'uid-1', email: 'Builder@Example.com', emailVerified: true }] });
     }
     if (String(url).includes('/admins/')) return new Response('', { status: 404 });
     return Response.json({ name: 'access' });
@@ -79,7 +79,7 @@ test('requireScannerAccess rejects unauthenticated request with 401', async () =
 test('requireScannerAccess rejects unauthorized user without invite document with 403', async () => {
   const fetchImpl = async (url) => {
     if (String(url).includes('accounts:lookup')) {
-      return Response.json({ users: [{ localId: 'unauthorized-uid', email: 'intruder@example.com' }] });
+      return Response.json({ users: [{ localId: 'unauthorized-uid', email: 'intruder@example.com', emailVerified: true }] });
     }
     // No admin doc, no user_access doc
     return new Response('', { status: 404 });
@@ -101,10 +101,34 @@ test('requireScannerAccess rejects unauthorized user without invite document wit
   );
 });
 
+test('requireScannerAccess rejects user with unverified email with 403', async () => {
+  const fetchImpl = async (url) => {
+    if (String(url).includes('accounts:lookup')) {
+      return Response.json({ users: [{ localId: 'unverified-uid', email: 'unverified@example.com', emailVerified: false }] });
+    }
+    return Response.json({ name: 'access' });
+  };
+
+  const req = new Request('https://example.test/api/ask-brain', {
+    method: 'POST',
+    headers: { authorization: 'Bearer unverified-token' }
+  });
+
+  await assert.rejects(
+    () => requireScannerAccess(req, fetchImpl),
+    (err) => {
+      assert.equal(err instanceof HttpError, true);
+      assert.equal(err.status, 403);
+      assert.equal(err.message, 'Email verification is required.');
+      return true;
+    }
+  );
+});
+
 test('requireScannerAccess enforces rate limits when threshold exceeded', async () => {
   const fetchImpl = async (url) => {
     if (String(url).includes('accounts:lookup')) {
-      return Response.json({ users: [{ localId: 'rate-limit-test-uid', email: 'builder@example.com' }] });
+      return Response.json({ users: [{ localId: 'rate-limit-test-uid', email: 'builder@example.com', emailVerified: true }] });
     }
     return Response.json({ name: 'access' });
   };

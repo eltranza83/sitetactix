@@ -3,7 +3,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
-      return request.auth != null && request.auth.token.email != null;
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true;
     }
 
     function isAdmin() {
@@ -11,10 +13,14 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
     }
 
+    function hasAccess() {
+      return signedIn()
+        && (isAdmin() || exists(/databases/$(database)/documents/user_access/$(request.auth.uid)));
+    }
+
     match /admins/{email} {
       allow get: if signedIn();
-      allow list: if false;
-      allow write: if false;
+      allow list, write: if false;
     }
 
     match /user_access/{uid} {
@@ -36,17 +42,9 @@ service cloud.firestore {
     match /invites/{code} {
       allow get: if signedIn()
         && code != 'CONFIG-GEMINI'
-        && (
-          isAdmin()
-          || resource.data.used == false
-          || resource.data.claimedByUid == request.auth.uid
-        );
+        && (isAdmin() || resource.data.used == false || resource.data.claimedByUid == request.auth.uid);
       allow list: if isAdmin()
-        || (
-          signedIn()
-          && code != 'CONFIG-GEMINI'
-          && resource.data.claimedByUid == request.auth.uid
-        );
+        || (signedIn() && code != 'CONFIG-GEMINI' && resource.data.claimedByUid == request.auth.uid);
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
         || (
@@ -66,10 +64,17 @@ service cloud.firestore {
     }
 
     match /memories/{memoryId} {
-      allow get, list: if signedIn() && resource.data.uid == request.auth.uid;
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
-      allow update: if signedIn() && resource.data.uid == request.auth.uid && request.resource.data.uid == resource.data.uid;
-      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow get, list: if hasAccess() && resource.data.uid == request.auth.uid;
+      allow create: if hasAccess() && request.resource.data.uid == request.auth.uid;
+      allow update: if hasAccess() && resource.data.uid == request.auth.uid && request.resource.data.uid == resource.data.uid;
+      allow delete: if hasAccess() && resource.data.uid == request.auth.uid;
+    }
+
+    match /user_preferences/{prefId} {
+      allow get, list: if hasAccess() && resource.data.uid == request.auth.uid;
+      allow create: if hasAccess() && request.resource.data.uid == request.auth.uid;
+      allow update: if hasAccess() && resource.data.uid == request.auth.uid && request.resource.data.uid == resource.data.uid;
+      allow delete: if hasAccess() && resource.data.uid == request.auth.uid;
     }
 
     function isProjectAuthorized(projectData) {
@@ -78,44 +83,44 @@ service cloud.firestore {
     }
 
     match /projects/{projectId} {
-      allow get: if signedIn() && isProjectAuthorized(resource.data);
-      allow list: if signedIn() && (
+      allow get: if hasAccess() && isProjectAuthorized(resource.data);
+      allow list: if hasAccess() && (
         resource.data.ownerUid == request.auth.uid
         || (resource.data.memberUids != null && request.auth.uid in resource.data.memberUids)
       );
-      allow create: if signedIn()
+      allow create: if hasAccess()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.id == projectId;
-      allow update: if signedIn()
+      allow update: if hasAccess()
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.ownerUid == resource.data.ownerUid;
-      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow delete: if hasAccess() && resource.data.ownerUid == request.auth.uid;
     }
 
     match /projects/{projectId}/purchasing_items/{itemId} {
-      allow read, write: if signedIn()
+      allow read, write: if hasAccess()
         && isProjectAuthorized(get(/databases/$(database)/documents/projects/$(projectId)).data);
     }
 
     match /projects/{projectId}/finishes/{finishId} {
-      allow read, write: if signedIn()
+      allow read, write: if hasAccess()
         && isProjectAuthorized(get(/databases/$(database)/documents/projects/$(projectId)).data);
     }
 
     match /project_invites/{inviteId} {
-      allow get, list: if signedIn() && (
+      allow get, list: if hasAccess() && (
         resource.data.invitedEmail == request.auth.token.email
         || resource.data.invitedByUid == request.auth.uid
       );
-      allow create: if signedIn()
+      allow create: if hasAccess()
+        && request.resource.data.invitedByUid == request.auth.uid
         && request.auth.uid == get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerUid;
-      allow update, delete: if signedIn() && resource.data.invitedByUid == request.auth.uid;
+      allow update, delete: if hasAccess() && resource.data.invitedByUid == request.auth.uid;
     }
 
     match /purchasing_templates/{templateId}/items/{itemId} {
-      allow read: if signedIn();
+      allow read: if hasAccess();
       allow write: if isAdmin();
     }
   }
 }
-

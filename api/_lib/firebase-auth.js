@@ -97,6 +97,10 @@ export async function verifyFirebaseIdentity(idToken, fetchImpl = fetch) {
     throw new HttpError(401, 'Your account is not available. Please sign in again.');
   }
 
+  if (user.emailVerified !== true) {
+    throw new HttpError(403, 'Email verification is required.');
+  }
+
   return {
     uid: user.localId,
     email: user.email.toLowerCase()

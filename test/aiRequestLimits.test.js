@@ -45,7 +45,7 @@ describe('AI Request Limits & Conversation Caps Test Suite', () => {
           ok: true,
           status: 200,
           json: async () => ({
-            users: [{ localId: 'user_123', email: 'authorized-admin@sitetactix.com' }]
+            users: [{ localId: 'user_123', email: 'authorized-admin@sitetactix.com', emailVerified: true }]
           })
         };
       }
@@ -277,7 +277,7 @@ describe('AI Request Limits & Conversation Caps Test Suite', () => {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ users: [{ localId: 'user_123', email: 'admin@sitetactix.com' }] })
+          json: async () => ({ users: [{ localId: 'user_123', email: 'admin@sitetactix.com', emailVerified: true }] })
         };
       }
       if (urlStr.includes('firestore.googleapis.com')) {

@@ -1,5 +1,19 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+
+function getCommitSha() {
+  const envSha = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA;
+  if (envSha) return envSha.slice(0, 7);
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return '';
+  }
+}
 
 function apiDevPlugin() {
   return {
@@ -44,7 +58,16 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   Object.assign(process.env, env);
 
+  const commitSha = getCommitSha();
+  const buildLabel = commitSha ? `v${pkg.version} · ${commitSha}` : `v${pkg.version}`;
+  process.env.VITE_APP_VERSION = pkg.version;
+  process.env.VITE_APP_BUILD_LABEL = buildLabel;
+
   return {
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
+      'import.meta.env.VITE_APP_BUILD_LABEL': JSON.stringify(buildLabel)
+    },
     plugins: [react(), apiDevPlugin()],
   build: {
     modulePreload: {

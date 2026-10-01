@@ -48,7 +48,7 @@ describe('AI Route Security Refactor & Error Sanitization Suite', () => {
           ok: true,
           status: 200,
           json: async () => ({
-            users: [{ localId: 'user_123', email: 'authorized-admin@sitetactix.com' }]
+            users: [{ localId: 'user_123', email: 'authorized-admin@sitetactix.com', emailVerified: true }]
           })
         };
       }
@@ -95,7 +95,7 @@ describe('AI Route Security Refactor & Error Sanitization Suite', () => {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ users: [{ localId: 'unauthorized_uid', email: 'stranger@example.com' }] })
+          json: async () => ({ users: [{ localId: 'unauthorized_uid', email: 'stranger@example.com', emailVerified: true }] })
         };
       }
       if (urlStr.includes('firestore.googleapis.com')) {
@@ -155,7 +155,7 @@ describe('AI Route Security Refactor & Error Sanitization Suite', () => {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ users: [{ localId: 'user_123', email: 'admin@sitetactix.com' }] })
+          json: async () => ({ users: [{ localId: 'user_123', email: 'admin@sitetactix.com', emailVerified: true }] })
         };
       }
       if (urlStr.includes('firestore.googleapis.com')) {
@@ -192,7 +192,7 @@ describe('AI Route Security Refactor & Error Sanitization Suite', () => {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ users: [{ localId: 'user_123', email: 'admin@sitetactix.com' }] })
+          json: async () => ({ users: [{ localId: 'user_123', email: 'admin@sitetactix.com', emailVerified: true }] })
         };
       }
       if (urlStr.includes('firestore.googleapis.com')) {
@@ -309,7 +309,7 @@ describe('AI Route Security Refactor & Error Sanitization Suite', () => {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ users: [{ localId: 'user_123', email: 'admin@sitetactix.com' }] })
+          json: async () => ({ users: [{ localId: 'user_123', email: 'admin@sitetactix.com', emailVerified: true }] })
         };
       }
       if (urlStr.includes('firestore.googleapis.com')) {

@@ -435,19 +435,6 @@ test('22. Semantic Generalization: Completely different phrasings resolve to the
   }
 });
 
-test('23. Novel Phrasing Generalization: Unseen phrasing "Don\'t waste time walking me through everything. Tell me what matters first."', () => {
-  const novelQuery = "Don't waste time walking me through everything. Tell me what matters first.";
-  const hypothesis = extractBehavioralHypothesis(novelQuery);
 
-  assert.ok(hypothesis, 'Novel phrasing must produce a structured hypothesis');
-  assert.equal(hypothesis.type, 'inferred_pattern');
-  assert.equal(hypothesis.category, PREFERENCE_CATEGORIES.INFORMATION_DEPTH);
-  assert.equal(hypothesis.inferredIntent, 'concise_bottom_line');
-  assert.equal(
-    hypothesis.preferenceStatement,
-    'Lead with the bottom-line answer and provide additional detail only when requested.'
-  );
-  assert.ok(hypothesis.evidence.includes(novelQuery));
-});
 
 

@@ -534,40 +534,114 @@ export const USER_PREFERENCE_STORAGE_KEY = 'sitetactix_user_preferences_v1';
 /**
  * Loads user preferences for a given user ID and optional project ID.
  */
-export async function loadUserPreferences(userId = 'default_user', _projectId = null) {
+export async function loadUserPreferences(userId = 'default_user', _projectId = null, options = {}) {
   if (!userId) userId = 'default_user';
-  let prefs = [];
+  let localPrefs = [];
 
   // LocalStorage / memory cache
   if (typeof localStorage !== 'undefined') {
     try {
       const raw = localStorage.getItem(`${USER_PREFERENCE_STORAGE_KEY}_${userId}`);
-      if (raw) prefs = JSON.parse(raw);
+      if (raw) localPrefs = JSON.parse(raw);
     } catch {
-      prefs = [];
+      localPrefs = [];
     }
   }
 
   // Firestore sync if available
-  const db = getFirebaseDb();
-  if (db && userId !== 'default_user') {
+  const customFirestore = options?.firestore || ((options?.getDocs || options?.setDoc) ? options : null);
+  const db = options?.db !== undefined ? options.db : getFirebaseDb();
+  if ((db || customFirestore) && userId !== 'default_user') {
     try {
-      const q = firestoreQuery(collection(db, 'user_preferences'), where('uid', '==', userId));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const remoteList = [];
+      let remoteList = [];
+      if (customFirestore?.getDocs) {
+        const snap = await customFirestore.getDocs();
+        snap.forEach(d => {
+          const data = typeof d.data === 'function' ? d.data() : (d.data || d);
+          remoteList.push({ id: d.id, ...data });
+        });
+      } else {
+        const q = firestoreQuery(collection(db, 'user_preferences'), where('uid', '==', userId));
+        const snap = await getDocs(q);
         snap.forEach(d => remoteList.push({ id: d.id, ...d.data() }));
-        prefs = remoteList;
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(`${USER_PREFERENCE_STORAGE_KEY}_${userId}`, JSON.stringify(prefs));
-        }
       }
+
+      const migrationKey = `${USER_PREFERENCE_STORAGE_KEY}_migrated_${userId}`;
+      const alreadyMigrated = typeof localStorage !== 'undefined' && localStorage.getItem(migrationKey) === 'true';
+
+      let merged = [];
+
+      if (!alreadyMigrated) {
+        // One-time initial migration:
+        // Any local-only preference from before Firestore rules were active gets backfilled to Firestore.
+        const remoteMap = new Map(remoteList.map(r => [r.id, r]));
+        const uploads = [];
+        let allUploadsSucceeded = true;
+
+        const executeUpload = async (loc) => {
+          try {
+            if (customFirestore?.setDoc) {
+              await customFirestore.setDoc(loc.id, { ...loc, uid: userId }, { merge: true });
+            } else {
+              await setDoc(doc(db, 'user_preferences', loc.id), { ...loc, uid: userId }, { merge: true });
+            }
+          } catch (err) {
+            allUploadsSucceeded = false;
+            console.warn('Initial preference migration upload failed for', loc.id, err?.message);
+          }
+        };
+
+        for (const loc of localPrefs) {
+          if (!remoteMap.has(loc.id)) {
+            uploads.push(executeUpload(loc));
+            remoteMap.set(loc.id, loc);
+          } else {
+            const rem = remoteMap.get(loc.id);
+            const locTime = new Date(loc.updatedAt || 0).getTime();
+            const remTime = new Date(rem.updatedAt || 0).getTime();
+            if (locTime > remTime) {
+              remoteMap.set(loc.id, loc);
+              uploads.push(executeUpload(loc));
+            }
+          }
+        }
+
+        if (uploads.length > 0) {
+          await Promise.all(uploads);
+        }
+
+        if (allUploadsSucceeded && typeof localStorage !== 'undefined') {
+          localStorage.setItem(migrationKey, 'true');
+        }
+
+        merged = Array.from(remoteMap.values());
+      } else {
+        // Authoritative cloud sync:
+        // Firestore is authoritative for existence (deleted items stay deleted).
+        // Overlapping items resolve to the newer updatedAt.
+        const localMap = new Map(localPrefs.map(l => [l.id, l]));
+        merged = remoteList.map(remotePref => {
+          const localPref = localMap.get(remotePref.id);
+          if (localPref) {
+            const locTime = new Date(localPref.updatedAt || 0).getTime();
+            const remTime = new Date(remotePref.updatedAt || 0).getTime();
+            return locTime > remTime ? localPref : remotePref;
+          }
+          return remotePref;
+        });
+      }
+
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(`${USER_PREFERENCE_STORAGE_KEY}_${userId}`, JSON.stringify(merged));
+      }
+
+      return merged;
     } catch (err) {
       console.warn('Failed to load user preferences from Firestore, using local cache:', err?.message);
     }
   }
 
-  return prefs;
+  return localPrefs;
 }
 
 /**
@@ -715,6 +789,7 @@ export async function resetAllUserPreferences(userId = 'default_user') {
   if (typeof localStorage !== 'undefined') {
     try {
       localStorage.removeItem(`${USER_PREFERENCE_STORAGE_KEY}_${userId}`);
+      localStorage.removeItem(`${USER_PREFERENCE_STORAGE_KEY}_migrated_${userId}`);
     } catch {}
   }
 
