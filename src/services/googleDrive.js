@@ -433,7 +433,10 @@ export async function createFolder(accessToken, folderName, parentId = null) {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Failed to create folder: ${errText}`);
+    const error = new Error(`Failed to create folder: ${errText}`);
+    error.status = response.status;
+    error.response = response;
+    throw error;
   }
 
   return await response.json();
@@ -698,7 +701,10 @@ export async function findOrCreateFolder(accessToken, folderName, parentId) {
 
       if (!response.ok) {
         const errText = await response.text();
-        throw new Error(`Failed to search for folder ${folderName}: ${errText}`);
+        const error = new Error(`Failed to search for folder ${folderName}: ${errText}`);
+        error.status = response.status;
+        error.response = response;
+        throw error;
       }
 
       const data = await response.json();
@@ -888,7 +894,10 @@ export async function moveFileInDrive(accessToken, fileId, removeParentId, addPa
   });
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Failed to move file in Drive: ${errText}`);
+    const error = new Error(`Failed to move file in Drive: ${errText}`);
+    error.status = response.status;
+    error.response = response;
+    throw error;
   }
   return await response.json();
 }
@@ -907,7 +916,16 @@ export async function tagDriveFileAppProperties(accessToken, fileId, appProperti
     },
     body: JSON.stringify({ appProperties })
   });
-  return response.ok;
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403 || response.status === 429 || response.status >= 500) {
+      const err = new Error(`Failed to tag file: HTTP ${response.status}`);
+      err.status = response.status;
+      err.response = response;
+      throw err;
+    }
+    return false;
+  }
+  return true;
 }
 
 /**

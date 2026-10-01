@@ -12,11 +12,22 @@ import { normalizeKey } from './sheetsDataService.js';
 
 const GOOGLE_SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
-async function handleFatalGoogleError(response) {
-  if (!response || response.ok) return;
-  const status = Number(response.status);
+async function handleFatalGoogleError(resOrErr) {
+  if (!resOrErr) return;
+  if (resOrErr.ok) return;
 
-  if (status === 401) {
+  const status = Number(resOrErr.status || resOrErr.code);
+  let bodyText = '';
+
+  if (typeof resOrErr.text === 'function') {
+    bodyText = await resOrErr.text().catch(() => '');
+  } else if (resOrErr.message) {
+    bodyText = String(resOrErr.message);
+  }
+
+  const lower = bodyText.toLowerCase();
+
+  if (status === 401 || lower.includes('unauthenticated') || lower.includes('invalid credentials') || lower.includes('session expired')) {
     const err = new Error('Google Drive session expired. Please sign in again.');
     err.status = 401;
     err.isFatalGoogleError = true;
@@ -24,10 +35,9 @@ async function handleFatalGoogleError(response) {
   }
 
   if (status === 403) {
-    const bodyText = await response.text().catch(() => '');
-    const lower = bodyText.toLowerCase();
     const isScopeError = lower.includes('insufficientpermissions') ||
                          lower.includes('access_token_scope_insufficient') ||
+                         lower.includes('insufficient scope') ||
                          lower.includes('invalid_grant');
 
     if (isScopeError) {
@@ -51,7 +61,7 @@ async function handleFatalGoogleError(response) {
     throw err;
   }
 
-  if (status === 429) {
+  if (status === 429 || lower.includes('ratelimit') || lower.includes('userratelimitexceeded')) {
     const err = new Error('Google is busy, please try again in a minute.');
     err.status = 429;
     err.isFatalGoogleError = true;
@@ -221,11 +231,12 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
 
   let processedCount = 0;
   const failed = [];
+  const warnings = [];
 
   for (const file of processableFiles) {
     try {
-      // Check if file was already written to sheet in a previous run
-      const alreadyWrittenToSheet = file.appProperties?.sheetRowWritten === 'true';
+      // Check tagging status: single tag sheetRowWritten protects category ledger from duplicates
+      const alreadyWrittenCategory = file.appProperties?.sheetRowWritten === 'true';
 
       let metadata = null;
       if (file.description && file.description.trim().startsWith('{')) {
@@ -246,8 +257,20 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
       }
 
       const vendor = metadata.vendor || metadata.contractorVendor || metadata.payee || metadata.contractor || '';
+      const fileUrl = file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`;
+      const costCat = String(metadata.costCategory || 'material').toLowerCase();
+      const rawCost = typeof metadata.amount === 'number' 
+        ? metadata.amount 
+        : (typeof metadata.totalCost === 'number' 
+          ? metadata.totalCost 
+          : parseFloat(metadata.amount || metadata.totalCost || metadata.cost || metadata.price || metadata.total) || 0);
 
-      if (!alreadyWrittenToSheet) {
+      const paymentDate = metadata.date || metadata.paymentDate || metadata.transactionDate || '';
+      const checkNumber = metadata.checkNumber || metadata.checkNo || metadata.checkOrTrans || metadata.check || '';
+      const taskDesc = metadata.description || metadata.desc || metadata.item || 'Scanned Invoice';
+
+      // STEP 1: Write to Category Sheet if not already written
+      if (!alreadyWrittenCategory) {
         const tradeCat = metadata.tradeCategory || '';
         const tradePh = metadata.tradePhase || '';
 
@@ -282,58 +305,6 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
         }
 
         const sheetTitle = matchedSheetProp.title;
-
-        // Check for master log tab ("New_Invoices")
-        let newInvoicesSheetTitle = null;
-        for (const sheetObj of sheetsList) {
-          const title = sheetObj.properties?.title || '';
-          const cleanTitle = normalizeKey(title);
-          if (cleanTitle === 'newinvoices' || cleanTitle === 'masterlog' || cleanTitle === 'invoicelog') {
-            newInvoicesSheetTitle = title;
-            break;
-          }
-        }
-
-        const fileUrl = file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`;
-        const costCat = String(metadata.costCategory || 'material').toLowerCase();
-        const rawCost = typeof metadata.amount === 'number' 
-          ? metadata.amount 
-          : (typeof metadata.totalCost === 'number' 
-            ? metadata.totalCost 
-            : parseFloat(metadata.amount || metadata.totalCost || metadata.cost || metadata.price || metadata.total) || 0);
-
-        const paymentDate = metadata.date || metadata.paymentDate || metadata.transactionDate || '';
-        const checkNumber = metadata.checkNumber || metadata.checkNo || metadata.checkOrTrans || metadata.check || '';
-        const taskDesc = metadata.description || metadata.desc || metadata.item || 'Scanned Invoice';
-
-        if (newInvoicesSheetTitle) {
-          try {
-            const isLabor = costCat.includes('labor');
-            const displayVal = rawCost > 0 ? rawCost : `"PDF"`;
-            const masterMatVal = !isLabor ? `=HYPERLINK("${fileUrl}", ${displayVal})` : '';
-            const masterLabVal = isLabor ? `=HYPERLINK("${fileUrl}", ${displayVal})` : '';
-
-            const masterRow = [
-              taskDesc,
-              vendor,
-              masterMatVal,
-              masterLabVal,
-              paymentDate,
-              checkNumber
-            ];
-            const masterAppendUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/'${encodeURIComponent(newInvoicesSheetTitle)}'!A1:F100:append?valueInputOption=USER_ENTERED`;
-            await fetch(masterAppendUrl, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ values: [masterRow] })
-            });
-          } catch (err) {
-            console.warn('Failed to append to New_Invoices tab:', err);
-          }
-        }
 
         // Fetch tab values to find target phase row
         const rangeUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/'${encodeURIComponent(sheetTitle)}'!A1:Z100`;
@@ -437,37 +408,108 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
           continue;
         }
 
-        // Tag file in Drive as written to prevent duplicates on retry
-        const tagged = await tagDriveFileAppProperties(accessToken, file.id, { sheetRowWritten: 'true' });
-        if (!tagged) {
+        // Tag file immediately after category row write succeeds to prevent duplicate ledger entries
+        try {
+          const tagged = await tagDriveFileAppProperties(accessToken, file.id, {
+            sheetRowWritten: 'true'
+          });
+          if (!tagged) {
+            failed.push({
+              fileId: file.id,
+              fileName: file.name,
+              reason: 'Invoice written to category sheet, but file could not be tagged in Drive. Please move it manually to avoid duplicate entries.'
+            });
+            continue;
+          }
+        } catch (tagErr) {
+          await handleFatalGoogleError(tagErr);
           failed.push({
             fileId: file.id,
             fileName: file.name,
-            reason: 'Invoice written to spreadsheet, but file could not be tagged in Drive. Please move it manually to avoid duplicate entries.'
+            reason: `Invoice written to category sheet, but tagging in Drive failed: ${tagErr.message}`
           });
           continue;
         }
+
+        // STEP 2: Append to Master Log Tab ("New_Invoices") if present (errors logged as warnings, never stop the run)
+        let newInvoicesSheetTitle = null;
+        for (const sheetObj of sheetsList) {
+          const title = sheetObj.properties?.title || '';
+          const cleanTitle = normalizeKey(title);
+          if (cleanTitle === 'newinvoices' || cleanTitle === 'masterlog' || cleanTitle === 'invoicelog') {
+            newInvoicesSheetTitle = title;
+            break;
+          }
+        }
+
+        if (newInvoicesSheetTitle) {
+          try {
+            const isLabor = costCat.includes('labor');
+            const displayVal = rawCost > 0 ? rawCost : `"PDF"`;
+            const masterMatVal = !isLabor ? `=HYPERLINK("${fileUrl}", ${displayVal})` : '';
+            const masterLabVal = isLabor ? `=HYPERLINK("${fileUrl}", ${displayVal})` : '';
+
+            const masterRow = [
+              taskDesc,
+              vendor,
+              masterMatVal,
+              masterLabVal,
+              paymentDate,
+              checkNumber
+            ];
+
+            const masterAppendUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/'${encodeURIComponent(newInvoicesSheetTitle)}'!A1:F100:append?valueInputOption=USER_ENTERED`;
+            const masterRes = await fetch(masterAppendUrl, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ values: [masterRow] })
+            });
+
+            if (!masterRes.ok) {
+              const errText = await masterRes.text().catch(() => '');
+              warnings.push({
+                fileId: file.id,
+                fileName: file.name,
+                reason: `Category sheet updated, but master log tab append failed: ${errText || masterRes.statusText}`
+              });
+            }
+          } catch (mErr) {
+            warnings.push({
+              fileId: file.id,
+              fileName: file.name,
+              reason: `Category sheet updated, but master log tab append failed: ${mErr.message}`
+            });
+          }
+        }
       }
 
-      // Move file to Vendors / Stores / [Vendor Name] if vendor is confidently identified, else Unknown Vendors exception queue
+      // STEP 3: Move file to Vendors / Stores / [Vendor Name]
       let destinationFolderId = null;
       if (isConfidentVendor(vendor)) {
         try {
           destinationFolderId = await ensureVendorFolder(accessToken, projectFolderId, vendor.trim());
         } catch (vErr) {
+          await handleFatalGoogleError(vErr);
           console.warn(`Failed to resolve vendor folder for "${vendor}", falling back to Unknown Vendors:`, vErr);
         }
       }
 
       if (!destinationFolderId) {
-        destinationFolderId = await ensureUnknownVendorsFolder(accessToken, projectFolderId);
+        try {
+          destinationFolderId = await ensureUnknownVendorsFolder(accessToken, projectFolderId);
+        } catch (uErr) {
+          await handleFatalGoogleError(uErr);
+        }
       }
 
       try {
         await moveFileInDrive(accessToken, file.id, uploadsFolderId, destinationFolderId);
         processedCount++;
       } catch (moveErr) {
-        await handleFatalGoogleError(moveErr?.response);
+        await handleFatalGoogleError(moveErr);
         failed.push({
           fileId: file.id,
           fileName: file.name,
@@ -486,5 +528,5 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
     }
   }
 
-  return { ok: true, processedCount, failed };
+  return { ok: true, processedCount, failed, warnings };
 }

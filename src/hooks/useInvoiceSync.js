@@ -264,6 +264,7 @@ export function useInvoiceSync({
     try {
       const allLogs = [];
       const successfulUploadIds = [];
+      const uploadedDrafts = [];
 
       for (let i = 0; i < activeProjectDrafts.length; i++) {
         const item = activeProjectDrafts[i];
@@ -271,6 +272,7 @@ export function useInvoiceSync({
 
         if (item.driveFileId) {
           successfulUploadIds.push(item.id);
+          uploadedDrafts.push(item);
           allLogs.push(...buildHistoryLogs(item.metadata, {
             idPrefix: item.driveFileId,
             link: item.driveFileLink
@@ -283,8 +285,14 @@ export function useInvoiceSync({
               selectedFolder,
               projects
             });
-            if (uploadRes.hasDriveUpload) {
+            if (uploadRes && uploadRes.hasDriveUpload && uploadRes.driveFileId) {
+              const updatedItem = {
+                ...item,
+                driveFileId: uploadRes.driveFileId,
+                driveFileLink: uploadRes.webViewLink
+              };
               successfulUploadIds.push(item.id);
+              uploadedDrafts.push(updatedItem);
               if (updateStagedItem) {
                 updateStagedItem(item.id, {
                   driveFileId: uploadRes.driveFileId,
@@ -292,14 +300,25 @@ export function useInvoiceSync({
                 });
               }
               allLogs.push(...uploadRes.logs);
+            } else {
+              if (updateStagedItem) {
+                updateStagedItem(item.id, {
+                  sheetSyncError: 'Upload to Drive failed (no Drive file created)'
+                });
+              }
             }
           } catch (uploadErr) {
             console.error(`Failed to upload draft ${item.id}:`, uploadErr);
+            if (updateStagedItem) {
+              updateStagedItem(item.id, {
+                sheetSyncError: `Upload to Drive failed: ${uploadErr.message || 'Network error'}`
+              });
+            }
           }
         }
       }
 
-      if (successfulUploadIds.length === 0) {
+      if (uploadedDrafts.length === 0) {
         throw new Error('Failed to upload document PDFs to Google Drive.');
       }
 
@@ -315,8 +334,8 @@ export function useInvoiceSync({
 
       const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
 
-      // Partition drafts based on directSyncService result
-      const { successfulDrafts, failedDrafts } = partitionDraftsBySyncResult(activeProjectDrafts, result.failed);
+      // Partition ONLY drafts that actually uploaded to Drive
+      const { successfulDrafts, failedDrafts } = partitionDraftsBySyncResult(uploadedDrafts, result.failed);
 
       // Save history and remove only successful drafts
       const successfulIds = successfulDrafts.map(d => d.id);
@@ -334,16 +353,20 @@ export function useInvoiceSync({
       setHasUnprocessedUploads(hasFailures);
       setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasFailures);
 
+      const warningNote = (result.warnings && result.warnings.length > 0)
+        ? ` (Note: Master log tab could not be updated for ${result.warnings.length} invoice(s))`
+        : '';
+
       if (hasFailures) {
         if (result.processedCount > 0) {
-          setSuccess(`Synced ${result.processedCount} document(s). ${result.failed.length} file(s) require attention.`);
+          setSuccess(`Synced ${result.processedCount} document(s). ${result.failed.length} file(s) require attention.${warningNote}`);
         } else {
           setError(`Spreadsheet sync failed for ${result.failed.length} document(s). Drafts remain safely on device to retry.`);
         }
       } else {
-        setSuccess(`Successfully synced ${successfulIds.length} document(s) directly to your spreadsheet!`);
+        setSuccess(`Successfully synced ${successfulIds.length} document(s) directly to your spreadsheet!${warningNote}`);
       }
-      setTimeout(() => setSuccess(null), 4000);
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       console.error('Sync all failed:', err);
       if (isAuthError(err)) {

@@ -9,10 +9,13 @@ describe('Direct Sync Robustness & Failure Isolation Suite', () => {
   let taggedFiles = [];
   let sheetWrites = [];
 
+  let masterAppends = [];
+
   beforeEach(() => {
     movedFiles = [];
     taggedFiles = [];
     sheetWrites = [];
+    masterAppends = [];
   });
 
   afterEach(() => {
@@ -46,6 +49,36 @@ describe('Direct Sync Robustness & Failure Isolation Suite', () => {
       assert.equal(successfulDrafts.length, 1);
       assert.equal(failedDrafts.length, 0);
     });
+
+    it('correctly handles Sync All with mixed upload and sheet failures without losing drafts', () => {
+      // Simulation of activeProjectDrafts in Sync All:
+      // Draft 1: Upload succeeded, spreadsheet succeeded -> should be removed
+      // Draft 2: Upload succeeded, spreadsheet failed -> should be kept with reason
+      // Draft 3: Upload failed (no driveFileId) -> should NEVER enter partitionDraftsBySyncResult and should be kept
+      const activeProjectDrafts = [
+        { id: 'd1_success', driveFileId: 'file_1' },
+        { id: 'd2_sheet_fail', driveFileId: 'file_2' },
+        { id: 'd3_upload_fail' } // Upload to Drive threw/failed
+      ];
+
+      // Sync All only adds drafts with real driveFileIds to uploadedDrafts
+      const uploadedDrafts = activeProjectDrafts.filter(d => Boolean(d.driveFileId));
+      const syncResultFailed = [{ fileId: 'file_2', reason: 'Phase header not found' }];
+
+      const { successfulDrafts, failedDrafts } = partitionDraftsBySyncResult(uploadedDrafts, syncResultFailed);
+
+      assert.equal(successfulDrafts.length, 1);
+      assert.equal(successfulDrafts[0].id, 'd1_success');
+
+      assert.equal(failedDrafts.length, 1);
+      assert.equal(failedDrafts[0].draft.id, 'd2_sheet_fail');
+      assert.equal(failedDrafts[0].reason, 'Phase header not found');
+
+      // The un-uploaded draft d3_upload_fail remains safely untouched on device
+      const draftsToRemove = successfulDrafts.map(d => d.id);
+      assert.ok(!draftsToRemove.includes('d3_upload_fail'), 'Draft with failed upload must NOT be removed from device');
+      assert.ok(!draftsToRemove.includes('d2_sheet_fail'), 'Draft with failed sheet sync must NOT be removed from device');
+    });
   });
 
   describe('Batch Execution & Error Isolation', () => {
@@ -54,7 +87,10 @@ describe('Direct Sync Robustness & Failure Isolation Suite', () => {
       failOnRowWriteForFileId = null,
       failOnTagForFileId = null,
       authErrorOnWrite = false,
-      rateLimitErrorOnWrite = false
+      rateLimitErrorOnWrite = false,
+      includeMasterLogTab = false,
+      failOnMasterLogAppend = false,
+      failOnMoveStatus = null
     } = {}) {
       globalThis.fetch = async (url, options = {}) => {
         const rawUrl = String(url);
@@ -121,8 +157,8 @@ describe('Direct Sync Robustness & Failure Isolation Suite', () => {
           if (failOnTagForFileId === fileId) {
             return {
               ok: false,
-              status: 500,
-              statusText: 'Internal Error',
+              status: 400,
+              statusText: 'Bad Request',
               text: async () => 'Tagging failed'
             };
           }
@@ -139,6 +175,16 @@ describe('Direct Sync Robustness & Failure Isolation Suite', () => {
         if (rawUrl.includes('googleapis.com/drive/v3/files/') && method === 'PATCH' && rawUrl.includes('addParents')) {
           const match = rawUrl.match(/\/files\/([a-zA-Z0-9_-]+)/);
           const fileId = match ? match[1] : 'unknown';
+
+          if (failOnMoveStatus) {
+            return {
+              ok: false,
+              status: failOnMoveStatus,
+              statusText: 'Move Failed',
+              text: async () => `Move error ${failOnMoveStatus}`
+            };
+          }
+
           movedFiles.push(fileId);
           return {
             ok: true,
@@ -149,21 +195,28 @@ describe('Direct Sync Robustness & Failure Isolation Suite', () => {
 
         // 4. Google Sheets Metadata
         if (rawUrl.includes('sheets.googleapis.com/v4/spreadsheets/spreadsheet_123?')) {
+          const sheets = [{
+            properties: {
+              sheetId: 101,
+              title: 'Exterior'
+            }
+          }];
+          if (includeMasterLogTab) {
+            sheets.push({
+              properties: {
+                sheetId: 999,
+                title: 'New_Invoices'
+              }
+            });
+          }
           return {
             ok: true,
             status: 200,
-            json: async () => ({
-              sheets: [{
-                properties: {
-                  sheetId: 101,
-                  title: 'Exterior'
-                }
-              }]
-            })
+            json: async () => ({ sheets })
           };
         }
 
-        // 5. Google Sheets Range fetch
+        // 5. Google Sheets Range fetch & update
         if (rawUrl.includes('sheets.googleapis.com/v4/spreadsheets/spreadsheet_123/values/')) {
           if (method === 'GET') {
             return {
@@ -177,6 +230,24 @@ describe('Direct Sync Robustness & Failure Isolation Suite', () => {
                   ['', '', '', '', '', ''] // Has available slot at row 4
                 ]
               })
+            };
+          }
+
+          // Master log append
+          if (rawUrl.includes(':append') && method === 'POST') {
+            masterAppends.push(options.body);
+            if (failOnMasterLogAppend) {
+              return {
+                ok: false,
+                status: 500,
+                statusText: 'Internal Error',
+                text: async () => 'Failed to append to master log'
+              };
+            }
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({ updates: { updatedRows: 1 } })
             };
           }
 
@@ -360,6 +431,106 @@ describe('Direct Sync Robustness & Failure Isolation Suite', () => {
       assert.equal(result.failed[0].fileId, 'file_tag_fail');
       assert.ok(result.failed[0].reason.includes('could not be tagged in Drive'));
       assert.equal(movedFiles.length, 0, 'File must NOT be moved if tagging fails');
+    });
+
+    it('master log append failure records a warning and does not halt file moving or category write', async () => {
+      const files = [
+        {
+          id: 'file_master_warn',
+          name: 'Master_Warn.pdf',
+          mimeType: 'application/pdf',
+          webViewLink: 'https://drive.google.com/file_master_warn',
+          description: JSON.stringify({
+            tradeCategory: 'Exterior',
+            tradePhase: 'Landscaping & Irrigation',
+            vendor: 'Good Vendor',
+            amount: 250
+          })
+        }
+      ];
+
+      setupBatchMockFetch({
+        files,
+        includeMasterLogTab: true,
+        failOnMasterLogAppend: true
+      });
+
+      const result = await syncUploadedInvoicesDirectly('mock-token', 'mock-project-folder');
+
+      assert.equal(result.ok, true);
+      assert.equal(result.processedCount, 1, 'File must be processed and moved');
+      assert.equal(result.failed.length, 0, 'Must NOT be in failed list');
+      assert.equal(result.warnings.length, 1, 'Master log failure must be captured as warning');
+      assert.ok(result.warnings[0].reason.includes('master log tab append failed'));
+      assert.deepEqual(movedFiles, ['file_master_warn'], 'File must be moved to vendor folder');
+      assert.deepEqual(taggedFiles, ['file_master_warn'], 'File must be tagged sheetRowWritten');
+    });
+
+    it('master log append is never attempted if target phase is missing', async () => {
+      const files = [
+        {
+          id: 'file_bad_phase',
+          name: 'Bad_Phase.pdf',
+          mimeType: 'application/pdf',
+          webViewLink: 'https://drive.google.com/file_bad_phase',
+          description: JSON.stringify({
+            tradeCategory: 'Exterior',
+            tradePhase: 'Missing Phase',
+            vendor: 'Good Vendor',
+            amount: 250
+          })
+        }
+      ];
+
+      setupBatchMockFetch({
+        files,
+        includeMasterLogTab: true
+      });
+
+      const result = await syncUploadedInvoicesDirectly('mock-token', 'mock-project-folder');
+
+      assert.equal(result.processedCount, 0);
+      assert.equal(result.failed.length, 1);
+      assert.equal(masterAppends.length, 0, 'Master log must NEVER be appended to when phase is missing');
+      assert.equal(movedFiles.length, 0);
+    });
+
+    it('aborts run when 401 error occurs while moving file and leaves file tagged sheetRowWritten', async () => {
+      const files = [
+        {
+          id: 'file_move_401',
+          name: 'Move_401.pdf',
+          mimeType: 'application/pdf',
+          webViewLink: 'https://drive.google.com/file_move_401',
+          description: JSON.stringify({
+            tradeCategory: 'Exterior',
+            tradePhase: 'Landscaping & Irrigation',
+            vendor: 'Good Vendor',
+            amount: 250
+          })
+        }
+      ];
+
+      setupBatchMockFetch({
+        files,
+        failOnMoveStatus: 401
+      });
+
+      await assert.rejects(
+        async () => {
+          await syncUploadedInvoicesDirectly('mock-token', 'mock-project-folder');
+        },
+        (err) => {
+          assert.equal(err.status, 401);
+          assert.ok(err.isFatalGoogleError);
+          return true;
+        }
+      );
+
+      // Category write succeeded and file was tagged before move was attempted
+      assert.equal(sheetWrites.length, 1, 'Category row was written');
+      assert.deepEqual(taggedFiles, ['file_move_401'], 'File was tagged sheetRowWritten');
+      assert.equal(movedFiles.length, 0, 'Move did not succeed');
     });
   });
 });
