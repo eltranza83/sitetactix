@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit2, CloudLightning, FileText, CheckCircle, Trash2, Clock, Sparkles, AlertCircle } from 'lucide-react';
 import { STATUS_MESSAGES } from '../services/appErrors';
+import { isDraftPhaseValid } from '../services/editFormHelpers';
 
 function formatTime(ms) {
   const totalSecs = Math.floor(ms / 1000);
@@ -38,6 +39,7 @@ export default function StagingCard({
   const isLabor = metadata.costCategory === 'labor';
   const isCheck = metadata.type === 'check';
   const isMockMode = !googleToken || !selectedFolder;
+  const hasValidPhase = isDraftPhaseValid(metadata);
 
   // Countdown timer state
   const [timeLeft, setTimeLeft] = useState(
@@ -144,11 +146,11 @@ export default function StagingCard({
             padding: '3px 8px', 
             borderRadius: '4px', 
             fontWeight: 700, 
-            backgroundColor: 'rgba(241, 215, 167, 0.1)',
-            color: '#F1D7A7',
-            border: '1px solid rgba(241, 215, 167, 0.25)'
+            backgroundColor: hasValidPhase ? 'rgba(241, 215, 167, 0.1)' : 'rgba(244, 63, 94, 0.15)',
+            color: hasValidPhase ? '#F1D7A7' : '#fb7185',
+            border: hasValidPhase ? '1px solid rgba(241, 215, 167, 0.25)' : '1px solid rgba(244, 63, 94, 0.35)'
           }}>
-            Phase: {metadata.tradePhase || 'None'}
+            Phase: {hasValidPhase ? (metadata.tradePhase || 'None') : 'Choose a phase'}
           </span>
         </div>
       )}
@@ -360,15 +362,21 @@ export default function StagingCard({
               fontSize: '0.8rem', 
               height: '36px', 
               whiteSpace: 'nowrap',
-              backgroundColor: stagedItem.sheetSyncError ? '#f59e0b' : undefined,
-              color: stagedItem.sheetSyncError ? '#000' : undefined
+              backgroundColor: !hasValidPhase ? 'var(--color-zinc-800)' : (stagedItem.sheetSyncError ? '#f59e0b' : undefined),
+              color: !hasValidPhase ? 'var(--color-zinc-500)' : (stagedItem.sheetSyncError ? '#000' : undefined),
+              border: !hasValidPhase ? '1px solid var(--color-zinc-700)' : undefined,
+              cursor: !hasValidPhase ? 'not-allowed' : undefined
             }}
-            disabled={Boolean(uploading)}
+            disabled={Boolean(uploading) || !hasValidPhase}
           >
             {uploading ? (
               <>
                 <div className="spinner" style={{ width: '12px', height: '12px', borderWidth: '1.5px', borderColor: 'var(--color-zinc-950)', borderTopColor: 'transparent', margin: 0 }}></div>
                 {uploadStatusText || STATUS_MESSAGES.syncingSpreadsheet}
+              </>
+            ) : !hasValidPhase ? (
+              <>
+                <AlertCircle size={12} /> Choose a phase
               </>
             ) : isMockMode ? (
               <>
@@ -387,7 +395,41 @@ export default function StagingCard({
         </div>
       </div>
 
-      {stagedItem.sheetSyncError && (
+      {!hasValidPhase && stagedItem.driveFileId && (
+        <div style={{
+          fontSize: '0.72rem',
+          color: '#f87171',
+          backgroundColor: 'rgba(239, 68, 68, 0.12)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          borderRadius: '6px',
+          padding: '6px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <AlertCircle size={13} style={{ flexShrink: 0, color: '#f87171' }} />
+          <span>Already uploaded with an invalid phase. Delete this draft and its PDF in Invoice Uploads, then rescan.</span>
+        </div>
+      )}
+
+      {!hasValidPhase && !stagedItem.driveFileId && (
+        <div style={{
+          fontSize: '0.72rem',
+          color: '#fbbf24',
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          borderRadius: '6px',
+          padding: '6px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <AlertCircle size={13} style={{ flexShrink: 0, color: '#fbbf24' }} />
+          <span>Needs a phase before it can sync. Tap Edit to choose one.</span>
+        </div>
+      )}
+
+      {hasValidPhase && stagedItem.sheetSyncError && (
         <div style={{
           fontSize: '0.72rem',
           color: '#fbbf24',

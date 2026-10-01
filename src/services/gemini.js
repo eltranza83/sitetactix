@@ -41,6 +41,7 @@ Instructions:
 4. Extract individual line items for invoices and receipts.
 5. Choose only category and phase values from the lists above.
 6. Output only valid JSON without markdown fences.
+7. If a receipt contains items for more than one phase, choose the phase with the largest dollar amount. Never combine phase names.
 `;
 
 function getExtractionError(status, payload) {
@@ -92,7 +93,37 @@ async function extractDocumentDataDirectly(fileOrBlob, apiKey, fetchImpl = fetch
           'Interior_Hardware'
         ]
       },
-      tradePhase: { type: 'STRING' },
+      tradePhase: {
+        type: 'STRING',
+        enum: [
+          'Foundation & Flatwork',
+          'Roofing',
+          'Windows & Exterior Doors',
+          'Framing Lumber & Truss',
+          'Plumbing Rough-In',
+          'Electrical & Lighting',
+          'HVAC / AC Systems',
+          'Insulation & Alarms',
+          'Drywall & Sheetrock',
+          'Cabinets & Trim Carpentry',
+          'Quartz & Countertops',
+          'Glass Work',
+          'Tile & Flooring',
+          'Paint & Finishes',
+          'Stucco & Masonry',
+          'Garage Doors',
+          'Driveway & Sidewalks',
+          'Cantera Stone Detail',
+          'Fencing & Gates',
+          'Landscaping & Irrigation',
+          'Monthly Utility Bills',
+          'Dumpsters & Cleaning',
+          'Extra Costs & Misc',
+          'Paperwork & Permits',
+          'Plumbing Hardware Fixtures',
+          'Electrical Hardware Fixtures'
+        ]
+      },
       lineItems: {
         type: 'ARRAY',
         items: {
@@ -131,7 +162,8 @@ async function extractDocumentDataDirectly(fileOrBlob, apiKey, fetchImpl = fetch
         }],
         generationConfig: {
           responseMimeType: 'application/json',
-          responseSchema: GEMINI_RESPONSE_SCHEMA
+          responseSchema: GEMINI_RESPONSE_SCHEMA,
+          temperature: 0
         }
       })
     }

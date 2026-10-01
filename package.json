@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.3.10",
-  "releaseName": "Sync All draft cleanup fix",
+  "version": "1.3.11",
+  "releaseName": "Strict trade phase schema & validation",
   "type": "module",
   "scripts": {
     "dev": "vite",

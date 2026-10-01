@@ -52,7 +52,8 @@ export async function generateDocumentData({ bytes, mimeType, apiKey, fetchImpl 
         }],
         generationConfig: {
           responseMimeType: 'application/json',
-          responseSchema: GEMINI_RESPONSE_SCHEMA
+          responseSchema: GEMINI_RESPONSE_SCHEMA,
+          temperature: 0
         }
       })
     },

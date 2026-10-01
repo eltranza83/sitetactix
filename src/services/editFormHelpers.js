@@ -37,6 +37,21 @@ export const TRADE_SECTIONS_CONFIG = {
   }
 };
 
+export function isValidPhase(category, phase) {
+  if (!category || !phase) return false;
+  const config = TRADE_SECTIONS_CONFIG[category];
+  if (!config || !Array.isArray(config.phases)) return false;
+  return config.phases.includes(phase);
+}
+
+export function isDraftPhaseValid(metadata) {
+  if (!metadata) return false;
+  if (Array.isArray(metadata.splits) && metadata.splits.length > 0) {
+    return metadata.splits.every(split => isValidPhase(split.tradeCategory, split.tradePhase));
+  }
+  return isValidPhase(metadata.tradeCategory, metadata.tradePhase);
+}
+
 export const ROUTING_TEST_SPLITS = Object.entries(TRADE_SECTIONS_CONFIG)
   .flatMap(([tradeCategory, config]) => (
     config.phases.map((tradePhase) => ({

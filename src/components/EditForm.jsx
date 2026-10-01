@@ -8,6 +8,7 @@ import {
   TRADE_SECTIONS_CONFIG,
   compressImage,
   hasWholeWord,
+  isValidPhase,
   suggestSplitId
 } from '../services/editFormHelpers';
 
@@ -434,8 +435,13 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     }
   };
 
+  const isPhaseValid = isSplit
+    ? (splits.length > 0 && splits.every(s => isValidPhase(s.tradeCategory, s.tradePhase)))
+    : isValidPhase(formData.tradeCategory, formData.tradePhase);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!isPhaseValid) return;
     
     let finalAmount = parseFloat(formData.amount) || 0;
     let finalSplits = null;
@@ -657,10 +663,17 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
               id="edit-trade-phase"
               name="tradePhase"
               className="form-input"
-              style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-              value={formData.tradePhase || ''}
+              style={{
+                padding: '8px 12px',
+                fontSize: '0.85rem',
+                borderColor: !isValidPhase(formData.tradeCategory, formData.tradePhase) ? '#f59e0b' : undefined
+              }}
+              value={isValidPhase(formData.tradeCategory, formData.tradePhase) ? formData.tradePhase : ''}
               onChange={handleChange}
             >
+              {!isValidPhase(formData.tradeCategory, formData.tradePhase) && (
+                <option value="" disabled>Choose a phase...</option>
+              )}
               {(TRADE_SECTIONS_CONFIG[formData.tradeCategory || 'Mechanicals_&_Utilities']?.phases || []).map(p => (
                 <option key={p} value={p}>
                   {p}
@@ -1125,10 +1138,18 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
 
                         <select
                           className="form-input"
-                          style={{ padding: '6px 8px', fontSize: '0.75rem', margin: 0 }}
-                          value={split.tradePhase || ''}
+                          style={{
+                            padding: '6px 8px',
+                            fontSize: '0.75rem',
+                            margin: 0,
+                            borderColor: !isValidPhase(split.tradeCategory, split.tradePhase) ? '#f59e0b' : undefined
+                          }}
+                          value={isValidPhase(split.tradeCategory, split.tradePhase) ? split.tradePhase : ''}
                           onChange={(e) => handleSplitChange(split.id, 'tradePhase', e.target.value)}
                         >
+                          {!isValidPhase(split.tradeCategory, split.tradePhase) && (
+                            <option value="" disabled>Choose a phase...</option>
+                          )}
                           {(TRADE_SECTIONS_CONFIG[split.tradeCategory || 'Mechanicals_&_Utilities']?.phases || []).map(p => (
                             <option key={p} value={p}>
                               {p}
@@ -1219,11 +1240,39 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         />
 
         {/* Action Buttons */}
+        {!isPhaseValid && (
+          <div style={{
+            fontSize: '0.75rem',
+            color: '#fbbf24',
+            backgroundColor: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            borderRadius: '6px',
+            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <span>Please select a valid trade phase from the category's allowed list before saving.</span>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
           <button type="button" onClick={onCancel} className="btn btn-secondary" style={{ flex: 1, padding: '10px', fontSize: '0.85rem', height: '40px' }}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" style={{ flex: 1.5, padding: '10px', fontSize: '0.85rem', height: '40px' }}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{
+              flex: 1.5,
+              padding: '10px',
+              fontSize: '0.85rem',
+              height: '40px',
+              opacity: isPhaseValid ? 1 : 0.6,
+              cursor: isPhaseValid ? 'pointer' : 'not-allowed'
+            }}
+            disabled={!isPhaseValid}
+          >
             <Save size={14} /> Save Changes
           </button>
         </div>

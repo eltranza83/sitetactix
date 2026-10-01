@@ -13,6 +13,7 @@ import {
   partitionDraftsBySyncResult
 } from '../services/invoiceSyncState';
 import { syncUploadedInvoicesDirectly } from '../services/directSyncService';
+import { isDraftPhaseValid } from '../services/editFormHelpers';
 
 function writePdfLoadingState(newWindow) {
   if (!newWindow) return;
@@ -119,6 +120,16 @@ export function useInvoiceSync({
   const handleOneShotSync = async (id) => {
     const itemToSync = stagedItems.find(item => item.id === id);
     if (!itemToSync) return;
+
+    if (!isDraftPhaseValid(itemToSync.metadata)) {
+      if (itemToSync.driveFileId) {
+        setError("Already uploaded with an invalid phase. Delete this draft and its PDF in Invoice Uploads, then rescan.");
+      } else {
+        const desc = `'${itemToSync.metadata?.vendor || 'Draft'} – $${Number(itemToSync.metadata?.amount || 0).toFixed(2)}'`;
+        setError(`${desc} needs a phase before it can sync.`);
+      }
+      return;
+    }
 
     const targetFolderId = activeProject?.folderId || selectedFolder?.id;
     setError(null);
@@ -237,6 +248,18 @@ export function useInvoiceSync({
       return;
     }
 
+    const validPhaseDrafts = activeProjectDrafts.filter(item => isDraftPhaseValid(item.metadata));
+    const invalidPhaseDrafts = activeProjectDrafts.filter(item => !isDraftPhaseValid(item.metadata));
+
+    const invalidDesc = invalidPhaseDrafts.length > 0
+      ? `'${invalidPhaseDrafts[0].metadata?.vendor || 'Draft'} – $${Number(invalidPhaseDrafts[0].metadata?.amount || 0).toFixed(2)}' needs a phase before it can sync.`
+      : '';
+
+    if (validPhaseDrafts.length === 0) {
+      setError(invalidDesc || 'No valid drafts found to sync.');
+      return;
+    }
+
     const targetFolderId = activeProject?.folderId || selectedFolder?.id;
     if (!targetFolderId && googleToken) {
       setError('Please select an active project folder before syncing.');
@@ -250,9 +273,9 @@ export function useInvoiceSync({
     if (!googleToken || !selectedFolder) {
       const allOfflineLogs = [];
       const successfulOfflineIds = [];
-      for (let i = 0; i < activeProjectDrafts.length; i++) {
-        const item = activeProjectDrafts[i];
-        setUploadStatusText(`Downloading PDF (${i + 1}/${activeProjectDrafts.length})...`);
+      for (let i = 0; i < validPhaseDrafts.length; i++) {
+        const item = validPhaseDrafts[i];
+        setUploadStatusText(`Downloading PDF (${i + 1}/${validPhaseDrafts.length})...`);
         const result = await syncInvoiceDocument({ item, googleToken, selectedFolder, projects });
         allOfflineLogs.push(...result.logs);
         successfulOfflineIds.push(item.id);
@@ -263,7 +286,8 @@ export function useInvoiceSync({
       } else {
         successfulOfflineIds.forEach(id => removeStagedItem(id));
       }
-      setSuccess(`Downloaded ${activeProjectDrafts.length} document(s) to device!`);
+      const note = invalidPhaseDrafts.length > 0 ? ` ${invalidDesc}` : '';
+      setSuccess(`Downloaded ${validPhaseDrafts.length} document(s) to device!${note}`);
       setUploading(null);
       setUploadStatusText('');
       setTimeout(() => setSuccess(null), 4000);
@@ -275,9 +299,9 @@ export function useInvoiceSync({
       const successfulUploadIds = [];
       const uploadedDrafts = [];
 
-      for (let i = 0; i < activeProjectDrafts.length; i++) {
-        const item = activeProjectDrafts[i];
-        setUploadStatusText(`Uploading PDF (${i + 1}/${activeProjectDrafts.length})...`);
+      for (let i = 0; i < validPhaseDrafts.length; i++) {
+        const item = validPhaseDrafts[i];
+        setUploadStatusText(`Uploading PDF (${i + 1}/${validPhaseDrafts.length})...`);
 
         if (item.driveFileId) {
           successfulUploadIds.push(item.id);
@@ -370,14 +394,18 @@ export function useInvoiceSync({
         ? ` (Note: Master log tab could not be updated for ${result.warnings.length} invoice(s))`
         : '';
 
+      const phaseNote = invalidPhaseDrafts.length > 0 ? ` ${invalidDesc}` : '';
+
       if (hasFailures) {
         if (result.processedCount > 0) {
-          setSuccess(`Synced ${result.processedCount} document(s). ${result.failed.length} file(s) require attention.${warningNote}`);
+          const docWord = result.processedCount === 1 ? 'document' : 'documents';
+          setSuccess(`Synced ${result.processedCount} ${docWord}. ${result.failed.length} file(s) require attention.${warningNote}${phaseNote}`);
         } else {
           setError(`Spreadsheet sync failed for ${result.failed.length} document(s). Drafts remain safely on device to retry.`);
         }
       } else {
-        setSuccess(`Successfully synced ${successfulIds.length} document(s) directly to your spreadsheet!${warningNote}`);
+        const docWord = successfulIds.length === 1 ? 'document' : 'documents';
+        setSuccess(`Synced ${successfulIds.length} ${docWord}.${phaseNote}`);
       }
       setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
@@ -386,7 +414,7 @@ export function useInvoiceSync({
         handleSessionExpired();
       } else {
         if (updateStagedItem) {
-          activeProjectDrafts.forEach(draft => {
+          validPhaseDrafts.forEach(draft => {
             if (draft.driveFileId) {
               updateStagedItem(draft.id, { sheetSyncError: err.message || 'Spreadsheet sync failed' });
             }
