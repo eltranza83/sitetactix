@@ -91,26 +91,6 @@ export function extractTags(text = '') {
   return Array.from(new Set(words));
 }
 
-/**
- * Computes cosine similarity between two numeric embedding vectors.
- */
-export function computeCosineSimilarity(vecA, vecB) {
-  if (!Array.isArray(vecA) || !Array.isArray(vecB) || vecA.length === 0 || vecA.length !== vecB.length) {
-    return 0;
-  }
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < vecA.length; i++) {
-    dotProduct += vecA[i] * vecB[i];
-    normA += vecA[i] * vecA[i];
-    normB += vecB[i] * vecB[i];
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-export const cosineSimilarity = computeCosineSimilarity;
 
 /**
  * Generates a unique ID for memories.
@@ -259,7 +239,6 @@ export function sanitizeMemoryRecord(raw = {}) {
     updatedBy: raw.updatedBy || 'user',
     uid: raw.uid || (getFirebaseAuthInstance()?.currentUser?.uid) || null,
     tags: Array.isArray(raw.tags) && raw.tags.length > 0 ? raw.tags : extractTags(rawText),
-    embedding: Array.isArray(raw.embedding) ? raw.embedding : null,
     active: raw.active !== false,
     createdAt: raw.createdAt || now,
     updatedAt: raw.updatedAt || now,
@@ -468,14 +447,13 @@ export async function getMemories(options = {}) {
 }
 
 /**
- * Search memories using semantic embeddings and keyword matching.
+ * Search memories using keyword and tag matching.
  */
 export async function searchMemories(queryStr = '', options = {}) {
   const {
     projectId = null,
     category = null,
     memoryType = null,
-    queryEmbedding = null,
     _importance = null,
     includePersonal = false,
     limit = 10
@@ -492,7 +470,7 @@ export async function searchMemories(queryStr = '', options = {}) {
     activeOnly: true
   });
 
-  if (!queryStr && !queryEmbedding) {
+  if (!queryStr) {
     return allMemories.slice(0, limit);
   }
 
@@ -519,13 +497,7 @@ export async function searchMemories(queryStr = '', options = {}) {
       score += 2;
     }
 
-    // 4. Semantic vector cosine similarity
-    if (queryEmbedding && Array.isArray(mem.embedding)) {
-      const sim = computeCosineSimilarity(queryEmbedding, mem.embedding);
-      score += (sim * 15); // Heavily weigh semantic similarity
-    }
-
-    // 5. Importance boost
+    // 4. Importance boost
     if (mem.importance === MEMORY_IMPORTANCE.CRITICAL) score += 1.5;
     else if (mem.importance === MEMORY_IMPORTANCE.IMPORTANT) score += 0.5;
 

@@ -1,7 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { POST as postAskBrain } from '../api/ask-brain.js';
-import { POST as postEmbedMemory } from '../api/embed-memory.js';
 import { POST as postObservePreference } from '../api/observe-preference.js';
 import { POST as postExtractDocument } from '../api/extract-document.js';
 import { resolveServerGeminiKey, sanitizeUpstreamAiError } from '../api/_lib/ai-auth.js';
@@ -130,14 +129,7 @@ describe('AI Route Security Refactor & Error Sanitization Suite', () => {
     const res1 = await postAskBrain(req1);
     assert.strictEqual(res1.status, 503, 'ask-brain must return 503');
 
-    // Route 2: embed-memory
-    const req2 = createMockRequest({
-      body: { text: 'test memory', apiKey: 'client-key' }
-    });
-    const res2 = await postEmbedMemory(req2);
-    assert.strictEqual(res2.status, 503, 'embed-memory must return 503');
-
-    // Route 3: observe-preference
+    // Route 2: observe-preference
     const req3 = createMockRequest({
       body: { query: 'test preference', apiKey: 'client-key' }
     });
@@ -271,36 +263,7 @@ describe('AI Route Security Refactor & Error Sanitization Suite', () => {
     assert.ok(err504.message.includes('timed out'));
   });
 
-  // 6. Volume & batch limits on embed-memory and observe-preference
-  it('embed-memory: rejects batch size exceeding 50 items with 400', async () => {
-    mockAuthorizedAuth();
-
-    const largeBatch = Array.from({ length: 51 }, (_, i) => `Memory text chunk ${i}`);
-    const req = createMockRequest({
-      body: { texts: largeBatch }
-    });
-
-    const res = await postEmbedMemory(req);
-    assert.strictEqual(res.status, 400);
-    const data = await res.json();
-    assert.ok(data.error.includes('50 items'));
-  });
-
-  it('embed-memory: rejects total character volume exceeding 20,000 characters with 400', async () => {
-    mockAuthorizedAuth();
-
-    // 5 items of 4,500 chars = 22,500 chars total
-    const largeChunk = 'A'.repeat(4500);
-    const largeVolume = Array.from({ length: 5 }, () => largeChunk);
-    const req = createMockRequest({
-      body: { texts: largeVolume }
-    });
-
-    const res = await postEmbedMemory(req);
-    assert.strictEqual(res.status, 400);
-    const data = await res.json();
-    assert.ok(data.error.includes('20,000 characters'));
-  });
+  // 6. Volume limits on observe-preference
 
   it('observe-preference: rejects query exceeding 2,000 characters with 400', async () => {
     mockAuthorizedAuth();

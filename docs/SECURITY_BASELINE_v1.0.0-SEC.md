@@ -15,7 +15,7 @@ This document establishes the official **v1.0.0-SEC** security baseline for the 
 
 | Finding | Component | Remediation Applied |
 | :--- | :--- | :--- |
-| **Unauthenticated AI Endpoints** | `/api/ask-brain.js`<br>`/api/embed-memory.js` | Enforced `requireScannerAccess(request)` with sliding-window rate limiting (30-40 req/min) and sanitized event logging. |
+| **Unauthenticated AI Endpoints** | `/api/ask-brain.js` | Enforced `requireScannerAccess(request)` with sliding-window rate limiting (30-40 req/min) and sanitized event logging. |
 | **Unscoped Memory Collection** | `firestore.rules`<br>`src/services/memoryService.js` | Scoped `/memories/{memoryId}` to require `resource.data.uid == request.auth.uid`. Updated client queries with `where('uid', '==', user.uid)`. |
 | **Dependency CVEs (4 advisories)** | `dompurify`<br>`nanoid`<br>`postcss`<br>`protobufjs` | Applied non-breaking security patches via `npm audit fix`. |
 | **Sanitized Security Logging** | `api/_lib/firebase-auth.js` | Implemented `logSecurityEvent` that strips tokens, API keys, passwords, and document bodies from security logs. |

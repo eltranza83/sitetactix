@@ -85,7 +85,7 @@ test('requireScannerAccess rejects unauthorized user without invite document wit
     return new Response('', { status: 404 });
   };
 
-  const req = new Request('https://example.test/api/embed-memory', {
+  const req = new Request('https://example.test/api/ask-brain', {
     method: 'POST',
     headers: { authorization: 'Bearer invalid-access-token' }
   });
