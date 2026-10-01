@@ -97,6 +97,15 @@ class TestableFirestoreAdapter {
     return [];
   }
 
+  async saveItem(projectId, item) {
+    if (!item || !item.id) return item;
+    await this.fallback.saveItem(projectId, item);
+    const cleanId = String(projectId || 'default').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    const colPath = `projects/${cleanId}/purchasing_items`;
+    this.db.setDoc(colPath, item.id, item);
+    return item;
+  }
+
   async saveItems(projectId, items = []) {
     await this.fallback.saveItems(projectId, items);
     const cleanId = String(projectId || 'default').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');

@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.3.13",
-  "releaseName": "Purchasing routing fix & 3 sections",
+  "version": "1.3.14",
+  "releaseName": "Jarvis action verification",
   "type": "module",
   "scripts": {
     "dev": "vite",

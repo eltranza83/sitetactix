@@ -1266,6 +1266,18 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
         break;
       }
 
+      if (!addResult.success) {
+        resultPayload = {
+          success: false,
+          status: 'error',
+          projectId: targetProjectId,
+          source: `Firestore (${projLabel} Purchasing Checklist)`,
+          error: addResult.message,
+          message: addResult.message
+        };
+        break;
+      }
+
       const updatedDoc = await purchasingService.exportToGoogleDocMarkdown(targetProjectId);
       if (isMaster) {
         saveMasterPurchasingDoc(storage, updatedDoc, true);

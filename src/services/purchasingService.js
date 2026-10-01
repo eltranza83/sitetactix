@@ -232,6 +232,19 @@ export class LocalStoragePurchasingAdapter {
     return items;
   }
 
+  async saveItem(projectId, item) {
+    if (!item || !item.id) return item;
+    const items = await this.getItems(projectId);
+    const idx = items.findIndex(it => it.id === item.id);
+    if (idx >= 0) {
+      items[idx] = item;
+    } else {
+      items.push(item);
+    }
+    await this.saveItems(projectId, items);
+    return item;
+  }
+
   async deleteItem(projectId, itemId) {
     if (!itemId) return;
     const existing = await this.getItems(projectId);
@@ -325,10 +338,32 @@ export class FirestorePurchasingAdapter {
     }
   }
 
-  async saveItems(projectId, items = []) {
-    await this.fallback.saveItems(projectId, items);
+  async saveItem(projectId, item) {
+    if (!item || !item.id) return item;
     const database = this._getDb();
-    if (!database) return items;
+    if (!database) {
+      return await this.fallback.saveItem(projectId, item);
+    }
+
+    const cleanId = String(projectId || 'default').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    const itemRef = doc(database, 'projects', cleanId, 'purchasing_items', item.id);
+    try {
+      await setDoc(itemRef, item, { merge: true });
+      if (this.fallback?.saveItem) {
+        await this.fallback.saveItem(projectId, item);
+      }
+      return item;
+    } catch (err) {
+      console.error('[FirestorePurchasingAdapter] Error writing item to Firestore:', err);
+      throw err;
+    }
+  }
+
+  async saveItems(projectId, items = []) {
+    const database = this._getDb();
+    if (!database) {
+      return await this.fallback.saveItems(projectId, items);
+    }
 
     try {
       const cleanId = String(projectId || 'default').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
@@ -337,25 +372,34 @@ export class FirestorePurchasingAdapter {
         const itemRef = doc(database, 'projects', cleanId, 'purchasing_items', item.id);
         await setDoc(itemRef, item, { merge: true });
       }
+      await this.fallback.saveItems(projectId, items);
+      return items;
     } catch (err) {
-      console.warn('[FirestorePurchasingAdapter] Error writing to Firestore:', err);
+      console.error('[FirestorePurchasingAdapter] Error writing items to Firestore:', err);
+      throw err;
     }
-    return items;
   }
 
   async deleteItem(projectId, itemId) {
     if (!itemId) return;
-    if (this.fallback?.deleteItem) {
-      await this.fallback.deleteItem(projectId, itemId);
-    }
     const database = this._getDb();
-    if (!database) return;
+    if (!database) {
+      if (this.fallback?.deleteItem) {
+        await this.fallback.deleteItem(projectId, itemId);
+      }
+      return;
+    }
+
     try {
       const cleanId = String(projectId || 'default').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
       const itemRef = doc(database, 'projects', cleanId, 'purchasing_items', itemId);
       await deleteDoc(itemRef);
+      if (this.fallback?.deleteItem) {
+        await this.fallback.deleteItem(projectId, itemId);
+      }
     } catch (err) {
-      console.warn('[FirestorePurchasingAdapter] Error deleting item from Firestore:', err);
+      console.error('[FirestorePurchasingAdapter] Error deleting item from Firestore:', err);
+      throw err;
     }
   }
 
@@ -534,8 +578,22 @@ export class PurchasingService {
           status: PURCHASING_STATUSES.NEEDED, // Re-activate if needed
           updatedAt: now
         };
-        existingItems[existingIndex] = updatedItem;
-        await this.storage.saveItems(projectId, existingItems);
+        try {
+          if (typeof this.storage.saveItem === 'function') {
+            await this.storage.saveItem(projectId, updatedItem);
+          } else {
+            existingItems[existingIndex] = updatedItem;
+            await this.storage.saveItems(projectId, existingItems);
+          }
+        } catch (saveErr) {
+          console.error('[PurchasingService] addItem increment failed:', saveErr);
+          return {
+            success: false,
+            action: 'SAVE_FAILED',
+            error: saveErr.message,
+            message: `Couldn't save '${existing.itemName}' to the purchasing list. Please try again.`
+          };
+        }
         return {
           success: true,
           action: 'UPDATE_QUANTITY',
@@ -570,8 +628,22 @@ export class PurchasingService {
       updatedAt: now
     };
 
-    existingItems.push(newItem);
-    await this.storage.saveItems(projectId, existingItems);
+    try {
+      if (typeof this.storage.saveItem === 'function') {
+        await this.storage.saveItem(projectId, newItem);
+      } else {
+        existingItems.push(newItem);
+        await this.storage.saveItems(projectId, existingItems);
+      }
+    } catch (saveErr) {
+      console.error('[PurchasingService] addItem failed:', saveErr);
+      return {
+        success: false,
+        action: 'SAVE_FAILED',
+        error: saveErr.message,
+        message: `Couldn't save '${newItem.itemName}' to the purchasing list. Please try again.`
+      };
+    }
 
     return {
       success: true,
@@ -719,8 +791,22 @@ export class PurchasingService {
       updatedAt: now
     };
 
-    existingItems[index] = updated;
-    await this.storage.saveItems(projectId, existingItems);
+    try {
+      if (typeof this.storage.saveItem === 'function') {
+        await this.storage.saveItem(projectId, updated);
+      } else {
+        existingItems[index] = updated;
+        await this.storage.saveItems(projectId, existingItems);
+      }
+    } catch (saveErr) {
+      console.error('[PurchasingService] updateItemStatus failed:', saveErr);
+      return {
+        success: false,
+        action: 'UPDATE_FAILED',
+        error: saveErr.message,
+        message: `Couldn't mark '${updated.itemName}' on the purchasing list. Please try again.`
+      };
+    }
 
     return {
       success: true,
@@ -752,8 +838,22 @@ export class PurchasingService {
     const index = existingItems.findIndex(it => it.id === item.id);
     const qty = Math.max(1, parseInt(newQuantity, 10) || 1);
     const updated = { ...item, quantity: qty, updatedAt: new Date().toISOString() };
-    existingItems[index] = updated;
-    await this.storage.saveItems(projectId, existingItems);
+    try {
+      if (typeof this.storage.saveItem === 'function') {
+        await this.storage.saveItem(projectId, updated);
+      } else {
+        existingItems[index] = updated;
+        await this.storage.saveItems(projectId, existingItems);
+      }
+    } catch (saveErr) {
+      console.error('[PurchasingService] updateItemQuantity failed:', saveErr);
+      return {
+        success: false,
+        action: 'UPDATE_FAILED',
+        error: saveErr.message,
+        message: `Couldn't update '${updated.itemName}' on the purchasing list. Please try again.`
+      };
+    }
 
     return {
       success: true,
@@ -791,9 +891,20 @@ export class PurchasingService {
     }
 
     const removed = existingItems.splice(index, 1)[0];
-    await this.storage.saveItems(projectId, existingItems);
-    if (typeof this.storage.deleteItem === 'function' && removed?.id) {
-      await this.storage.deleteItem(projectId, removed.id);
+    try {
+      if (typeof this.storage.deleteItem === 'function' && removed?.id) {
+        await this.storage.deleteItem(projectId, removed.id);
+      } else {
+        await this.storage.saveItems(projectId, existingItems);
+      }
+    } catch (delErr) {
+      console.error('[PurchasingService] removeItem failed:', delErr);
+      return {
+        success: false,
+        action: 'DELETE_FAILED',
+        error: delErr.message,
+        message: `Couldn't remove '${removed.itemName}' from the purchasing checklist. Please try again.`
+      };
     }
 
     return {

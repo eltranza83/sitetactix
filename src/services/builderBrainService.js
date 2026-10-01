@@ -53,9 +53,93 @@ export function resetActiveSessionCognitiveState() {
   try {
     resetWriteIdempotencyState();
   } catch {}
+  clearPendingClarificationAction();
 }
 
+let _pendingClarificationAction = null;
 
+export function getPendingClarificationAction() {
+  return _pendingClarificationAction;
+}
+
+export function setPendingClarificationAction(action) {
+  _pendingClarificationAction = action ? {
+    ...action,
+    timestamp: Date.now()
+  } : null;
+}
+
+export function clearPendingClarificationAction() {
+  _pendingClarificationAction = null;
+}
+
+export function resolvePendingCategory(query = '') {
+  const norm = String(query || '').trim().toLowerCase();
+  if (!norm) return null;
+  // Quartz / Cuarzo
+  if (/\b(quartz|cuarzo)\b/i.test(norm)) return 'quartz';
+  // Electrical / Eléctrico / Eléctrica
+  if (/\b(electric\w*|lighting|el[eé]ctric[oa]s?)\b/i.test(norm)) return 'electrical';
+  // Plumbing / Plomería
+  if (/\b(plumb\w*|plomer[ií]a)\b/i.test(norm)) return 'plumbing';
+  return null;
+}
+
+const FALSE_CLAIM_PATTERNS = [
+  // English first-person or completion claims
+  /\b(?:i(?:'ve| have)? (?:successfully )?(?:added|saved|updated|removed|marked|deleted|logged|staged|noted|recorded|created))\b/i,
+  /\b(?:successfully (?:added|saved|updated|removed|marked|deleted|logged|staged|noted|recorded|created))\b/i,
+  /\b(?:(?:added|saved|updated|removed|marked|logged|staged|noted|recorded|created) (?:the |your |this |that )?.*?\bto (?:the |your )?(?:list|checklist|purchasing|project|finishes|memory|drafts|records))\b/i,
+  /\b(?:marked (?:the |your |this )?.*?\bas (?:purchased|needed))\b/i,
+  // Spanish claims with accent-safe word boundaries
+  /(?:^|\s|[.,;:!?])(?:ya\s+)?(?:agregu[eé]|he\s+agregado|guard[eé]|he\s+guardado|se\s+agreg[oó]|actualic[eé]|he\s+actualizado|marqu[eé]|he\s+marcado|elimin[eé]|he\s+eliminado|anot[eé]|he\s+anotado|registr[eé]|he\s+registrado|apunt[eé]|he\s+apuntado)(?=$|\s|[.,;:!?])/i,
+  /(?:^|\s|[.,;:!?])listo,?\s*ya\s+qued[oó](?=$|\s|[.,;:!?])/i
+];
+
+export function didChangeToolSucceed(toolTelemetryList = []) {
+  return (toolTelemetryList || []).some(t => {
+    if (!t.success) return false;
+    const name = String(t.name || '').toLowerCase();
+    const type = String(t.toolType || '').toUpperCase();
+    return type === 'WRITE' || /^(add|update|save|remove|delete|sync|set|stage|log)_/.test(name);
+  });
+}
+
+export function isChangeRequestQuery(query = '') {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return false;
+
+  // Interrogative / read questions are NOT change requests
+  if (/^(what|which|who|where|how|did we|have we|was the|is the|are the|show|list|qu[eé]|cu[aá]l|cu[aá]les|qui[eé]n|c[oó]mo|d[oó]nde)\b/i.test(q)) {
+    return false;
+  }
+
+  // Mutation commands in English and Spanish
+  return /\b(add|create|insert|save|update|mark|remove|delete|change|set|buy|bought|purchase|purchased|check off|cross off|remember|note|make a note|log|record|stage|add an expense|agrega|agregar|agrego|guarda|guardar|actualiza|actualizar|marca|marcar|elimina|eliminar|borra|borrar|compra|comprar|recuerda|anota|apunta|registra)\b/i.test(q);
+}
+
+export function verifyActionExecutionClaims(replyText = '', userQuery = '', toolTelemetryList = []) {
+  if (!replyText || typeof replyText !== 'string') return replyText;
+
+  // If a change tool actually ran and succeeded, the claim is verified and legitimate
+  if (didChangeToolSucceed(toolTelemetryList)) {
+    return replyText;
+  }
+
+  // Only check replies to requests to change something (commands or pending category answers)
+  const isChange = isChangeRequestQuery(userQuery) || Boolean(resolvePendingCategory(userQuery));
+  if (!isChange) {
+    return replyText;
+  }
+
+  // Check if reply text claims a change
+  const hasClaim = FALSE_CLAIM_PATTERNS.some(p => p.test(replyText));
+  if (!hasClaim) {
+    return replyText;
+  }
+
+  return "I didn't complete that. Want me to try again?";
+}
 
 const SPECS_STORAGE_PREFIX = 'jobscan_project_specs_';
 const GLOBAL_PHASES_STORAGE_KEY = 'jobscan_global_phase_protocols_v4';
@@ -940,6 +1024,9 @@ export function formatToolResultsForSynthesis(toolTelemetryList = []) {
       }
       return `Tool ${i + 1} [${t.name}] (Type: ${classification}) ${sourceTag} ${statusTag}${dupTag}: SUCCESS${priorityHeader}Structured Data: ${JSON.stringify(dataPayload)}`;
     } else {
+      if (t.status === 'needs_clarification' || dataPayload?.action === 'NEEDS_CATEGORY' || dataPayload?.needsCategory) {
+        return `Tool ${i + 1} [${t.name}] (Type: ${classification}) ${sourceTag} [STATUS: NEEDS_CLARIFICATION]: NEEDS_CLARIFICATION\nClarification Question: Is that for Quartz, Electrical or Plumbing?`;
+      }
       const extraContext = dataPayload && (dataPayload.matches || dataPayload.isAmbiguous || dataPayload.isNotFound)
         ? `\nValidation Context: ${JSON.stringify(dataPayload)}`
         : '';
@@ -1419,6 +1506,95 @@ export async function askGeminiBrain(
   const siteSetupProtocol = getSiteSetupProtocol();
   let lastErrorCode = null;
   let toolTelemetryList = [];
+
+  // Handle Pending Clarification Action (e.g. user answering "electrical" / "eléctrico" or explicit cancel)
+  const pendingClarification = getPendingClarificationAction();
+  if (pendingClarification) {
+    const PENDING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const isExpired = Date.now() - (pendingClarification.timestamp || 0) > PENDING_TIMEOUT_MS;
+    const isDifferentProject = pendingClarification.projectId && pendingClarification.projectId !== projectId;
+
+    if (isExpired || isDifferentProject) {
+      clearPendingClarificationAction();
+    } else {
+      const cleanTrimmedQuery = String(query || '').trim();
+      const isExplicitCancel = /^(cancel|never mind|nevermind|olv[ií]dalo|cancela|cancelar)$/i.test(cleanTrimmedQuery);
+
+      if (isExplicitCancel) {
+        clearPendingClarificationAction();
+        return {
+          text: 'OK, cancelled.',
+          telemetry: {
+            schemaVersion: '1.0',
+            correlationId,
+            modelUsed: 'Direct Dispatch',
+            source: 'Pending Action Handler',
+            intent: 'Cancel Pending Action',
+            durationMs: Date.now() - clientStartTime,
+            toolsExecuted: []
+          }
+        };
+      }
+
+      const matchedCategory = resolvePendingCategory(cleanTrimmedQuery);
+      if (matchedCategory) {
+        clearPendingClarificationAction();
+        const pendingToolName = pendingClarification.tool || 'add_purchasing_item';
+        const pendingArgs = {
+          item: pendingClarification.item,
+          quantity: pendingClarification.quantity || 1,
+          category: matchedCategory,
+          projectId: pendingClarification.targetProjectId || pendingClarification.projectId || projectId
+        };
+        const fullProjectContext = {
+          activeProjectName,
+          projectId,
+          userQuery: query
+        };
+
+        const execStart = Date.now();
+        const toolResult = await executeClientToolCall(pendingToolName, pendingArgs, fullProjectContext, correlationId);
+        const durationMs = Date.now() - execStart;
+
+        toolTelemetryList.push({
+          name: pendingToolName,
+          args: pendingArgs,
+          toolType: 'WRITE',
+          source: toolResult.source || 'Local Project Data',
+          status: toolResult.status || (toolResult.success ? 'ok' : 'error'),
+          success: Boolean(toolResult.success),
+          isDuplicate: Boolean(toolResult.isDuplicate),
+          durationMs,
+          error: toolResult.success ? null : (toolResult.message || toolResult.error),
+          data: toolResult,
+          result: toolResult
+        });
+
+        const replyMessage = toolResult.message || (toolResult.success
+          ? `Added "${pendingClarification.item}" (Qty: ${pendingClarification.quantity || 1}) to ${matchedCategory}.`
+          : `Couldn't save '${pendingClarification.item}' to the purchasing list. Please try again.`);
+
+        const verifiedReply = verifyActionExecutionClaims(replyMessage, query, toolTelemetryList);
+
+        return {
+          text: verifiedReply,
+          telemetry: {
+            schemaVersion: '1.0',
+            correlationId,
+            modelUsed: 'Direct Clarification Execution',
+            source: toolResult.source || 'Purchasing Engine',
+            intent: 'Resume Pending Action',
+            durationMs: Date.now() - clientStartTime,
+            toolsExecuted: toolResult.success ? [{ name: pendingToolName, args: pendingArgs, source: toolResult.source, result: toolResult }] : [],
+            toolsFailed: toolResult.success ? [] : [{ name: pendingToolName, error: toolResult.error || toolResult.message }]
+          }
+        };
+      } else {
+        // Unrelated next message: Option A (discard). If next message isn't a category answer, cancel pending action and handle normally.
+        clearPendingClarificationAction();
+      }
+    }
+  }
 
   let siteSetupChecks = {};
   try {
@@ -1941,9 +2117,10 @@ export async function askGeminiBrain(
       apiKey: effectiveKey
     });
 
+    let timeoutId = null;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), CLIENT_REQUEST_TIMEOUT_MS);
+      timeoutId = setTimeout(() => controller.abort(), CLIENT_REQUEST_TIMEOUT_MS);
 
       apiRes = await fetch('/api/ask-brain', {
         method: 'POST',
@@ -1951,7 +2128,6 @@ export async function askGeminiBrain(
         body: reqPayload,
         signal: controller.signal
       });
-      clearTimeout(timeoutId);
       attempt1DurationMs = Date.now() - attempt1Start;
 
       // Only retry transient 5xx gateway errors (502, 504) - NEVER retry auth (401, 403), rate limits (429), or configuration (503)
@@ -1959,6 +2135,7 @@ export async function askGeminiBrain(
         throw new Error(`Transient gateway error ${apiRes.status}`);
       }
     } catch (firstErr) {
+      if (timeoutId) clearTimeout(timeoutId);
       attempt1DurationMs = Date.now() - attempt1Start;
       const isTimeout = firstErr.name === 'AbortError' || attempt1DurationMs >= (CLIENT_REQUEST_TIMEOUT_MS - 500);
       retryOccurred = true;
@@ -1968,16 +2145,16 @@ export async function askGeminiBrain(
       await new Promise(resolve => setTimeout(resolve, 1000));
       const attempt2Start = Date.now();
       const retryController = new AbortController();
-      const retryTimeoutId = setTimeout(() => retryController.abort(), CLIENT_REQUEST_TIMEOUT_MS);
+      let retryTimeoutId = null;
 
       try {
+        retryTimeoutId = setTimeout(() => retryController.abort(), CLIENT_REQUEST_TIMEOUT_MS);
         apiRes = await fetch('/api/ask-brain', {
           method: 'POST',
           headers,
           body: reqPayload,
           signal: retryController.signal
         });
-        clearTimeout(retryTimeoutId);
         attempt2DurationMs = Date.now() - attempt2Start;
       } catch (secondErr) {
         attempt2DurationMs = Date.now() - attempt2Start;
@@ -2003,7 +2180,11 @@ export async function askGeminiBrain(
           };
         }
         throw secondErr;
+      } finally {
+        if (retryTimeoutId) clearTimeout(retryTimeoutId);
       }
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
 
     if (apiRes.ok) {
@@ -2071,6 +2252,44 @@ export async function askGeminiBrain(
           }
         }
 
+        // Fast Route: Check if any tool requested category clarification (e.g. add_purchasing_item NEEDS_CATEGORY)
+        const clarificationTool = toolTelemetryList.find(t =>
+          t.status === 'needs_clarification' ||
+          t.data?.action === 'NEEDS_CATEGORY' ||
+          t.result?.action === 'NEEDS_CATEGORY' ||
+          t.data?.needsCategory ||
+          t.result?.needsCategory
+        );
+
+        if (clarificationTool) {
+          const itemPayload = clarificationTool.data?.item || clarificationTool.result?.item || {};
+          const itemName = itemPayload.itemName || clarificationTool.args?.item || clarificationTool.args?.itemName || 'item';
+          const qty = itemPayload.quantity || clarificationTool.args?.quantity || 1;
+
+          setPendingClarificationAction({
+            tool: clarificationTool.name,
+            item: itemName,
+            quantity: qty,
+            projectId,
+            targetProjectId: clarificationTool.data?.projectId || clarificationTool.args?.projectId || projectId
+          });
+
+          return {
+            text: 'Is that for Quartz, Electrical or Plumbing?',
+            telemetry: {
+              schemaVersion: '1.0',
+              correlationId,
+              modelUsed: 'Clarification Fast Route',
+              source: 'Jarvis Purchasing Dispatcher',
+              intent: 'Category Clarification Request',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [],
+              toolsFailed: [clarificationTool],
+              pendingAction: getPendingClarificationAction()
+            }
+          };
+        }
+
         // Collect exact provenance strictly from executed tools
         const sourcesUsedSet = new Set();
         for (const t of toolTelemetryList) {
@@ -2129,9 +2348,11 @@ export async function askGeminiBrain(
 
         if (synthesisText) {
           const groundingReport = verifyResponseGrounding(synthesisText, projectContext, toolTelemetryList);
-          const finalResponseText = (groundingReport.purchasingDiscrepancyDetected && groundingReport.suggestedCorrection)
+          const rawResponseText = (groundingReport.purchasingDiscrepancyDetected && groundingReport.suggestedCorrection)
             ? groundingReport.suggestedCorrection
             : synthesisText;
+
+          const finalResponseText = verifyActionExecutionClaims(rawResponseText, query, toolTelemetryList);
 
           return {
             text: finalResponseText,
@@ -2176,9 +2397,10 @@ export async function askGeminiBrain(
         // Grounded fallback if synthesis network failed
         const cleanSummary = formatToolResultsHumanReadable(toolTelemetryList, query, projectContext);
         const fallbackGrounding = verifyResponseGrounding(cleanSummary || '', projectContext, toolTelemetryList);
+        const finalFallbackText = verifyActionExecutionClaims(cleanSummary || 'Action completed.', query, toolTelemetryList);
 
         return {
-          text: cleanSummary || 'Action completed.',
+          text: finalFallbackText,
           telemetry: {
             modelUsed: data.telemetry?.modelUsed || determineTaskModel(query, forceDeepReasoning),
             source: 'Gemini Cloud AI',
@@ -2227,6 +2449,7 @@ export async function askGeminiBrain(
           finalReply = `${finalReply} ${cognitiveDecision.suggestionText}`;
         }
 
+        finalReply = verifyActionExecutionClaims(finalReply, query, toolTelemetryList);
         const sourcesUsed = detectGroundedSourcesUsed(query, finalReply, projectContext);
 
         return {
