@@ -2,8 +2,7 @@
  * Google Drive Document Content Provider
  * 
  * Provides clean, authoritative live document read/write capabilities
- * directly against the Google Drive v3 REST API using active Google OAuth sessions,
- * with optional Apps Script webhook fallback.
+ * directly against the Google Drive v3 REST API using active Google OAuth sessions.
  * 
  * Flow:
  * AI Tools / UI -> Document Content Provider -> Google Drive API (OAuth) -> Google Drive (Source of Truth)

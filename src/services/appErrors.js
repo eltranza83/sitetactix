@@ -16,19 +16,31 @@ export function isAuthError(error) {
   if (!error) return false;
 
   const status = Number(error.status || error.code);
-  if (status === 401 || status === 403) return true;
+  if (status === 401) return true;
 
   const message = String(error.message || error).toLowerCase();
+
+  // 403 is only an auth error when it represents insufficient permission scopes or revoked access
+  if (status === 403) {
+    return (
+      message.includes('insufficientpermissions') ||
+      message.includes('access_token_scope_insufficient') ||
+      message.includes('insufficient scope') ||
+      message.includes('invalid_grant') ||
+      message.includes('invalid credentials') ||
+      message.includes('session expired')
+    );
+  }
+
   return (
-    message.includes('401') ||
-    message.includes('403') ||
     message.includes('unauthenticated') ||
     message.includes('unauthorized') ||
     message.includes('invalid credentials') ||
     message.includes('invalid token') ||
     message.includes('session expired') ||
     message.includes('invalid_grant') ||
-    message.includes('credential')
+    message.includes('insufficientpermissions') ||
+    message.includes('access_token_scope_insufficient')
   );
 }
 

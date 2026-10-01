@@ -894,11 +894,28 @@ export async function moveFileInDrive(accessToken, fileId, removeParentId, addPa
 }
 
 /**
- * Lists all non-trashed files in a Google Drive folder including their description and webViewLink.
+ * Tags a file in Google Drive with custom key-value appProperties.
+ */
+export async function tagDriveFileAppProperties(accessToken, fileId, appProperties) {
+  if (!accessToken || !fileId || !appProperties) return false;
+  const url = `${GOOGLE_DRIVE_API_BASE}/files/${fileId}?fields=id,appProperties`;
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ appProperties })
+  });
+  return response.ok;
+}
+
+/**
+ * Lists all non-trashed files in a Google Drive folder including their description, webViewLink, and appProperties.
  */
 export async function listFilesWithDescriptionInFolder(accessToken, folderId) {
   const query = `'${folderId}' in parents and trashed=false`;
-  const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,description,webViewLink)`;
+  const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,description,webViewLink,appProperties)`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });

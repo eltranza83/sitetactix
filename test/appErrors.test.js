@@ -11,9 +11,12 @@ import {
   isAuthError
 } from '../src/services/appErrors.js';
 
-test('isAuthError detects auth failures by status and message', () => {
+test('isAuthError detects auth failures by status and message while ignoring invoice numbers', () => {
   assert.equal(isAuthError({ status: 401 }), true);
-  assert.equal(isAuthError({ code: 403 }), true);
+  assert.equal(isAuthError({ status: 403, message: 'insufficientPermissions' }), true);
+  assert.equal(isAuthError({ status: 403, message: 'rateLimitExceeded' }), false);
+  assert.equal(isAuthError(new Error('Phase not found for Invoice 401.pdf')), false);
+  assert.equal(isAuthError(new Error('Phase not found for Invoice 403.pdf')), false);
   assert.equal(isAuthError(new Error('Invalid token returned by Google')), true);
   assert.equal(isAuthError(new Error('network failed')), false);
   assert.equal(isAuthError(null), false);
