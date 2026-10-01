@@ -56,6 +56,7 @@ export function resetActiveSessionCognitiveState() {
   } catch {}
   clearPendingClarificationAction();
   clearPendingConfirmationAction();
+  clearPendingRetryAction();
 }
 
 let _pendingClarificationAction = null;
@@ -69,6 +70,10 @@ export function setPendingClarificationAction(action) {
     ...action,
     timestamp: action.timestamp || Date.now()
   } : null;
+  if (action) {
+    _pendingRetryAction = null;
+    _pendingConfirmationAction = null;
+  }
 }
 
 export function clearPendingClarificationAction() {
@@ -86,10 +91,35 @@ export function setPendingConfirmationAction(action) {
     ...action,
     timestamp: action.timestamp || Date.now()
   } : null;
+  if (action) {
+    _pendingClarificationAction = null;
+    _pendingRetryAction = null;
+  }
 }
 
 export function clearPendingConfirmationAction() {
   _pendingConfirmationAction = null;
+}
+
+let _pendingRetryAction = null;
+
+export function getPendingRetryAction() {
+  return _pendingRetryAction;
+}
+
+export function setPendingRetryAction(action) {
+  _pendingRetryAction = action ? {
+    ...action,
+    timestamp: action.timestamp || Date.now()
+  } : null;
+  if (action) {
+    _pendingClarificationAction = null;
+    _pendingConfirmationAction = null;
+  }
+}
+
+export function clearPendingRetryAction() {
+  _pendingRetryAction = null;
 }
 
 export function resolvePendingCategory(query = '') {
@@ -103,6 +133,12 @@ export function resolvePendingCategory(query = '') {
   if (/\b(plumb\w*|plomer[ií]a)\b/i.test(norm)) return 'plumbing';
   return null;
 }
+
+const REFUSAL_CLAIM_PATTERNS = [
+  /\b(?:no authorization|not authorized|do not have authorization|don't have authorization|do not have the authorization|lack authorization|lack permission|no permission)\b/i,
+  /\b(?:can'?t modify|cannot modify|unable to modify|not allowed to (?:modify|add|delete|remove|change))\b/i,
+  /\b(?:no tengo autorizaci[oó]n|no estoy autorizad[oa]|no tengo permiso|no puedo modificar)\b/i
+];
 
 const FALSE_CLAIM_PATTERNS = [
   // English first-person or completion claims
@@ -162,10 +198,10 @@ export function isChangeRequestQuery(query = '') {
   }
 
   // Mutation commands in English and Spanish
-  return /\b(add|create|insert|save|update|mark|remove|delete|change|set|buy|bought|purchase|purchased|check off|cross off|remember|note|make a note|log|record|stage|add an expense|agrega|agregar|agrego|guarda|guardar|actualiza|actualizar|marca|marcar|elimina|eliminar|borra|borrar|compra|comprar|recuerda|anota|apunta|registra)\b/i.test(q);
+  return /\b(add|create|insert|put|include|save|update|mark|remove|delete|change|set|buy|bought|purchase|purchased|check off|cross off|remember|note|make a note|log|record|stage|add an expense|agrega|agregar|agrego|a[ñn]ade|a[ñn]adir|pon|incluye|guarda|guardar|actualiza|actualizar|marca|marcar|elimina|eliminar|borra|borrar|compra|comprar|recuerda|anota|apunta|registra)\b/i.test(q);
 }
 
-export function verifyActionExecutionClaims(replyText = '', userQuery = '', toolTelemetryList = []) {
+export function verifyActionExecutionClaims(replyText = '', userQuery = '', toolTelemetryList = [], projectContext = {}) {
   if (!replyText || typeof replyText !== 'string') return replyText;
 
   // If a compatible change tool actually ran and succeeded, the claim is verified and legitimate
@@ -179,12 +215,20 @@ export function verifyActionExecutionClaims(replyText = '', userQuery = '', tool
     return replyText;
   }
 
-  // Check if reply text claims a change or removal
+  // Check if reply text claims a change or removal, or refuses with lack of authorization
   const hasClaim = FALSE_CLAIM_PATTERNS.some(p => p.test(replyText))
     || /\b(removed|deleted|elimin[eé]|borr[eé])\b/i.test(replyText);
-  if (!hasClaim) {
+  const hasRefusal = REFUSAL_CLAIM_PATTERNS.some(p => p.test(replyText));
+
+  if (!hasClaim && !hasRefusal) {
     return replyText;
   }
+
+  setPendingRetryAction({
+    query: userQuery,
+    projectId: projectContext?.projectId || null,
+    timestamp: Date.now()
+  });
 
   return "I didn't complete that. Want me to try again?";
 }
@@ -739,24 +783,25 @@ BEHAVIOR, VERIFICATION & CITATION RULES:
      * "Site Setup Checklist..." (for meters, silt fence, mobilization)
      * "Google Drive Index..." (for folder/file structure)
 
-7. CLEAN FORMATTING & NATURAL DATES (NO ASTERISKS / NO DUPLICATE DATES / NO RAW IDS):
-   - Do NOT use Markdown asterisks (* or **) in your text responses. Use plain text and standard bullet dashes (-) or numbered lists (1., 2.).
+8. CLEAN FORMATTING & NATURAL DATES:
+   - Do NOT use Markdown asterisks (* or **) in text responses. Use plain text and standard bullet dashes (-) or numbered lists (1., 2.).
    - Always output dates in natural conversational English (e.g. "July 22, 2026") or Spanish (e.g. "22 de julio de 2026").
-   - NEVER output raw Google Drive Folder IDs or File IDs (e.g. '1-_2MHhajXEKLDsIADlzkOnf1167DMYN_') in your conversational text responses.
+   - NEVER output raw Google Drive Folder IDs or File IDs in conversational text responses.
 
-8. OPENING DOCUMENTS & PRONOUN CONFIRMATIONS:
+9. OPENING DOCUMENTS & PRONOUN CONFIRMATIONS:
    - When the user asks to see, open, pull up, or show a document or receipt, or says 'open it', 'yeah go ahead', 'show it to me', 'pull it up':
      * Check the recent conversation context to resolve the exact file being discussed.
      * If the reference unambiguously maps to a single file, confirm you are opening it and ALWAYS append: [[ACTION:VIEW_FILE:{"fileId":"FILE_ID","fileName":"FILE_NAME","folderName":"FOLDER_NAME"}]].
      * If multiple matching files exist, ask ONE clarifying question asking which specific file to open instead of guessing.
 
-9. STATE-CHANGING ACTIONS & PERMISSIONS:
-   - For Google Drive file actions (creating folders, moving files, or deleting files in Drive), you MUST ask for explicit confirmation from the user first (e.g. "Would you like me to go ahead and create the folder '[Folder Name]' in your Google Drive project folder for [Project Name]?").
-   - Deleting or updating a memory (delete_memory, update_memory) requires user confirmation first: prompt the user with the memory text and wait for confirmation before deactivating or updating.
-   - Never list, extrapolate or invent purchasing items, fixture names or specifications. Only state what a tool returned from Firestore or the project files. If the result is empty, say it is empty.
-   - When confirmed by the user, emit the corresponding action code (e.g. [[ACTION:CREATE_FOLDER:FolderName]]).
+10. STATE-CHANGING ACTIONS & PERMISSIONS:
+   - For Google Drive file actions (creating folders, moving files, deleting files), ask for explicit user confirmation first (e.g. "Would you like me to create folder '[Folder Name]'?").
+   - Deleting a memory (delete_memory) requires user confirmation first: prompt user with memory text and wait for confirmation before deactivating.
+   - You CAN add, update and remove purchasing items with the purchasing tools. Never claim you lack permission or authorization to modify the purchasing list or Firestore database.
+   - Never list, extrapolate or invent purchasing items, fixture names or specifications. Only state what a tool returned from Firestore or project files. If empty, say it is empty.
+   - When confirmed by user, emit the corresponding action code (e.g. [[ACTION:CREATE_FOLDER:FolderName]]).
 
-10. INTENT FIRST & RELEVANCE GUARDRAIL (DATA AVAILABILITY != PERMISSION TO VOLUNTEER):
+11. INTENT FIRST & RELEVANCE GUARDRAIL (DATA AVAILABILITY != PERMISSION TO VOLUNTEER):
    - Principle: Having access to project data, financial spreadsheets, municipal inspections, memories, and specs in this prompt does NOT give you permission to volunteer that information unprompted. Answer ONLY what the user specifically asked for, and stop.
    - CASUAL GREETINGS & CHIT-CHAT ("what's up", "hey", "hello", "good morning", "how's it going", "how are you"):
      * Respond with a natural, crisp 1-sentence time-of-day greeting: e.g. "Good evening. How can I help with ${activeProjectName} tonight?" (or in Spanish: "Buenas noches. ¿Cómo te ayudo con ${activeProjectName} hoy?").
@@ -884,8 +929,8 @@ export function isPurchaseStatusMutationCommand(query = '') {
   const q = String(query).trim().toLowerCase();
   if (!q) return false;
 
-  // 1. Explicit Addition commands (e.g. "add a pool heater", "create a new item") are NOT status mutations
-  if (/\b(add|create|insert|new item)\b/i.test(q) && !/\b(as purchased|as needed|to purchased|to needed|mark|bought|got|check off|cross off)\b/i.test(q)) {
+  // 1. Explicit Addition commands (e.g. "add a pool heater", "create a new item", "agrega dos ventiladores") are NOT status mutations
+  if (/\b(add|create|insert|put|include|new item|agrega|agregar|a[ñn]ade|a[ñn]adir|pon|incluye)\b/i.test(q) && !/\b(as purchased|as needed|to purchased|to needed|mark|bought|got|check off|cross off|comprado|comprada)\b/i.test(q)) {
     return false;
   }
 
@@ -957,18 +1002,106 @@ export function extractPurchasingSubjectFromQuery(query = '') {
     .trim();
 }
 
+export function isPastTensePurchasingInquiry(query = '') {
+  const q = String(query || '').trim();
+  if (!q) return false;
+
+  const cleanQ = q
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  // English past-tense questions about adding/buying/marking
+  if (/\b(?:did\s+(?:we|you|i)\s+(?:add|buy|get|purchase|mark)|what\s+did\s+(?:we|you)\s+(?:add|buy|get|purchase)|have\s+we\s+(?:added|bought|gotten|purchased)|has\s+(?:it|anything|[\w\s]{1,30})\s+been\s+(?:added|bought|purchased))\b/i.test(cleanQ)) {
+    return true;
+  }
+  if (/\b(?:was|were)\b[\w\s]{1,40}\b(?:added|bought|purchased|marked)\b/i.test(cleanQ)) {
+    return true;
+  }
+
+  // Spanish past-tense questions
+  if (/[¿?]?\s*(?:agregamos|que\s+(?:se\s+)?agreg(?:o|aste)|que\s+(?:se\s+)?compr(?:o|aste)|compramos|se\s+agrego|se\s+compro)\b/i.test(cleanQ)) {
+    return true;
+  }
+
+  return false;
+}
+
+export function stemWord(word = '') {
+  let w = String(word || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+  if (w.length <= 3) return w;
+  if (w.endsWith('ies')) return w.slice(0, -3) + 'y';
+  if (w.endsWith('ces')) return w.slice(0, -3) + 'z'; // luces -> luz
+  if (w.endsWith('es')) return w.slice(0, -2); // ventiladores -> ventilador
+  if (w.endsWith('s')) return w.slice(0, -1); // fans -> fan
+  return w;
+}
+
+const GROUNDING_STOP_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'to', 'in', 'on', 'at', 'by', 'for', 'with', 'about', 'under',
+  'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'y', 'o', 'a', 'en', 'de', 'del', 'al', 'por', 'para', 'con',
+  'item', 'items', 'articulo', 'articulos', 'cosa', 'cosas'
+]);
+
+export function extractGroundedItemStems(text = '') {
+  if (!text || typeof text !== 'string') return [];
+  const normalized = text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ');
+
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const stems = [];
+  for (const t of tokens) {
+    if (GROUNDING_STOP_WORDS.has(t)) continue;
+    stems.push(stemWord(t));
+  }
+  return stems;
+}
+
+export function isPurchasingItemGrounded(item = '', userQuery = '') {
+  const itemStems = extractGroundedItemStems(item);
+  if (itemStems.length === 0) return false;
+
+  const userQueryStems = new Set(extractGroundedItemStems(userQuery));
+  const rawNormalizedQuery = String(userQuery || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  let matchedCount = 0;
+  for (const stem of itemStems) {
+    if (userQueryStems.has(stem) || rawNormalizedQuery.includes(stem)) {
+      matchedCount++;
+    }
+  }
+
+  // If item has 1 or 2 words, all must match. If 3+, at least 60% must match.
+  if (itemStems.length <= 2) {
+    return matchedCount === itemStems.length;
+  }
+  return (matchedCount / itemStems.length) >= 0.6;
+}
+
 export function normalizePurchasingToolCalls(toolCalls = [], userQuery = '') {
   if (!Array.isArray(toolCalls) || toolCalls.length === 0) return toolCalls;
 
+  const isPastInquiry = isPastTensePurchasingInquiry(userQuery);
   const isMutation = isPurchaseStatusMutationCommand(userQuery);
 
-  if (isMutation) {
+  if (isMutation && !isPastInquiry) {
     const extractedSubject = extractPurchasingSubjectFromQuery(userQuery);
     
     // Safety Gate: If extracted subject is empty or a broad quantifier, REFUSE mutation
     if (!extractedSubject || extractedSubject.length < 2 || /^(what|which|all|everything|items|list|anything)$/i.test(extractedSubject)) {
       return toolCalls.map(tc => {
-        if (tc.name === 'update_purchasing_item_status' || tc.name === 'add_purchasing_item') {
+        if (tc.name === 'update_purchasing_item_status' || tc.name === 'add_purchasing_item' || tc.name === 'remove_purchasing_item') {
           return { ...tc, name: 'get_purchasing_list', args: { projectId: tc.args?.projectId, unpurchasedOnly: false } };
         }
         return tc;
@@ -1005,11 +1138,20 @@ export function normalizePurchasingToolCalls(toolCalls = [], userQuery = '') {
     pipes: 'plumbing'
   };
 
-  // If NOT a mutation command (READ ONLY), intercept any hallucinated mutation tool calls & normalize trade arguments
-  const isExplicitAdd = /^(add|create|insert|new item)\b/i.test(userQuery) && !/\b(as purchased|as needed|to purchased|to needed|mark|bought|got)\b/i.test(userQuery);
   return toolCalls.map(tc => {
     let call = tc;
-    if (!isExplicitAdd && (tc.name === 'update_purchasing_item_status' || tc.name === 'add_purchasing_item')) {
+    // Reject writes when user's message is a question about the past ("did we add / have we bought / ¿agregamos...?")
+    if (isPastInquiry && (tc.name === 'update_purchasing_item_status' || tc.name === 'add_purchasing_item' || tc.name === 'remove_purchasing_item')) {
+      call = {
+        ...tc,
+        name: 'get_purchasing_list',
+        args: {
+          projectId: tc.args?.projectId,
+          unpurchasedOnly: false
+        }
+      };
+    } else if (!isMutation && tc.name === 'update_purchasing_item_status') {
+      // If NOT a status mutation command (e.g. read inquiry "What do we need for electrical?"), demote to get_purchasing_list
       call = {
         ...tc,
         name: 'get_purchasing_list',
@@ -1806,6 +1948,58 @@ export async function askGeminiBrain(
     }
   }
 
+  // Handle Pending Retry Action (e.g. user answering "yes" / "sí" / "try again" to "Want me to try again?")
+  const pendingRetry = getPendingRetryAction();
+  if (pendingRetry) {
+    const PENDING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const isExpired = Date.now() - (pendingRetry.timestamp || 0) > PENDING_TIMEOUT_MS;
+    const isDifferentProject = pendingRetry.projectId && pendingRetry.projectId !== projectId;
+
+    if (isExpired || isDifferentProject) {
+      clearPendingRetryAction();
+    } else {
+      const cleanTrimmedQuery = String(query || '').trim();
+      const isAffirmative = /^(yes|yep|yeah|sure|please|try again|do it|s[ií]|int[eé]ntalo|intentelo|hazlo|por favor)$/i.test(cleanTrimmedQuery);
+      const isExplicitCancel = /^(no|nope|don'?t|cancel|never mind|nevermind|olv[ií]dalo|cancela|cancelar)$/i.test(cleanTrimmedQuery);
+
+      if (isAffirmative) {
+        const originalQuery = pendingRetry.query;
+        clearPendingRetryAction();
+        return await askGeminiBrain(
+          originalQuery,
+          conversationHistory,
+          activeProjectName,
+          apiKey,
+          dashboardOverride,
+          projectIdOverride,
+          messages,
+          driveTreeOverride,
+          fileAttachment,
+          forceDeepReasoning,
+          googleTokenOverride,
+          options
+        );
+      } else if (isExplicitCancel) {
+        clearPendingRetryAction();
+        return {
+          text: 'OK, cancelled.',
+          telemetry: {
+            schemaVersion: '1.0',
+            correlationId,
+            modelUsed: 'Direct Dispatch',
+            source: 'Pending Action Handler',
+            intent: 'Cancel Pending Retry',
+            durationMs: Date.now() - clientStartTime,
+            toolsExecuted: []
+          }
+        };
+      } else {
+        // Anything else: discard pending retry and handle new message normally
+        clearPendingRetryAction();
+      }
+    }
+  }
+
   // Handle Pending Clarification Action (e.g. user answering "electrical" / "eléctrico" or explicit cancel)
   const pendingClarification = getPendingClarificationAction();
   if (pendingClarification) {
@@ -2047,7 +2241,9 @@ export async function askGeminiBrain(
   const currentDayString = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
   // Prepare clean conversation history
-  const historySource = (Array.isArray(messages) && messages.length > 0) ? messages : conversationHistory;
+  const historySource = (Array.isArray(messages) && messages.length > 0)
+    ? messages
+    : (Array.isArray(conversationHistory) ? conversationHistory : []);
 
   // Build the dynamic, domain-partitioned grounded system prompt
   const systemInstruction = buildGroundingSystemInstruction({
@@ -2590,6 +2786,26 @@ export async function askGeminiBrain(
         const fullProjectContext = { ...projectContext, userQuery: query };
 
         for (const tc of normalizedToolCalls) {
+          // GROUNDING check for purchasing writes: the item must be grounded in user query
+          if (tc.name === 'add_purchasing_item' || tc.name === 'update_purchasing_item_status' || tc.name === 'remove_purchasing_item') {
+            const targetItem = tc.args?.item || tc.args?.itemName || '';
+            if (!isPurchasingItemGrounded(targetItem, query)) {
+              return {
+                text: "I didn't complete that — which item did you mean?",
+                telemetry: {
+                  schemaVersion: '1.0',
+                  correlationId,
+                  modelUsed: data.telemetry?.modelUsed || determineTaskModel(query, forceDeepReasoning),
+                  source: 'Grounded Action Verification',
+                  intent: 'Ungrounded Purchasing Write Blocked',
+                  durationMs: Date.now() - clientStartTime,
+                  toolsExecuted: [],
+                  toolsFailed: [{ name: tc.name, args: tc.args, error: 'Item not grounded in user query' }]
+                }
+              };
+            }
+          }
+
           const toolStartTime = Date.now();
           const toolArgs = { ...tc.args };
           delete toolArgs.confirmed; // Defense in depth: AI-originated calls cannot forge confirmation
@@ -2782,7 +2998,7 @@ export async function askGeminiBrain(
             ? groundingReport.suggestedCorrection
             : synthesisText;
 
-          let finalResponseText = verifyActionExecutionClaims(rawResponseText, query, toolTelemetryList);
+          let finalResponseText = verifyActionExecutionClaims(rawResponseText, query, toolTelemetryList, projectContext);
           finalResponseText = await guardAgainstInventedPurchasingList(finalResponseText, query, toolTelemetryList, projectContext);
 
           return {
@@ -2828,7 +3044,7 @@ export async function askGeminiBrain(
         // Grounded fallback if synthesis network failed
         const cleanSummary = formatToolResultsHumanReadable(toolTelemetryList, query, projectContext);
         const fallbackGrounding = verifyResponseGrounding(cleanSummary || '', projectContext, toolTelemetryList);
-        let finalFallbackText = verifyActionExecutionClaims(cleanSummary || 'Action completed.', query, toolTelemetryList);
+        let finalFallbackText = verifyActionExecutionClaims(cleanSummary || 'Action completed.', query, toolTelemetryList, projectContext);
         finalFallbackText = await guardAgainstInventedPurchasingList(finalFallbackText, query, toolTelemetryList, projectContext);
 
         return {
@@ -2881,7 +3097,7 @@ export async function askGeminiBrain(
           finalReply = `${finalReply} ${cognitiveDecision.suggestionText}`;
         }
 
-        finalReply = verifyActionExecutionClaims(finalReply, query, toolTelemetryList);
+        finalReply = verifyActionExecutionClaims(finalReply, query, toolTelemetryList, projectContext);
         finalReply = await guardAgainstInventedPurchasingList(finalReply, query, toolTelemetryList, projectContext);
         const sourcesUsed = detectGroundedSourcesUsed(query, finalReply, projectContext);
 
