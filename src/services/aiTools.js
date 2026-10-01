@@ -21,6 +21,8 @@ import { resolvePreferenceConflicts } from './userPreferenceEngine.js';
 import {
   parseGoogleDocPurchasingStructure,
   resolveTargetProjectId,
+  resolvePurchasingTarget,
+  calculateRemoveSection,
   loadMasterPurchasingDoc,
   saveMasterPurchasingDoc,
   loadProjectPurchasingDoc,
@@ -253,7 +255,7 @@ const IDEMPOTENCY_WINDOW_MS = 60000; // 60 seconds duplicate protection
 export const TOOL_TIMEOUT_MS = 6000; // 6000ms max execution time per tool
 
 export function generateIdempotencyKey(toolName, args = {}, projectId = '') {
-  const normalizedText = String(args.text || args.updatedText || args.searchQuery || args.memoryId || args.item || args.itemName || args.vendorOrPayee || args.vendor || args.payee || '').trim().toLowerCase();
+  const normalizedText = String(args.text || args.updatedText || args.searchQuery || args.memoryId || args.item || args.itemName || args.sectionName || args.section || args.vendorOrPayee || args.vendor || args.payee || '').trim().toLowerCase();
   const normalizedCategory = String(args.category || args.tradeCategory || '').trim().toLowerCase();
   const normalizedDate = String(args.effectiveDate || args.date || '').trim();
   const normalizedAmount = String(args.amount || '').trim();
@@ -1380,7 +1382,7 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       const targetProjectId = target.projectId;
       const sectionName = args.sectionName || args.section || args.category;
 
-      const discovery = discoverAndBindProjectPurchasingDoc(storage, targetProjectId, driveTree);
+      const discovery = discoverAndBindProjectPurchasingDoc(storage, targetProjectId, projectContext);
       const docName = target.resourceType === RESOURCE_TYPES.PURCHASING_MASTER 
         ? 'Master Purchasing Template' 
         : (discovery.fileName || `${targetProjectId} Purchasing Checklist.docx`);

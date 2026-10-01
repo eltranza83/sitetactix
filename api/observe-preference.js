@@ -60,7 +60,7 @@ export async function POST(request) {
       }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.fastModel}:generateContent`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.primaryModel}:generateContent`;
     const res = await fetchWithExponentialBackoff(url, {
       method: 'POST',
       headers: {
@@ -68,7 +68,7 @@ export async function POST(request) {
         'x-goog-api-key': apiKey
       },
       body: JSON.stringify(payload)
-    }, fetch);
+    }, AI_CONFIG.retry);
 
     if (!res.ok) {
       throw sanitizeUpstreamAiError(res.status);
@@ -76,7 +76,12 @@ export async function POST(request) {
 
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const parsed = JSON.parse(text);
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return jsonResponse({ hasPreference: false });
+    }
 
     return jsonResponse(parsed);
   } catch (err) {

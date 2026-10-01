@@ -1,4 +1,5 @@
 import { getFirebaseAuthInstance } from './firebase.js';
+import { AI_CONFIG } from '../config/aiConfig.js';
 
 export const MAX_SECURE_DOCUMENT_BYTES = 4 * 1024 * 1024;
 
@@ -108,10 +109,13 @@ async function extractDocumentDataDirectly(fileOrBlob, apiKey, fetchImpl = fetch
   };
 
   const res = await fetchImpl(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(AI_CONFIG.primaryModel)}:generateContent`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
       body: JSON.stringify({
         contents: [{
           role: 'user',

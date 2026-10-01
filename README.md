@@ -22,6 +22,6 @@ npm.cmd run build
 Document extraction and AI endpoints use authenticated Vercel functions in `api/`. Configure these server-only environment variables in Vercel for Production (and Preview when needed):
 
 - `GEMINI_API_KEY`
-- `GEMINI_MODEL` (optional; defaults to `gemini-3.1-flash-lite`)
+- `GEMINI_MODEL` (optional; defaults to `gemini-3.5-flash-lite`)
 
 Do not prefix these variables with `VITE_`; that would expose them in the browser bundle. The legacy Firestore document `invites/CONFIG-GEMINI` is no longer read and should be deleted after the Vercel variable is configured.
