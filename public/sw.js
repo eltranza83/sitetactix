@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sitetactix-cache-v134';
+const CACHE_NAME = 'sitetactix-cache-v135';
 
 
 

@@ -868,21 +868,7 @@ export function normalizePurchasingToolCalls(toolCalls = [], userQuery = '') {
     'plumbing hardware': 'plumbing',
     'plumbing hardware fixtures': 'plumbing',
     plumber: 'plumbing',
-    hvac: 'hvac',
-    'hvac materials': 'hvac',
-    heating: 'hvac',
-    cooling: 'hvac',
-    paint: 'paint_drywall',
-    drywall: 'paint_drywall',
-    paint_drywall: 'paint_drywall',
-    'paint & drywall': 'paint_drywall',
-    'paint and drywall': 'paint_drywall',
-    general: 'general',
-    'general hardware': 'general',
-    'general hardware & materials': 'general',
-    'general hardware and materials': 'general',
-    'general materials': 'general',
-    materials: 'general'
+    pipes: 'plumbing'
   };
 
   // If NOT a mutation command (READ ONLY), intercept any hallucinated mutation tool calls & normalize trade arguments
@@ -1293,19 +1279,18 @@ export function formatToolResultsHumanReadable(toolTelemetryList, userQuery = ''
 
 const AUTHORITATIVE_READ_ACTIONS = /\b(add|create|update|delete|remove|mark|set|save|scan|capture|upload|attach|stage|log)\b/i;
 const AUTHORITATIVE_READ_QUESTION = /\b(what|which|who|when|where|why|how|show|list|tell|do|did|does|is|are|have|has|can)\b|\?/i;
-const PURCHASE_QUERY = /\b(purchas|buy|bought|needed|need|checklist|hardware|fixture|material|quartz|countertop|sink|electrical|plumb|hvac|roof|drywall|paint|tile|flooring)\b/i;
+const PREFERENCE_MEMORY_QUERY = /\b(prefer|preference|like|likes|remember|notes?|said|told)\b/i;
+const PURCHASING_BUYING_QUERY = /\b(purchas\w*|buy\w*|bought|orders?|ordered|ordering|needed|needs?|still\s+need|checklist)\b/i;
 const FINANCE_QUERY = /\b(budget|spent|spend|paid|payment|owe|owed|balance|expense|receipt|invoice|draw|quote|contract|capital|money)\b/i;
 const INSPECTION_QUERY = /\b(inspection|inspect|framing|rough[ -]?in|foundation|municipal|permit)\b/i;
 const FINISH_QUERY = /\b(finish|paint|color|sheen|stucco|stone|cantera|tile|grout|shingle|fixture spec)\b/i;
-const DRIVE_QUERY = /\b(files?|folders?|documents?|drive|blueprints?|plans?|permits?|photos?|pdfs?)\b/i;
+const DRIVE_QUERY = /\b(files?|folders?|documents?|docs?|drive|blueprints?|plans?|permits?|photos?|pdfs?)\b/i;
 
 function getPurchasingTrade(query) {
   const normalized = String(query || '').toLowerCase();
   if (/\b(quartz|countertop|sink)\b/.test(normalized)) return 'quartz';
   if (/\b(electric\w*|lighting)\b/.test(normalized)) return 'electrical';
   if (/\b(plumb\w*|faucets?|toilets?|showers?)\b/.test(normalized)) return 'plumbing';
-  if (/\b(hvac|air conditioning|mechanical)\b/.test(normalized)) return 'hvac';
-  if (/\b(paint\w*|drywall)\b/.test(normalized)) return 'paint_drywall';
   return '';
 }
 
@@ -1317,6 +1302,9 @@ function getPurchasingTrade(query) {
 export function getAuthoritativeReadRoute(query = '') {
   const normalized = String(query).trim();
   if (!normalized || AUTHORITATIVE_READ_ACTIONS.test(normalized) || !AUTHORITATIVE_READ_QUESTION.test(normalized)) return null;
+
+  // Preference and recollection queries belong strictly on the AI path with memory access.
+  if (PREFERENCE_MEMORY_QUERY.test(normalized)) return null;
 
   // Finance already has a full dashboard manifest and conversational trade
   // resolution. The direct tool gate reduced a trade to a literal substring
@@ -1334,7 +1322,7 @@ export function getAuthoritativeReadRoute(query = '') {
   if (FINISH_QUERY.test(normalized) && /\b(finish|color|sheen|stucco|stone|cantera|grout|shingle|spec)\b/i.test(normalized)) {
     return { toolName: 'get_project_finishes', args: {}, source: 'Firestore finishes and specifications' };
   }
-  if (PURCHASE_QUERY.test(normalized)) {
+  if (PURCHASING_BUYING_QUERY.test(normalized)) {
     return {
       toolName: 'get_purchasing_list',
       args: { trade: getPurchasingTrade(normalized), unpurchasedOnly: /\b(need|needed|still)\b/i.test(normalized) },

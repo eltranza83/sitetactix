@@ -83,10 +83,9 @@ export function classifyTradeCategory(itemText = '', explicitOverride = null) {
   }
 
   const cleanText = String(itemText || '').toLowerCase().trim();
-  if (!cleanText) return TRADE_SECTION_MAP.general;
+  if (!cleanText) return null;
 
-  for (const [key, section] of Object.entries(TRADE_SECTION_MAP)) {
-    if (key === 'general') continue;
+  for (const [, section] of Object.entries(TRADE_SECTION_MAP)) {
     for (const alias of section.aliases) {
       if (cleanText === alias || cleanText.includes(alias)) {
         return section;
@@ -99,7 +98,7 @@ export function classifyTradeCategory(itemText = '', explicitOverride = null) {
     }
   }
 
-  return TRADE_SECTION_MAP.general;
+  return null;
 }
 
 export function parseQuantity(rawText = '') {
@@ -425,12 +424,12 @@ export class PurchasingService {
     const { category, categoryId, trade, status, unpurchasedOnly, item, keyword } = filter;
 
     const targetCategory = categoryId || category || trade || null;
-    const cleanCat = targetCategory ? classifyTradeCategory('', targetCategory).id : null;
+    const cleanCat = targetCategory ? classifyTradeCategory('', targetCategory)?.id : null;
     const searchNormalized = this._normalizeQuery(item || keyword || '');
     const searchStem = this._stemWord(item || keyword || '');
 
     return allItems.filter(it => {
-      if (cleanCat && it.categoryId !== cleanCat && cleanCat !== 'general') {
+      if (cleanCat && it.categoryId !== cleanCat) {
         return false;
       }
       if (unpurchasedOnly || status === PURCHASING_STATUSES.NEEDED) {
@@ -470,18 +469,19 @@ export class PurchasingService {
     let quantity = 1;
     let categoryOverride = null;
 
+    if (typeof itemInput === 'object' && itemInput !== null) {
+      categoryOverride = itemInput.categoryId || itemInput.category || null;
+    }
+
     if (typeof quantityOrCategory === 'number') {
       quantity = quantityOrCategory;
-      categoryOverride = explicitCategory;
+      categoryOverride = explicitCategory || categoryOverride;
     } else if (typeof quantityOrCategory === 'string') {
       categoryOverride = quantityOrCategory;
     }
 
     const parsed = parseQuantity(itemInput);
     const effectiveQty = Math.max(quantity || 1, parsed.quantity || 1);
-    const category = classifyTradeCategory(parsed.itemName, categoryOverride);
-    const normalizedName = this._normalizeQuery(parsed.itemName);
-    const now = new Date().toISOString();
 
     if (projectId === 'purchasing_master') {
       const currentMaster = await this.storage.getItems('purchasing_master');
@@ -504,6 +504,23 @@ export class PurchasingService {
     if (match && (match.type === 'EXACT' || match.type === 'SINGLE_MATCH')) {
       existingIndex = existingItems.findIndex(it => it.id === match.item.id);
     }
+
+    const category = classifyTradeCategory(parsed.itemName, categoryOverride) ||
+      (existingIndex >= 0 && TRADE_SECTION_MAP[existingItems[existingIndex].categoryId]) ||
+      null;
+
+    if (!category) {
+      return {
+        success: false,
+        action: 'NEEDS_CATEGORY',
+        isNotFound: true,
+        item: { itemName: parsed.itemName, quantity: effectiveQty },
+        message: 'Is that for Quartz, Electrical or Plumbing?'
+      };
+    }
+
+    const normalizedName = this._normalizeQuery(parsed.itemName);
+    const now = new Date().toISOString();
 
     if (existingIndex >= 0) {
       const existing = existingItems[existingIndex];
@@ -839,7 +856,7 @@ export class PurchasingService {
     const { title = `Master Fixtures & Hardware Purchasing Checklist - ${cleanProjName}` } = options;
     const items = await this.storage.getItems(projectId);
 
-    const categoryOrder = ['quartz', 'electrical', 'plumbing', 'hvac', 'paint_drywall', 'general'];
+    const categoryOrder = ['quartz', 'electrical', 'plumbing'];
     const grouped = {};
 
     for (const catKey of categoryOrder) {
@@ -850,14 +867,10 @@ export class PurchasingService {
     }
 
     for (const it of items) {
-      const cat = it.categoryId || 'general';
-      if (!grouped[cat]) {
-        grouped[cat] = {
-          title: TRADE_SECTION_MAP[cat]?.title || it.categoryTitle || cat,
-          items: []
-        };
+      const cat = it.categoryId;
+      if (cat && grouped[cat]) {
+        grouped[cat].items.push(it);
       }
-      grouped[cat].items.push(it);
     }
 
     const lines = [`# ${title}`, 'Applicable to all lots and standard builds.', ''];
@@ -926,7 +939,7 @@ export class PurchasingService {
 
     const rawLines = docText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
     const migrated = [];
-    let currentCategory = TRADE_SECTION_MAP.general;
+    let currentCategory = null;
 
     for (const line of rawLines) {
       const trimmed = line.trim();
@@ -945,7 +958,7 @@ export class PurchasingService {
       }
 
       const isItem = /^[-*•+o☐☑☒☐☑☒]/.test(trimmed) || /^\[[ xX]?\]/.test(trimmed);
-      if (isItem) {
+      if (isItem && currentCategory) {
         const isPurchased = /[☑☒☑☒]/.test(trimmed) || /\[[xX]\]/.test(trimmed);
         const cleanedText = trimmed
           .replace(/^[\u2610\u2611\u2612\u25cb\u25cf\u25a2\u2751☐☑☒\-*•+o\s]+/, '')
@@ -953,7 +966,7 @@ export class PurchasingService {
           .trim();
         if (cleanedText) {
           const parsed = parseQuantity(cleanedText);
-          const itemCategory = classifyTradeCategory(parsed.itemName, currentCategory.id);
+          const itemCategory = classifyTradeCategory(parsed.itemName, currentCategory.id) || currentCategory;
           const now = new Date().toISOString();
 
           const existingItems = await this.storage.getItems(projectId);

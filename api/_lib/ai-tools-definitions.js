@@ -121,7 +121,7 @@ export const AI_TOOL_DECLARATIONS = [
     parameters: {
       type: 'OBJECT',
       properties: {
-        trade: { type: 'STRING', description: 'Optional trade/category filter. Only pass recognized trade names: "electrical", "plumbing", "quartz", "hvac", "paint_drywall", "general". Do NOT pass item names (e.g. "pool", "pool heater", "lights") here.' },
+        trade: { type: 'STRING', description: 'Optional trade/category filter. Only pass recognized trade names: "quartz", "electrical", "plumbing". Do NOT pass item names (e.g. "pool", "pool heater", "lights") here.' },
         itemName: { type: 'STRING', description: 'Optional item name to check or look up on the purchasing checklist (e.g. "pool heater", "ceiling fans", "security lights").' },
         unpurchasedOnly: { type: 'BOOLEAN', description: 'Whether to return only unpurchased/needed items (default false)' },
         targetResource: { type: 'STRING', description: 'Target resource type: "project" (default, reads project checklist) or "master" (reads Master Template)' },

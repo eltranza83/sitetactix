@@ -924,14 +924,14 @@ describe('Project Purchasing Lifecycle & Identity Architecture Suite', () => {
     // -------------------------------------------------------------
     // Scenario 19: Trade-Context Item Disambiguation & Trade Normalization
     // -------------------------------------------------------------
-    // 19a: "Did we buy the pool heater in general Hardware"
-    // Item subject: "pool heater", trade context: "in general Hardware", singular grammar + quantity
-    const q19a = 'Did we buy the pool heater in general Hardware';
+    // 19a: "Did we buy the pool heater in electrical Hardware"
+    // Item subject: "pool heater", trade context: "in electrical Hardware", singular grammar + quantity
+    const q19a = 'Did we buy the pool heater in electrical Hardware';
     assert.equal(isPurchaseStatusMutationCommand(q19a), false);
 
-    const rawCalls19a = [{ name: 'get_purchasing_list', args: { projectId: lotId, trade: 'general Hardware', unpurchasedOnly: false } }];
+    const rawCalls19a = [{ name: 'get_purchasing_list', args: { projectId: lotId, trade: 'electrical Hardware', unpurchasedOnly: false } }];
     const normCalls19a = normalizePurchasingToolCalls(rawCalls19a, q19a);
-    assert.equal(normCalls19a[0].args.trade, 'general', 'general Hardware normalizes to general');
+    assert.equal(normCalls19a[0].args.trade, 'electrical', 'electrical Hardware normalizes to electrical');
 
     const res19a = await executeClientToolCall('get_purchasing_list', normCalls19a[0].args, { ...projectContext, userQuery: q19a });
     assert.notEqual(res19a.itemLookup, null, 'Must extract pool heater itemLookup even with trade context');

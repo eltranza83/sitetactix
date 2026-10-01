@@ -453,7 +453,7 @@ export function classifyTradeCategory(itemText = '', explicitOverride = null) {
     }
   }
 
-  return TRADE_SECTION_MAP.general;
+  return null;
 }
 
 export function parseQuantity(rawText = '') {
@@ -590,8 +590,14 @@ export function parseGoogleDocPurchasingStructure(docData) {
 
     if (isHeading || (pendingTagId && !currentSection)) {
       const sectionIdentifier = trimmed.replace(/^[#\d.)\s]+/, '').replace(/:$/, '').trim();
-      const stableSectionId = pendingTagId || classifyTradeCategory('', sectionIdentifier).id;
-      const category = TRADE_SECTION_MAP[stableSectionId] || classifyTradeCategory('', sectionIdentifier);
+      const stableSectionId = pendingTagId || classifyTradeCategory('', sectionIdentifier)?.id;
+      const category = (stableSectionId && TRADE_SECTION_MAP[stableSectionId]) || classifyTradeCategory('', sectionIdentifier);
+
+      if (!category) {
+        currentSection = null;
+        pendingTagId = null;
+        continue;
+      }
 
       currentSection = {
         categoryId: category.id,
@@ -661,6 +667,14 @@ export function calculateSectionInsertion(docStructure, itemInput, quantityOrCat
   const effectiveItemId = itemIdOverride || parsedItem.itemId;
   const finalQuantity = Math.max(quantity || 1, parsedItem.quantity || 1);
   const targetCategory = classifyTradeCategory(parsedItem.itemName, categoryOverride);
+  if (!targetCategory) {
+    return {
+      action: 'NEEDS_CATEGORY',
+      isNotFound: true,
+      category: null,
+      message: 'Is that for Quartz, Electrical or Plumbing?'
+    };
+  }
   let targetSection = docStructure.sections.find(s => (s.sectionId || s.categoryId) === targetCategory.id);
 
   const cleanItemName = parsedItem.itemName.trim();

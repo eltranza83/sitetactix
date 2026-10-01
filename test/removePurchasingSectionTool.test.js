@@ -26,9 +26,9 @@ describe('remove_purchasing_section AI Tool Test Suite', () => {
 
     const initialDoc = `# Lot 3 Purchasing Checklist
 
-## Framing
-- [ ] 2x4 studs - 100 pcs
-- [ ] Truss package
+## Electrical Hardware Fixtures
+- [ ] Security lights
+- [ ] Dimmer switches
 
 ## Plumbing
 - [ ] PVC pipes
@@ -72,14 +72,14 @@ describe('remove_purchasing_section AI Tool Test Suite', () => {
 
     const result = await executeClientToolCall(
       'remove_purchasing_section',
-      { sectionName: 'Framing' },
+      { sectionName: 'Electrical Hardware Fixtures' },
       projectContext
     );
 
     assert.equal(result.success, true, 'Tool execution must succeed');
     assert.ok(result.sectionName, 'Result must report sectionName');
     assert.ok(writtenContent, 'Must have written updated document content');
-    assert.ok(!writtenContent.includes('## Framing'), 'Updated content must not contain ## Framing');
+    assert.ok(!writtenContent.includes('## Electrical Hardware Fixtures'), 'Updated content must not contain ## Electrical Hardware Fixtures');
     assert.ok(writtenContent.includes('## Plumbing'), 'Updated content must retain ## Plumbing');
   });
 

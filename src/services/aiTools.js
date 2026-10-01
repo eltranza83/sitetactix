@@ -930,7 +930,7 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       }
 
       // Group into trade sections matching expected UI structure
-      const categoryOrder = ['quartz', 'electrical', 'plumbing', 'hvac', 'paint_drywall', 'general'];
+      const categoryOrder = ['quartz', 'electrical', 'plumbing'];
       const grouped = {};
       for (const catKey of categoryOrder) {
         grouped[catKey] = {
@@ -942,25 +942,19 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       }
 
       for (const it of items) {
-        const cat = it.categoryId || 'general';
-        if (!grouped[cat]) {
-          grouped[cat] = {
-            sectionId: cat,
-            category: it.categoryTitle || cat,
-            title: it.categoryTitle || cat,
-            items: []
-          };
+        const cat = it.categoryId;
+        if (cat && grouped[cat]) {
+          grouped[cat].items.push({
+            itemId: it.id,
+            id: it.id,
+            name: it.itemName,
+            itemName: it.itemName,
+            quantity: it.quantity,
+            isPurchased: it.status === PURCHASING_STATUSES.PURCHASED,
+            status: it.status,
+            notes: it.notes || ''
+          });
         }
-        grouped[cat].items.push({
-          itemId: it.id,
-          id: it.id,
-          name: it.itemName,
-          itemName: it.itemName,
-          quantity: it.quantity,
-          isPurchased: it.status === PURCHASING_STATUSES.PURCHASED,
-          status: it.status,
-          notes: it.notes || ''
-        });
       }
 
       const sections = Object.values(grouped).filter(s => s.items.length > 0);
@@ -979,7 +973,7 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       const tradeBreakdown = {};
       for (const catKey of categoryOrder) {
         const catTitle = STRUCTURED_TRADE_MAP[catKey]?.title || catKey;
-        const catItems = allProjectItems.filter(it => (it.categoryId || 'general') === catKey);
+        const catItems = allProjectItems.filter(it => it.categoryId === catKey);
         if (catItems.length > 0) {
           tradeBreakdown[catTitle] = {
             needed: catItems.filter(it => it.status === PURCHASING_STATUSES.NEEDED).length,
@@ -1020,7 +1014,7 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       if (effectiveTrade) {
         const matchedTradeKey = Object.keys(STRUCTURED_TRADE_MAP).find(k => k === effectiveTrade.toLowerCase() || STRUCTURED_TRADE_MAP[k]?.title.toLowerCase().includes(effectiveTrade.toLowerCase()));
         const matchedTradeTitle = (matchedTradeKey && STRUCTURED_TRADE_MAP[matchedTradeKey]?.title) || effectiveTrade;
-        const tradeAllItems = allProjectItems.filter(it => (it.categoryId || 'general') === (matchedTradeKey || 'general'));
+        const tradeAllItems = allProjectItems.filter(it => it.categoryId === matchedTradeKey);
         const tradePurchasedItems = tradeAllItems.filter(it => it.status === PURCHASING_STATUSES.PURCHASED);
         const tradeNeededItems = tradeAllItems.filter(it => it.status === PURCHASING_STATUSES.NEEDED);
 
@@ -1066,8 +1060,8 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
         const neededLines = [];
         for (const catKey of categoryOrder) {
           const catTitle = STRUCTURED_TRADE_MAP[catKey]?.title || catKey;
-          const catPurchased = allProjectItems.filter(it => (it.categoryId || 'general') === catKey && it.status === PURCHASING_STATUSES.PURCHASED).length;
-          const catNeeded = allProjectItems.filter(it => (it.categoryId || 'general') === catKey && it.status === PURCHASING_STATUSES.NEEDED).length;
+          const catPurchased = allProjectItems.filter(it => it.categoryId === catKey && it.status === PURCHASING_STATUSES.PURCHASED).length;
+          const catNeeded = allProjectItems.filter(it => it.categoryId === catKey && it.status === PURCHASING_STATUSES.NEEDED).length;
           if (catPurchased > 0) {
             purchasedLines.push(`• ${catTitle}: ${catPurchased}`);
           }
@@ -1092,7 +1086,7 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
           const purchasedLines = [];
           for (const catKey of categoryOrder) {
             const catTitle = STRUCTURED_TRADE_MAP[catKey]?.title || catKey;
-            const catPurchased = allProjectItems.filter(it => (it.categoryId || 'general') === catKey && it.status === PURCHASING_STATUSES.PURCHASED);
+            const catPurchased = allProjectItems.filter(it => it.categoryId === catKey && it.status === PURCHASING_STATUSES.PURCHASED);
             if (catPurchased.length > 0) {
               purchasedLines.push(`${catTitle}:`);
               for (const it of catPurchased) {
@@ -1259,6 +1253,19 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       const storage = typeof localStorage !== 'undefined' ? localStorage : null;
 
       const addResult = await purchasingService.addItem(targetProjectId, itemInput, quantity, category);
+
+      if (addResult.action === 'NEEDS_CATEGORY') {
+        resultPayload = {
+          success: false,
+          status: 'needs_clarification',
+          needsCategory: true,
+          action: 'NEEDS_CATEGORY',
+          item: addResult.item,
+          message: addResult.message || 'Is that for Quartz, Electrical or Plumbing?'
+        };
+        break;
+      }
+
       const updatedDoc = await purchasingService.exportToGoogleDocMarkdown(targetProjectId);
       if (isMaster) {
         saveMasterPurchasingDoc(storage, updatedDoc, true);

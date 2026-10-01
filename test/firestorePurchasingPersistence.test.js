@@ -196,12 +196,12 @@ describe('Firestore Authoritative Purchasing Persistence Suite', () => {
     const serviceA = new PurchasingService(new TestableFirestoreAdapter(mockDb, localStoreA));
     await serviceA.initializeProjectFromMaster('lot_55');
 
-    // Device A adds pool heater in General Hardware (making 21 items total)
+    // Device A adds pool heater in Quartz Hardware (making 21 items total)
     const addRes = await serviceA.addItem('lot_55', {
       itemName: 'Pool heater',
       quantity: 2,
-      categoryId: 'general',
-      categoryTitle: 'General Hardware & Materials'
+      categoryId: 'quartz',
+      categoryTitle: 'Quartz Hardware'
     });
     assert.equal(addRes.success, true);
 
@@ -218,7 +218,7 @@ describe('Firestore Authoritative Purchasing Persistence Suite', () => {
     const poolHeater = itemsB.find(i => i.itemName.toLowerCase().includes('pool heater'));
     assert.ok(poolHeater, 'Pool heater must exist in Device B view');
     assert.equal(poolHeater.quantity, 2);
-    assert.equal(poolHeater.categoryId, 'general');
+    assert.equal(poolHeater.categoryId, 'quartz');
   });
 
   test('3. Lot 55 Target Intended State: 9 purchased, 12 needed, 21 total across independent instances', async () => {
@@ -227,12 +227,12 @@ describe('Firestore Authoritative Purchasing Persistence Suite', () => {
     const serviceA = new PurchasingService(new TestableFirestoreAdapter(mockDb, localStoreA));
     await serviceA.initializeProjectFromMaster('lot_55');
 
-    // Add pool heater (item 21, Needed, General Hardware)
+    // Add pool heater (item 21, Needed, Quartz Hardware)
     await serviceA.addItem('lot_55', {
       itemName: 'Pool heater',
       quantity: 2,
-      categoryId: 'general',
-      categoryTitle: 'General Hardware & Materials'
+      categoryId: 'quartz',
+      categoryTitle: 'Quartz Hardware'
     });
 
     // Mark 9 electrical items as purchased
@@ -262,11 +262,12 @@ describe('Firestore Authoritative Purchasing Persistence Suite', () => {
       assert.equal(elec.filter(i => i.status === 'purchased').length, 9);
       assert.equal(elec.filter(i => i.status === 'needed').length, 1);
 
-      // Verify General Hardware: 1 needed (Pool heater)
-      const gen = items.filter(i => i.categoryId === 'general');
-      assert.equal(gen.length, 1);
-      assert.equal(gen[0].itemName, 'Pool heater');
-      assert.equal(gen[0].status, 'needed');
+      // Verify Quartz: 3 needed (2 initial + 1 Pool heater)
+      const qz = items.filter(i => i.categoryId === 'quartz');
+      assert.equal(qz.length, 3);
+      const customItem = qz.find(i => i.itemName === 'Pool heater');
+      assert.ok(customItem);
+      assert.equal(customItem.status, 'needed');
     }
   });
 

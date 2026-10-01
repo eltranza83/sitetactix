@@ -145,16 +145,15 @@ test('Scenario 3: Sequential Mutation Flow (Sync -> Add Item -> Sync -> Add Sect
   assert.equal(docAfterResync, doc, 'Re-sync after item addition must be idempotent');
 
   parsed = parseGoogleDocPurchasingStructure(doc);
-  const ins2 = calculateSectionInsertion(parsed, 'Smart Ecobee Thermostat', 1, 'hvac');
+  const ins2 = calculateSectionInsertion(parsed, 'Garbage disposal', 1, 'plumbing');
   const before2 = doc.slice(0, ins2.insertionIndex);
   const after2 = doc.slice(ins2.insertionIndex);
   doc = before2 + ins2.textToInsert + after2;
   adapter.saveProjectDocument('lot_3', doc);
 
   doc = adapter.getProjectDocument('lot_3');
-  assert.ok(doc.includes('## HVAC Hardware & Fixtures'));
-  assert.ok(doc.includes('Smart Ecobee Thermostat'));
-  assert.equal((doc.match(/\n\n\n/g) || []).length, 0, 'No 3+ newlines after adding section');
+  assert.ok(doc.includes('Garbage disposal'));
+  assert.equal((doc.match(/\n\n\n/g) || []).length, 0, 'No 3+ newlines after adding item');
 
   syncMasterPurchasingToProjects(adapter, ['lot_3']);
   const finalDoc = adapter.getProjectDocument('lot_3');

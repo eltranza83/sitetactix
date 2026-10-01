@@ -178,7 +178,7 @@ DocumentId: doc_lot_3_secure_uuid
     // Active project is Lot 3, but user explicitly said "for Lot 55"
     const projectContextLot3 = { projectId: 'lot_3' };
     const res = await executeClientToolCall('add_purchasing_item', { 
-      item: 'smart thermostat', 
+      item: 'dimmer switches', 
       projectId: 'lot_55' 
     }, projectContextLot3);
 
@@ -187,8 +187,8 @@ DocumentId: doc_lot_3_secure_uuid
     const lot55Doc = loadProjectPurchasingDoc(localStorage, 'lot_55');
     const lot3Doc = loadProjectPurchasingDoc(localStorage, 'lot_3');
 
-    assert.ok(lot55Doc.includes('smart thermostat'), 'Lot 55 must receive the item');
-    assert.ok(!lot3Doc.includes('smart thermostat'), 'Lot 3 must NOT receive the item');
+    assert.ok(lot55Doc.includes('dimmer switches'), 'Lot 55 must receive the item');
+    assert.ok(!lot3Doc.includes('dimmer switches'), 'Lot 3 must NOT receive the item');
   });
 
   test('7. Real User Perspective Scenario: Active Lot 3 query -> Switch to Active Lot 37 query -> Add GFCI outlets to Lot 37 only', async () => {

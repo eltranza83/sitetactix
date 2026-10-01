@@ -66,8 +66,8 @@ describe('Google Docs Master Purchasing List Service Suite', () => {
     assert.equal(classifyTradeCategory('shower pan liner').id, 'plumbing');
     assert.equal(classifyTradeCategory('four hole grommets').id, 'quartz');
     assert.equal(classifyTradeCategory('GFCI outlets').id, 'electrical');
-    assert.equal(classifyTradeCategory('smart thermostat').id, 'hvac');
-    assert.equal(classifyTradeCategory('drywall joint compound').id, 'paint_drywall');
+    assert.equal(classifyTradeCategory('smart thermostat'), null);
+    assert.equal(classifyTradeCategory('drywall joint compound'), null);
   });
 
   test('3. Explicit trade override takes priority over keyword matching', () => {
@@ -186,28 +186,28 @@ describe('Google Docs Master Purchasing List Service Suite', () => {
 
   test('11. calculateRemoveSection cleanly removes an entire heading and its contents', () => {
     const docWithExtraSection = `# Master Purchasing Checklist
-## 1. Electrical Hardware Fixtures
-- [ ] Security lights
+## 1. Quartz Hardware
+- [ ] Pass-through caps
 
-## 2. General Hardware & Materials
-- [ ] Hammer
-- [ ] Nails
+## 2. Electrical Hardware Fixtures
+- [ ] Security lights
+- [ ] Dimmer switches
 
 ## 3. Plumbing Hardware Fixtures
 - [ ] Toilets
 `;
     const parsed = parseGoogleDocPurchasingStructure(docWithExtraSection);
-    const removeRes = calculateRemoveSection(parsed, 'general hardware and matt and materials');
+    const removeRes = calculateRemoveSection(parsed, 'electrical hardware fixtures');
     assert.ok(removeRes.found);
-    assert.match(removeRes.section.title, /General Hardware & Materials/i);
+    assert.match(removeRes.section.title, /Electrical Hardware Fixtures/i);
 
     const before = docWithExtraSection.slice(0, removeRes.replaceRange.startIndex);
     const after = docWithExtraSection.slice(removeRes.replaceRange.endIndex);
     const updated = before + removeRes.replacementText + after;
 
-    assert.ok(!updated.includes('General Hardware & Materials'));
-    assert.ok(!updated.includes('Hammer'));
-    assert.ok(updated.includes('Electrical Hardware Fixtures'));
+    assert.ok(!updated.includes('Electrical Hardware Fixtures'));
+    assert.ok(!updated.includes('Security lights'));
+    assert.ok(updated.includes('Quartz Hardware'));
     assert.ok(updated.includes('Plumbing Hardware Fixtures'));
   });
 });
