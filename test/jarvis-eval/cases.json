@@ -1,0 +1,336 @@
+[
+  {
+    "id": "M1",
+    "category": "Money",
+    "say": "Jarvis, how much do we owe the electrician?",
+    "lang": "en",
+    "expect": {
+      "tools": ["get_contractor_balance"],
+      "argsInclude": { "contractor": "electrician" },
+      "answerIncludes": ["Volt Masters", "6,500"],
+      "noWrites": true
+    },
+    "never": ["invent a number", "no tool call"]
+  },
+  {
+    "id": "M2",
+    "category": "Money",
+    "say": "How much do we owe the electrician?",
+    "lang": "en",
+    "expect": {
+      "tools": ["get_contractor_balance"],
+      "argsInclude": { "contractor": "electrician" },
+      "answerIncludes": ["Volt Masters", "6,500"],
+      "noWrites": true
+    },
+    "never": ["invent a number", "no tool call"]
+  },
+  {
+    "id": "M3",
+    "category": "Money",
+    "say": "How much money have we spent in total framing?",
+    "lang": "en",
+    "expect": {
+      "tools": ["get_spending"],
+      "argsInclude": { "phase": "Framing" },
+      "answerIncludes": ["75,200"],
+      "noWrites": true
+    },
+    "never": ["invent spending numbers"]
+  },
+  {
+    "id": "M4",
+    "category": "Money",
+    "say": "How much money have we spent total for this project?",
+    "lang": "en",
+    "expect": {
+      "tools": ["get_project_summary"],
+      "answerIncludes": ["186,450"],
+      "noWrites": true
+    },
+    "never": ["invent spending numbers"]
+  },
+  {
+    "id": "M5",
+    "category": "Money",
+    "say": "What's the remaining balance with the plumber, how much do we still owe him?",
+    "lang": "en",
+    "expect": {
+      "tools": ["get_contractor_balance"],
+      "argsInclude": { "contractor": "plumber" },
+      "answerIncludes": ["Apex Plumbing", "4,500"],
+      "noWrites": true
+    },
+    "never": ["invent balance"]
+  },
+  {
+    "id": "R1",
+    "category": "Receipts",
+    "say": "Can you tell me where we bought the uh Sheetrock, the drywall?",
+    "lang": "en",
+    "expect": {
+      "tools": ["search_payments"],
+      "answerIncludes": ["Lowe's"],
+      "noWrites": true
+    },
+    "never": ["guess a store"]
+  },
+  {
+    "id": "R2",
+    "category": "Receipts",
+    "say": "Where did we purchase the cement for the backsplash wall?",
+    "lang": "en",
+    "expect": {
+      "tools": ["search_payments"],
+      "answerIncludes": ["Floor & Decor"],
+      "noWrites": true
+    },
+    "never": ["guess a store"]
+  },
+  {
+    "id": "R3",
+    "category": "Receipts",
+    "say": "Can you pull up the tile receipt that we have from Vodilias Tile to see what tile it is that we purchased?",
+    "lang": "en",
+    "expect": {
+      "tools": ["search_payments"],
+      "answerIncludes": ["Bodilios", "Porcelain"],
+      "noWrites": true
+    },
+    "never": ["invent tile details"]
+  },
+  {
+    "id": "R4",
+    "category": "Receipts",
+    "say": "Can you show me the backsplash receipt that uh for the tile that we bought at Floor and Decor?",
+    "lang": "en",
+    "expect": {
+      "tools": ["search_payments"],
+      "answerIncludes": ["Floor & Decor"],
+      "noWrites": true
+    },
+    "never": ["invent receipt details"]
+  },
+  {
+    "id": "R5",
+    "category": "Receipts",
+    "say": "The tile guy says we need three more boxes of the shower tile, where did we buy it and what's it called?",
+    "lang": "en",
+    "expect": {
+      "tools": ["search_payments"],
+      "answerIncludes": ["Floor & Decor", "Artisan White Subway Tile", "FD-SUB-9821"],
+      "noWrites": true
+    },
+    "never": ["invent a SKU or product name"]
+  },
+  {
+    "id": "R6",
+    "category": "Receipts",
+    "say": "Show me what files we have in the Home Depot folder.",
+    "lang": "en",
+    "expect": {
+      "tools": ["list_folder_files"],
+      "argsInclude": { "folder": "Home Depot" },
+      "answerIncludes": ["2x4 Lumber", "Tile mortar"],
+      "noWrites": true
+    },
+    "never": ["invent files", "open the wrong folder"]
+  },
+  {
+    "id": "R7",
+    "category": "Receipts",
+    "say": "Pull up the tile receipt.",
+    "dependsOn": "R6",
+    "lang": "en",
+    "expect": {
+      "tools": ["open_file"],
+      "argsInclude": { "fileId": "drv_hd_02" },
+      "answerIncludes": ["Tile mortar"],
+      "noWrites": true
+    },
+    "never": ["open a file not in the list"]
+  },
+  {
+    "id": "R8",
+    "category": "Receipts",
+    "say": "Show me the files in the Lowe's folder",
+    "followUp": "that one, the second one",
+    "lang": "en",
+    "expect": {
+      "tools": ["list_folder_files", "open_file"],
+      "argsInclude": { "folder": "Lowe's", "fileId": "drv_lowes_02" },
+      "noWrites": true
+    },
+    "never": ["open a file not in the list"]
+  },
+  {
+    "id": "P1",
+    "category": "Purchasing",
+    "say": "Add a ring doorbell to the electrician purchasing list.",
+    "lang": "en",
+    "expect": {
+      "tools": ["add_purchasing_item"],
+      "argsInclude": { "item": "ring doorbell", "trade": "electrical" },
+      "noWrites": false
+    },
+    "never": ["refuse", "add to another trade"]
+  },
+  {
+    "id": "P2",
+    "category": "Purchasing",
+    "say": "Can you check if we already bought the seating fans for this project?",
+    "lang": "en",
+    "expect": {
+      "tools": ["get_purchasing_list"],
+      "noWrites": true
+    },
+    "never": ["write anything"]
+  },
+  {
+    "id": "P3",
+    "category": "Purchasing",
+    "say": "Jarvis, we already bought the toilets for this project, so go ahead and uh scratch them off.",
+    "lang": "en",
+    "expect": {
+      "tools": ["set_purchasing_status"],
+      "argsInclude": { "status": "purchased" },
+      "noWrites": false
+    },
+    "never": ["delete the item"]
+  },
+  {
+    "id": "P4",
+    "category": "Purchasing",
+    "say": "We already purchased the Ceiling fans for the electrician so remove those.",
+    "lang": "en",
+    "expect": {
+      "tools": ["set_purchasing_status"],
+      "argsInclude": { "status": "purchased" },
+      "noWrites": false
+    },
+    "never": ["delete the item", "act on another trade"]
+  },
+  {
+    "id": "C1",
+    "category": "Reminders",
+    "say": "Can you remind me tomorrow to call the electrician at two p.m.",
+    "lang": "en",
+    "expect": {
+      "tools": ["add_reminder"],
+      "argsInclude": { "text": "electrician" },
+      "noWrites": false
+    },
+    "never": ["set wrong time", "refuse"]
+  },
+  {
+    "id": "C2",
+    "category": "Reminders",
+    "say": "Remind me tomorrow at noon that I need to go buy the grout for the tile",
+    "lang": "en",
+    "expect": {
+      "tools": ["add_reminder"],
+      "argsInclude": { "text": "grout" },
+      "noWrites": false
+    },
+    "never": ["set wrong time", "refuse"]
+  },
+  {
+    "id": "C3",
+    "category": "Reminders",
+    "say": "Remind me tomorrow at two P.m. to pick up the documents at the title company",
+    "lang": "en",
+    "expect": {
+      "tools": ["add_reminder"],
+      "argsInclude": { "text": "title company" },
+      "noWrites": false
+    },
+    "never": ["set wrong time", "refuse"]
+  },
+  {
+    "id": "C4",
+    "category": "Reminders",
+    "say": "Chipotle restaurant is having a sale tomorrow, I wanna have lunch there tomorrow, so remind me at about 11am to have lunch at Chipotle to take advantage of their special.",
+    "lang": "en",
+    "expect": {
+      "tools": ["add_reminder"],
+      "argsInclude": { "text": "Chipotle" },
+      "noWrites": false
+    },
+    "never": ["set wrong time", "refuse"]
+  },
+  {
+    "id": "C5",
+    "category": "Reminders",
+    "say": "Hey Jarvis, what reminders do we have set up for today?",
+    "lang": "en",
+    "expect": {
+      "tools": ["list_reminders"],
+      "noWrites": true
+    },
+    "never": ["invent reminders"]
+  },
+  {
+    "id": "E1",
+    "category": "Expenses",
+    "say": "Jarvis, I just pumped the gas at Stripes today for $50. Can you help me draft a receipt for that?",
+    "lang": "en",
+    "expect": {
+      "tools": ["stage_expense"],
+      "argsInclude": { "vendor": "Stripes", "amount": 50, "costType": "material", "phase": "Extra Costs & Misc" },
+      "answerIncludes": ["Stripes", "50"],
+      "noWrites": false
+    },
+    "never": ["create draft before user says yes", "pick invalid phase"]
+  },
+  {
+    "id": "S1",
+    "category": "Spanish",
+    "say": "Cuanto le dememos ar electricista.",
+    "lang": "es",
+    "expect": {
+      "tools": ["get_contractor_balance"],
+      "argsInclude": { "contractor": "electric" },
+      "answerIncludes": ["Volt Masters", "6,500"],
+      "noWrites": true
+    },
+    "never": ["invent a number", "answer in English"]
+  },
+  {
+    "id": "S2",
+    "category": "Spanish",
+    "say": "Que balance tenemos con el plomero.",
+    "lang": "es",
+    "expect": {
+      "tools": ["get_contractor_balance"],
+      "argsInclude": { "contractor": "plo" },
+      "answerIncludes": ["Apex Plumbing", "4,500"],
+      "noWrites": true
+    },
+    "never": ["invent a number"]
+  },
+  {
+    "id": "S3",
+    "category": "Spanish",
+    "say": "Que falta combrarle al eletricista..",
+    "lang": "es",
+    "expect": {
+      "tools": ["get_purchasing_list"],
+      "argsInclude": { "trade": "electric" },
+      "noWrites": true
+    },
+    "never": ["write anything", "list another trade"]
+  },
+  {
+    "id": "S4",
+    "category": "Spanish",
+    "say": "Recordame mañana a las dos de la tarde que le tenemos que llamar al plomero.",
+    "lang": "es",
+    "expect": {
+      "tools": ["add_reminder"],
+      "argsInclude": { "text": "plomero" },
+      "answerIncludes": ["plomero", "2:00 PM"],
+      "noWrites": false
+    },
+    "never": ["wrong time", "02:00:00"]
+  }
+]

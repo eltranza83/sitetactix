@@ -14,11 +14,14 @@ import {
   saveProjectDriveTree,
   loadProjectDashboard
 } from '../services/builderBrainService';
+import { askNewJarvis } from '../services/jarvis/jarvisCore';
 import {
   fetchProjectFinishes,
   saveFinishSpec
 } from '../services/finishService';
 import { runAllAiToolDiagnostics } from '../services/aiTools';
+import { getCachedDashboardSpreadsheetId } from '../services/dashboardDrive';
+import { getFirebaseAuthInstance } from '../services/firebase';
 import { AI_CONFIG } from '../config/aiConfig';
 import {
   fetchProjectDriveTree,
@@ -684,11 +687,41 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
 
       const currentDashboard = loadProjectDashboard(projectId);
       const forceDeepReasoning = false;
-      const answerPayload = await askGeminiBrain(query, [], projectName, apiKey, currentDashboard, projectId, messages, currentLiveTree, fileAttachment, forceDeepReasoning, googleToken, {
-        onNavigateTab,
-        projectFolderId: activeProject?.folderId || selectedFolder?.id || null,
-        onOpenDocument: (file) => setActivePreviewFile(file)
-      });
+
+      const engineMode = (() => {
+        try {
+          return localStorage.getItem('jarvis_engine_mode') || 'classic';
+        } catch {
+          return 'classic';
+        }
+      })();
+
+      let answerPayload;
+      if (engineMode === 'new') {
+        const sheetId = (typeof window !== 'undefined' && window.localStorage && projectId)
+          ? getCachedDashboardSpreadsheetId(window.localStorage, projectId)
+          : (activeProject?.spreadsheetId || null);
+
+        answerPayload = await askNewJarvis(query, {
+          projectId,
+          projectName,
+          googleToken,
+          currentDashboard,
+          spreadsheetId: sheetId,
+          driveTree: currentLiveTree,
+          messages,
+          apiKey,
+          onOpenDocument: (file) => setActivePreviewFile(file),
+          uid: getFirebaseAuthInstance()?.currentUser?.uid || null
+        });
+      } else {
+        answerPayload = await askGeminiBrain(query, [], projectName, apiKey, currentDashboard, projectId, messages, currentLiveTree, fileAttachment, forceDeepReasoning, googleToken, {
+          onNavigateTab,
+          projectFolderId: activeProject?.folderId || selectedFolder?.id || null,
+          onOpenDocument: (file) => setActivePreviewFile(file)
+        });
+      }
+
       const answer = typeof answerPayload === 'object' && answerPayload.text !== undefined ? answerPayload.text : String(answerPayload || '');
       const telemetry = typeof answerPayload === 'object' && answerPayload.telemetry ? answerPayload.telemetry : null;
 

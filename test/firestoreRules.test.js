@@ -358,5 +358,37 @@ describe('Firestore Security Rules Emulator Test Suite', { skip: !hasEmulator ? 
     const postDeleteSnap = await assertSucceeds(getDocs(q));
     assert.equal(postDeleteSnap.docs.some(d => d.id === prefId), false, 'Deleted preference must not exist in cloud query for Device 2');
   });
+
+  // 13. Calendar preference storage & permissions
+  it('13. Non-existent calendar preference returns permission-denied on get; owner can create/read, non-owner cannot', async () => {
+    const userADb = getContext({ uid: USER_A_UID, email: USER_A_EMAIL }).firestore();
+    const userBDb = getContext({ uid: USER_B_UID, email: USER_B_EMAIL }).firestore();
+    const calDocRef = doc(userADb, 'user_preferences', `calendar_${USER_A_UID}`);
+    const userBCalDocRef = doc(userBDb, 'user_preferences', `calendar_${USER_A_UID}`);
+
+    // 1. Reading a non-existent document fails with permission-denied because resource.data is null
+    await assertFails(getDoc(calDocRef));
+
+    // 2. Owner can create the calendar preference with their uid
+    await assertSucceeds(setDoc(calDocRef, {
+      uid: USER_A_UID,
+      calendarId: 'cal-lot3-reminders-id',
+      updatedAt: new Date().toISOString()
+    }));
+
+    // 3. Owner can read their existing calendar preference
+    await assertSucceeds(getDoc(calDocRef));
+
+    // 4. Non-owner (User B) cannot read User A's calendar preference
+    await assertFails(getDoc(userBCalDocRef));
+
+    // 5. Non-owner (User B) cannot overwrite or update User A's calendar preference
+    await assertFails(setDoc(userBCalDocRef, {
+      uid: USER_B_UID,
+      calendarId: 'malicious-cal-id',
+      updatedAt: new Date().toISOString()
+    }));
+  });
 });
+
 

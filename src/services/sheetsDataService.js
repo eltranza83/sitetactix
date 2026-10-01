@@ -252,7 +252,7 @@ export function finalizeBlock(block, phaseStatuses = {}, fallbackSummaryMeta = n
   const sheetName = block.categorySheetName || block.category || 'Category';
 
   block.rows.forEach((row, idx) => {
-    const rowNumber = block.startRowIndex ? (block.startRowIndex + idx) : (idx + 1);
+    const rowNumber = row.rowNumber || (block.startRowIndex ? (block.startRowIndex + idx) : (idx + 1));
     const colB = String(row[1] || '').trim(); // Vendor
     const colC = String(row[2] || '').trim(); // Material Cost
     const colD = String(row[3] || '').trim(); // Labor Cost
@@ -331,7 +331,8 @@ export function finalizeBlock(block, phaseStatuses = {}, fallbackSummaryMeta = n
         materialCost: isFormulaError(colC) ? colC : (colC || '$0.00'),
         laborCost: isFormulaError(colD) ? colD : (colD || '$0.00'),
         date: normalizeSpreadsheetDate(colE),
-        checkNumber: colF || 'N/A'
+        checkNumber: colF || 'N/A',
+        rowNumber: rowNumber
       });
     }
   });
@@ -378,6 +379,7 @@ export function finalizeBlock(block, phaseStatuses = {}, fallbackSummaryMeta = n
   return {
     id: `sub_${block.phase.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}`,
     category: block.category,
+    categorySheetName: block.categorySheetName,
     phase: block.phase,
     payee: payee,
     originalQuote: originalQuote,
@@ -425,10 +427,12 @@ export function parseCategorySheet(sheetName, rows, phaseStatuses = {}, summaryS
         categorySheetName: sheetName,
         phase: phaseName,
         startRowIndex: r + 1,
-        rows: [row]
+        rows: []
       };
-    } else if (currentBlock) {
-      // Append row to the active phase block
+    }
+
+    if (currentBlock) {
+      row.rowNumber = r + 1;
       currentBlock.rows.push(row);
     }
   }

@@ -20,15 +20,16 @@ function apiDevPlugin() {
     name: 'api-dev-middleware',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url === '/api/ask-brain' && req.method === 'POST') {
+        if ((req.url === '/api/ask-brain' || req.url === '/api/jarvis') && req.method === 'POST') {
           try {
             const chunks = [];
             for await (const chunk of req) {
               chunks.push(chunk);
             }
             const bodyBuffer = Buffer.concat(chunks);
-            const { POST } = await import('./api/ask-brain.js');
-            const webRequest = new Request('http://localhost:5173/api/ask-brain', {
+            const routePath = req.url === '/api/jarvis' ? './api/jarvis.js' : './api/ask-brain.js';
+            const { POST } = await import(routePath);
+            const webRequest = new Request(`http://localhost:5173${req.url}`, {
               method: 'POST',
               headers: req.headers,
               body: bodyBuffer
@@ -41,7 +42,7 @@ function apiDevPlugin() {
             const responseText = await webResponse.text();
             res.end(responseText);
           } catch (err) {
-            console.error('Error executing /api/ask-brain in dev server:', err);
+            console.error(`Error executing ${req.url} in dev server:`, err);
             res.statusCode = 500;
             res.end(JSON.stringify({ error: err.message }));
           }
