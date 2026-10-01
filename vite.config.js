@@ -60,13 +60,16 @@ export default defineConfig(({ mode }) => {
 
   const commitSha = getCommitSha();
   const buildLabel = commitSha ? `v${pkg.version} · ${commitSha}` : `v${pkg.version}`;
+  const releaseName = pkg.releaseName || 'Security rules & sync reliability';
   process.env.VITE_APP_VERSION = pkg.version;
   process.env.VITE_APP_BUILD_LABEL = buildLabel;
+  process.env.VITE_APP_RELEASE_NAME = releaseName;
 
   return {
     define: {
       'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
-      'import.meta.env.VITE_APP_BUILD_LABEL': JSON.stringify(buildLabel)
+      'import.meta.env.VITE_APP_BUILD_LABEL': JSON.stringify(buildLabel),
+      'import.meta.env.VITE_APP_RELEASE_NAME': JSON.stringify(releaseName)
     },
     plugins: [react(), apiDevPlugin()],
   build: {

@@ -1,12 +1,6 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
-// If picked up automatically by node --test runner during `npm test`, exit immediately with 0
-// so that rules tests only run when explicitly invoked via `npm run test:rules`.
-if (process.env.NODE_TEST_CONTEXT || process.execArgv.includes('--test')) {
-  process.exit(0);
-}
-
 // Cross-platform helper: ensure Java 21 is reachable in environments where PATH wasn't reloaded
 if (process.platform === 'win32') {
   const javaHome = process.env.JAVA_HOME || 'C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.12.101-hotspot';

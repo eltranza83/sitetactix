@@ -7,7 +7,7 @@ import SettingsGoogleConnectionCard from './SettingsGoogleConnectionCard';
 import SettingsProjectProfilesCard from './SettingsProjectProfilesCard';
 import { useSettingsAdmin } from '../hooks/useSettingsAdmin';
 import { useSettingsProjects } from '../hooks/useSettingsProjects';
-import { APP_BUILD_LABEL } from '../config/appConfig';
+import { APP_BUILD_LABEL, APP_RELEASE_NAME } from '../config/appConfig';
 
 export default function Settings({
   googleClientId: _googleClientId,
@@ -90,7 +90,7 @@ export default function Settings({
           SiteTactix Build <span style={{ color: 'var(--color-amber-400)' }}>{APP_BUILD_LABEL}</span>
         </div>
         <div style={{ fontSize: '0.7rem', color: 'var(--color-zinc-500)', marginTop: '4px' }}>
-          Verified Auth Security • Authoritative Preferences & Cloud Sync
+          {APP_RELEASE_NAME}
         </div>
       </div>
 

@@ -41,7 +41,6 @@ jobs:
 
       - name: Firestore Security Rules Emulator Tests
         run: npm run test:rules
-        continue-on-error: true
 
       - name: Production Build
         run: npm run build
