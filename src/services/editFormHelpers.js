@@ -47,9 +47,70 @@ export function isValidPhase(category, phase) {
 export function isDraftPhaseValid(metadata) {
   if (!metadata) return false;
   if (Array.isArray(metadata.splits) && metadata.splits.length > 0) {
-    return metadata.splits.every(split => isValidPhase(split.tradeCategory, split.tradePhase));
+    return metadata.splits.every(split => isValidPhase(split.tradeCategory || metadata.tradeCategory, split.tradePhase));
   }
   return isValidPhase(metadata.tradeCategory, metadata.tradePhase);
+}
+
+export function distributeReceiptTotalToSplits(splitBaseAmounts, receiptTotal) {
+  if (!Array.isArray(splitBaseAmounts) || splitBaseAmounts.length === 0) {
+    return [];
+  }
+
+  const receiptCents = Math.round((parseFloat(receiptTotal) || 0) * 100);
+  const baseCents = splitBaseAmounts.map(amt => Math.max(0, Math.round((parseFloat(amt) || 0) * 100)));
+  const totalBaseCents = baseCents.reduce((sum, c) => sum + c, 0);
+
+  if (totalBaseCents === 0) {
+    if (receiptCents === 0) {
+      return baseCents.map(() => '0.00');
+    }
+    const equalShare = Math.floor(receiptCents / baseCents.length);
+    let remainder = receiptCents % baseCents.length;
+    return baseCents.map(() => {
+      const share = equalShare + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder--;
+      return (share / 100).toFixed(2);
+    });
+  }
+
+  const diffCents = receiptCents - totalBaseCents;
+
+  const resultCents = baseCents.map(base => {
+    const proportionalDiff = Math.round(diffCents * (base / totalBaseCents));
+    return base + proportionalDiff;
+  });
+
+  const allocatedTotal = resultCents.reduce((sum, c) => sum + c, 0);
+  const leftoverCents = receiptCents - allocatedTotal;
+
+  if (leftoverCents !== 0) {
+    let largestIdx = 0;
+    for (let i = 1; i < baseCents.length; i++) {
+      if (baseCents[i] > baseCents[largestIdx]) {
+        largestIdx = i;
+      }
+    }
+    resultCents[largestIdx] += leftoverCents;
+  }
+
+  return resultCents.map(cents => (cents / 100).toFixed(2));
+}
+
+export function checkLineItemsDiscrepancy(lineItemsTotal, receiptTotal, thresholdRatio = 0.15) {
+  const lineTotalNum = parseFloat(lineItemsTotal) || 0;
+  const receiptTotalNum = parseFloat(receiptTotal) || 0;
+  if (receiptTotalNum <= 0 || lineTotalNum <= 0) {
+    return { isDiscrepant: false, lineItemsTotal: lineTotalNum, receiptTotal: receiptTotalNum, diff: 0 };
+  }
+  const diff = Math.abs(receiptTotalNum - lineTotalNum);
+  const threshold = receiptTotalNum * thresholdRatio;
+  return {
+    isDiscrepant: diff > threshold,
+    lineItemsTotal: lineTotalNum,
+    receiptTotal: receiptTotalNum,
+    diff
+  };
 }
 
 export const ROUTING_TEST_SPLITS = Object.entries(TRADE_SECTIONS_CONFIG)

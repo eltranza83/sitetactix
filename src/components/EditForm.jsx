@@ -9,21 +9,12 @@ import {
   compressImage,
   hasWholeWord,
   isValidPhase,
-  suggestSplitId
+  suggestSplitId,
+  distributeReceiptTotalToSplits,
+  checkLineItemsDiscrepancy
 } from '../services/editFormHelpers';
 
 export default function EditForm({ stagedItem, onSave, onCancel, history = [], stagedItems = [], projects = [] }) {
-  // Fallback mock items for existing user drafts
-  if (!stagedItem.metadata.lineItems && stagedItem.metadata.vendor?.toLowerCase().includes('home depot')) {
-    const totalAmt = parseFloat(stagedItem.metadata.amount);
-    if (Math.abs(totalAmt - 206.92) < 0.05) {
-      stagedItem.metadata.lineItems = [
-        { description: 'PVC elbow & rough-in shower valve', price: 156.60 },
-        { description: 'wire box & light switches pack', price: 50.32 }
-      ];
-    }
-  }
-
   const [formData, setFormData] = useState({
     type: stagedItem.metadata.type || 'invoice',
     description: stagedItem.metadata.description || '',
@@ -99,6 +90,8 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
   const [manualAllocations, setManualAllocations] = useState({});
   // Track manual split descriptions so auto-generator doesn't override them
   const [manualDescriptions, setManualDescriptions] = useState({});
+  // Track manual split amounts typed by user so line-item reallocations don't override them
+  const [manualAmounts, setManualAmounts] = useState({});
   const isRoutingTestLoaded = splits.some(split => String(split.id || '').startsWith('routing_test_'));
 
   useEffect(() => {
@@ -136,10 +129,22 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
       // Calculate sums and descriptions based on current allocations
       setSplits(currentSplits => {
         let changed = false;
-        const updated = currentSplits.map(s => {
+
+        const splitBaseSums = currentSplits.map(s => {
           const itemsForThisSplit = (stagedItem.metadata.lineItems || []).filter((_, idx) => itemAllocations[idx] === s.id);
-          const sum = itemsForThisSplit.reduce((acc, item) => acc + (parseFloat(item.price) || 0), 0);
-          const amtStr = sum > 0 ? sum.toFixed(2) : '';
+          return itemsForThisSplit.reduce((acc, item) => acc + (parseFloat(item.price) || 0), 0);
+        });
+
+        const receiptTotalVal = parseFloat(formData.amount) || 0;
+        const distributedAmounts = distributeReceiptTotalToSplits(splitBaseSums, receiptTotalVal);
+
+        const updated = currentSplits.map((s, sIdx) => {
+          const itemsForThisSplit = (stagedItem.metadata.lineItems || []).filter((_, idx) => itemAllocations[idx] === s.id);
+          
+          let amtStr = s.amount;
+          if (!manualAmounts[s.id]) {
+            amtStr = distributedAmounts[sIdx] || '';
+          }
           
           let descStr = s.description;
           if (!manualDescriptions[s.id]) {
@@ -157,14 +162,12 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         });
         
         if (changed) {
-          const totalSum = updated.reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0);
-          setFormData(f => ({ ...f, amount: totalSum || '' }));
           return updated;
         }
         return currentSplits;
       });
     }
-  }, [itemAllocations, stagedItem.metadata.lineItems, manualDescriptions, isRoutingTestLoaded]);
+  }, [itemAllocations, stagedItem.metadata.lineItems, manualDescriptions, manualAmounts, isRoutingTestLoaded, formData.amount]);
 
   const handleAllocateItem = (itemIdx, splitId) => {
     setManualAllocations(prev => ({ ...prev, [itemIdx]: true }));
@@ -172,10 +175,22 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
       const next = { ...prev, [itemIdx]: splitId };
       
       setSplits(currentSplits => {
-        const updated = currentSplits.map(s => {
+        const splitBaseSums = currentSplits.map(s => {
           const itemsForThisSplit = (stagedItem.metadata.lineItems || []).filter((_, idx) => next[idx] === s.id);
-          const sum = itemsForThisSplit.reduce((acc, item) => acc + (parseFloat(item.price) || 0), 0);
+          return itemsForThisSplit.reduce((acc, item) => acc + (parseFloat(item.price) || 0), 0);
+        });
+
+        const receiptTotalVal = parseFloat(formData.amount) || 0;
+        const distributedAmounts = distributeReceiptTotalToSplits(splitBaseSums, receiptTotalVal);
+
+        const updated = currentSplits.map((s, sIdx) => {
+          const itemsForThisSplit = (stagedItem.metadata.lineItems || []).filter((_, idx) => next[idx] === s.id);
           
+          let amtStr = s.amount;
+          if (!manualAmounts[s.id]) {
+            amtStr = distributedAmounts[sIdx] || '';
+          }
+
           let descStr = s.description;
           if (!manualDescriptions[s.id]) {
             descStr = itemsForThisSplit.map(item => item.description).join(', ');
@@ -183,13 +198,10 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
 
           return {
             ...s,
-            amount: sum > 0 ? sum.toFixed(2) : '',
+            amount: amtStr,
             description: descStr
           };
         });
-        
-        const totalSum = updated.reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0);
-        setFormData(f => ({ ...f, amount: totalSum || '' }));
         
         return updated;
       });
@@ -288,29 +300,48 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
   const handleRemoveSplit = (id) => {
     if (splits.length <= 1) return;
     setSplits(prev => prev.filter(s => s.id !== id));
+    setManualAmounts(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const handleSplitChange = (id, field, value) => {
     if (field === 'description') {
       setManualDescriptions(prev => ({ ...prev, [id]: true }));
     }
-    setSplits(prev => prev.map(s => {
-      if (s.id === id) {
-        const updated = { ...s, [field]: value };
-        // If updating split amounts, keep main formData.amount updated as the sum in real-time
-        if (field === 'amount') {
-          setTimeout(() => {
-            setSplits(currentSplits => {
-              const sum = currentSplits.reduce((acc, sp) => acc + (parseFloat(sp.amount) || 0), 0);
-              setFormData(f => ({ ...f, amount: sum || '' }));
-              return currentSplits;
-            });
-          }, 10);
-        }
-        return updated;
+    if (field === 'amount') {
+      setManualAmounts(prev => ({ ...prev, [id]: true }));
+    }
+
+    setSplits(prev => {
+      const isFirstSplit = prev[0]?.id === id;
+      const hasLineItems = Array.isArray(stagedItem.metadata.lineItems) && stagedItem.metadata.lineItems.length > 0;
+      const shouldAutoAdjustFirst = !hasLineItems && !isFirstSplit && !manualAmounts[prev[0]?.id];
+
+      let firstSplitNewAmount = null;
+      if (field === 'amount' && shouldAutoAdjustFirst) {
+        const receiptTotalVal = parseFloat(formData.amount) || 0;
+        const otherSplitsSum = prev.reduce((acc, s) => {
+          if (s.id === prev[0]?.id) return acc;
+          const val = s.id === id ? (parseFloat(value) || 0) : (parseFloat(s.amount) || 0);
+          return acc + val;
+        }, 0);
+        const remainder = Math.max(0, receiptTotalVal - otherSplitsSum);
+        firstSplitNewAmount = remainder.toFixed(2);
       }
-      return s;
-    }));
+
+      return prev.map((s, idx) => {
+        if (s.id === id) {
+          return { ...s, [field]: value };
+        }
+        if (idx === 0 && firstSplitNewAmount !== null) {
+          return { ...s, amount: firstSplitNewAmount };
+        }
+        return s;
+      });
+    });
   };
 
   const handleChange = (e) => {
@@ -436,12 +467,18 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
   };
 
   const isPhaseValid = isSplit
-    ? (splits.length > 0 && splits.every(s => isValidPhase(s.tradeCategory, s.tradePhase)))
+    ? (splits.length > 0 && splits.every(s => isValidPhase(s.tradeCategory || formData.tradeCategory, s.tradePhase)))
     : isValidPhase(formData.tradeCategory, formData.tradePhase);
+
+  const splitsTotal = isSplit ? splits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0) : 0;
+  const receiptTotalNum = parseFloat(formData.amount) || 0;
+  const isSplitBalanced = !isSplit || Math.abs(splitsTotal - receiptTotalNum) < 0.005;
+  const splitDiff = receiptTotalNum - splitsTotal;
+  const canSave = isPhaseValid && isSplitBalanced;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!isPhaseValid) return;
+    if (!canSave) return;
     
     let finalAmount = parseFloat(formData.amount) || 0;
     let finalSplits = null;
@@ -874,14 +911,10 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                   setManualAllocations({});
                   setItemAllocations({});
                   setManualDescriptions({});
+                  setManualAmounts({});
                   const activeName = formData.lotNumber || '';
-                  let otherName = '';
-                  if (projects && projects.length === 2) {
-                    const otherProj = projects.find(p => p.name !== activeName);
-                    if (otherProj) {
-                      otherName = otherProj.name;
-                    }
-                  }
+                  const hasLineItems = Array.isArray(stagedItem.metadata.lineItems) && stagedItem.metadata.lineItems.length > 0;
+                  const receiptAmtStr = formData.amount ? (parseFloat(formData.amount) || 0).toFixed(2) : '';
 
                   // Scan line items for trade categories
                   const detectedTrades = [];
@@ -944,7 +977,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                   setSplits([
                     {
                       id: 'split_init_1',
-                      amount: '',
+                      amount: hasLineItems ? '' : receiptAmtStr,
                       costCategory: formData.costCategory || 'material',
                       lotNumber: activeName,
                       description: '',
@@ -955,7 +988,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                       id: 'split_init_2',
                       amount: '',
                       costCategory: formData.costCategory || 'material',
-                      lotNumber: otherName || activeName,
+                      lotNumber: activeName,
                       description: '',
                       tradeCategory: split2Trade.tradeCategory,
                       tradePhase: split2Trade.tradePhase
@@ -984,7 +1017,34 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
           {isSplit && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--color-zinc-800)', paddingTop: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#F1D7A7' }}>Splits List</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#F1D7A7' }}>Splits List</span>
+                  {isSplitBalanced ? (
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      color: '#34d399',
+                      backgroundColor: 'rgba(52, 211, 153, 0.12)',
+                      border: '1px solid rgba(52, 211, 153, 0.3)',
+                      borderRadius: '12px',
+                      padding: '2px 8px'
+                    }}>
+                      Balanced (${receiptTotalNum.toFixed(2)})
+                    </span>
+                  ) : (
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      color: '#fbbf24',
+                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                      border: '1px solid rgba(245, 158, 11, 0.35)',
+                      borderRadius: '12px',
+                      padding: '2px 8px'
+                    }}>
+                      Off by ${Math.abs(splitDiff).toFixed(2)}
+                    </span>
+                  )}
+                </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <button
                     type="button"
@@ -1163,69 +1223,91 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
               </div>
             
             {/* Line Items Allocator Section */}
-              {stagedItem.metadata.lineItems && stagedItem.metadata.lineItems.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--color-zinc-800)', paddingTop: '12px', marginTop: '8px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-amber-400)' }}>Allocate Line Items</span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--color-zinc-500)' }}>Select the destination lot for each item. Amounts update automatically.</span>
-                  </div>
+              {stagedItem.metadata.lineItems && stagedItem.metadata.lineItems.length > 0 && (() => {
+                const lineItemsSum = stagedItem.metadata.lineItems.reduce((acc, it) => acc + (parseFloat(it.price) || 0), 0);
+                const discrepancy = checkLineItemsDiscrepancy(lineItemsSum, receiptTotalNum, 0.15);
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
-                    {stagedItem.metadata.lineItems.map((item, idx) => {
-                      const allocatedSplitId = itemAllocations[idx];
-                      return (
-                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-zinc-950)', border: '1px solid var(--color-zinc-850)', padding: '8px 10px', borderRadius: '6px', gap: '10px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                            <span style={{ fontSize: '0.74rem', color: 'var(--color-zinc-200)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }} title={item.description}>
-                              {item.description}
-                            </span>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-zinc-400)' }}>
-                              ${Number(item.price || 0).toFixed(2)}
-                            </span>
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--color-zinc-800)', paddingTop: '12px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-amber-400)' }}>Allocate Line Items</span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--color-zinc-500)' }}>Select the destination lot for each item. Amounts update automatically.</span>
+                    </div>
+
+                    {discrepancy.isDiscrepant && (
+                      <div style={{
+                        fontSize: '0.72rem',
+                        color: '#fbbf24',
+                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                        borderRadius: '6px',
+                        padding: '6px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        marginTop: '2px'
+                      }}>
+                        <span>Line items total ${discrepancy.lineItemsTotal.toFixed(2)} but the receipt is ${discrepancy.receiptTotal.toFixed(2)}. Check for a missed or misread item.</span>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {stagedItem.metadata.lineItems.map((item, idx) => {
+                        const allocatedSplitId = itemAllocations[idx];
+                        return (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-zinc-950)', border: '1px solid var(--color-zinc-850)', padding: '8px 10px', borderRadius: '6px', gap: '10px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                              <span style={{ fontSize: '0.74rem', color: 'var(--color-zinc-200)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }} title={item.description}>
+                                {item.description}
+                              </span>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-zinc-400)' }}>
+                                ${Number(item.price || 0).toFixed(2)}
+                              </span>
+                            </div>
+                            
+                            <select
+                              value={allocatedSplitId || ''}
+                              onChange={(e) => handleAllocateItem(idx, e.target.value)}
+                              className="form-input"
+                              style={{
+                                width: 'auto',
+                                minWidth: '150px',
+                                maxWidth: '220px',
+                                padding: '4px 8px',
+                                fontSize: '0.72rem',
+                                margin: 0,
+                                borderColor: (() => {
+                                  const sIdx = splits.findIndex(s => s.id === allocatedSplitId);
+                                  return sIdx !== -1 ? ALLOCATION_COLORS[sIdx % ALLOCATION_COLORS.length].border : 'var(--color-zinc-800)';
+                                })(),
+                                backgroundColor: 'var(--color-zinc-900)',
+                                color: '#fff',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                outline: 'none',
+                                transition: 'border-color 0.15s ease'
+                              }}
+                            >
+                              {splits.map((s, sIdx) => {
+                                const allLotsSame = splits.length > 1 && splits.every(sp => sp.lotNumber === splits[0].lotNumber);
+                                const label = allLotsSame 
+                                  ? `#${sIdx + 1}: ${s.tradePhase || 'Trade?'}` 
+                                  : `${s.lotNumber || 'Lot ?'} (${s.tradePhase || 'Trade?'})`;
+                                return (
+                                  <option key={s.id} value={s.id} style={{ backgroundColor: 'var(--color-zinc-900)', color: '#fff' }}>
+                                    {label}
+                                  </option>
+                                );
+                              })}
+                            </select>
                           </div>
-                          
-                          <select
-                            value={allocatedSplitId || ''}
-                            onChange={(e) => handleAllocateItem(idx, e.target.value)}
-                            className="form-input"
-                            style={{
-                              width: 'auto',
-                              minWidth: '150px',
-                              maxWidth: '220px',
-                              padding: '4px 8px',
-                              fontSize: '0.72rem',
-                              margin: 0,
-                              borderColor: (() => {
-                                const sIdx = splits.findIndex(s => s.id === allocatedSplitId);
-                                return sIdx !== -1 ? ALLOCATION_COLORS[sIdx % ALLOCATION_COLORS.length].border : 'var(--color-zinc-800)';
-                              })(),
-                              backgroundColor: 'var(--color-zinc-900)',
-                              color: '#fff',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontWeight: 700,
-                              outline: 'none',
-                              transition: 'border-color 0.15s ease'
-                            }}
-                          >
-                            {splits.map((s, sIdx) => {
-                              const allLotsSame = splits.length > 1 && splits.every(sp => sp.lotNumber === splits[0].lotNumber);
-                              const label = allLotsSame 
-                                ? `#${sIdx + 1}: ${s.tradePhase || 'Trade?'}` 
-                                : `${s.lotNumber || 'Lot ?'} (${s.tradePhase || 'Trade?'})`;
-                              return (
-                                <option key={s.id} value={s.id} style={{ backgroundColor: 'var(--color-zinc-900)', color: '#fff' }}>
-                                  {label}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1256,6 +1338,22 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
           </div>
         )}
 
+        {isSplit && !isSplitBalanced && (
+          <div style={{
+            fontSize: '0.75rem',
+            color: '#fbbf24',
+            backgroundColor: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            borderRadius: '6px',
+            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <span>Splits total ${splitsTotal.toFixed(2)}, receipt is ${receiptTotalNum.toFixed(2)}. Split amounts must equal the receipt total.</span>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
           <button type="button" onClick={onCancel} className="btn btn-secondary" style={{ flex: 1, padding: '10px', fontSize: '0.85rem', height: '40px' }}>
             Cancel
@@ -1268,10 +1366,10 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
               padding: '10px',
               fontSize: '0.85rem',
               height: '40px',
-              opacity: isPhaseValid ? 1 : 0.6,
-              cursor: isPhaseValid ? 'pointer' : 'not-allowed'
+              opacity: canSave ? 1 : 0.6,
+              cursor: canSave ? 'pointer' : 'not-allowed'
             }}
-            disabled={!isPhaseValid}
+            disabled={!canSave}
           >
             <Save size={14} /> Save Changes
           </button>

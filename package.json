@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.3.11",
-  "releaseName": "Strict trade phase schema & validation",
+  "version": "1.3.12",
+  "releaseName": "Split fixes: same project, tax included",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -8,9 +8,9 @@ export const STORAGE_KEYS = {
 
 const ENV = import.meta.env || {};
 
-export const APP_VERSION = ENV.VITE_APP_VERSION || '1.3.11';
+export const APP_VERSION = ENV.VITE_APP_VERSION || '1.3.12';
 export const APP_BUILD_LABEL = ENV.VITE_APP_BUILD_LABEL || `v${APP_VERSION}`;
-export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Strict trade phase schema & validation';
+export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Split fixes: same project, tax included';
 
 export const DEFAULT_FIREBASE_CONFIG = {
   apiKey: ENV.VITE_FIREBASE_API_KEY || 'AIzaSyDjYPPkW8ffQMOCByCo9gMlVxQ8PsMpAoU',
