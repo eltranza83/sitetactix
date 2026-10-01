@@ -42,7 +42,8 @@ import {
   normalizeDriveName,
   extractAllFolders,
   clearSessionDriveListing,
-  getSessionDriveListing
+  getSessionDriveListing,
+  escapeDriveQueryString
 } from '../src/services/jarvis/tools/drive.js';
 import { search_payments } from '../src/services/jarvis/tools/money.js';
 
@@ -558,6 +559,161 @@ describe('v1.4.0 Jarvis Simplification Core Suite', () => {
       assert.equal(summaryB.totalSpent, '$100,000.00');
       assert.equal(summaryB.materialSpent, '$40,000.00');
       assert.equal(summaryB.laborSpent, '$60,000.00');
+    });
+  });
+
+  describe('9. v1.4.1 Live Drive Folder Discovery & Error Handling', () => {
+    test('escapeDriveQueryString escapes backslashes and apostrophes', () => {
+      assert.equal(escapeDriveQueryString("Lowe's"), "Lowe\\'s");
+      assert.equal(escapeDriveQueryString("Path\\To\\Folder"), "Path\\\\To\\\\Folder");
+      assert.equal(escapeDriveQueryString("O'Reilly's & Home Depot"), "O\\'Reilly\\'s & Home Depot");
+    });
+
+    test('list_folder_files resolves folder live when driveTree is null/empty', async () => {
+      // Mock fetchImpl simulating live Drive API responses
+      async function mockDriveFetch(url) {
+        const decodedUrl = decodeURIComponent(url);
+        // 1. Folder search query by name (with apostrophe escaping)
+        if (decodedUrl.includes("mimeType = 'application/vnd.google-apps.folder'") && decodedUrl.includes("name = 'Lowe\\'s'")) {
+          return {
+            ok: true,
+            json: async () => ({
+              files: [
+                { id: 'fld_lowes_live_99', name: "Lowe's", parents: ['project_lot3_root'] }
+              ]
+            })
+          };
+        }
+        // 2. Folder files query
+        if (decodedUrl.includes("'fld_lowes_live_99' in parents")) {
+          return {
+            ok: true,
+            json: async () => ({
+              files: [
+                { id: 'file_drywall_1', name: 'Drywall screws - Aug 15.pdf', createdTime: '2026-08-15T10:00:00Z', size: 102400 }
+              ]
+            })
+          };
+        }
+        return { ok: false, status: 404 };
+      }
+
+      const res = await list_folder_files(
+        { folder: "Lowe's" },
+        {
+          driveTree: null, // empty/null tree
+          googleToken: 'mock_token_abc',
+          projectFolderId: 'project_lot3_root',
+          fetchImpl: mockDriveFetch
+        }
+      );
+
+      assert.equal(res.ok, true);
+      assert.equal(res.folderName, "Lowe's");
+      assert.equal(res.folderId, 'fld_lowes_live_99');
+      assert.equal(res.count, 1);
+      assert.equal(res.files[0].name, 'Drywall screws - Aug 15.pdf');
+    });
+
+    test('list_folder_files filters out folders not belonging to projectFolderId', async () => {
+      async function mockDriveFetch(url) {
+        const decodedUrl = decodeURIComponent(url);
+        if (decodedUrl.includes("name = 'Home Depot'")) {
+          return {
+            ok: true,
+            json: async () => ({
+              files: [
+                { id: 'fld_hd_other_project', name: 'Home Depot', parents: ['other_lot_root'] }
+              ]
+            })
+          };
+        }
+        // Parent check for fld_hd_other_project
+        if (decodedUrl.includes('/files/fld_hd_other_project?fields=parents')) {
+          return {
+            ok: true,
+            json: async () => ({ parents: ['other_lot_root'] })
+          };
+        }
+        return { ok: true, json: async () => ({ files: [] }) };
+      }
+
+      const res = await list_folder_files(
+        { folder: 'Home Depot' },
+        {
+          driveTree: null,
+          googleToken: 'mock_token_abc',
+          projectFolderId: 'my_active_lot_root',
+          fetchImpl: mockDriveFetch
+        }
+      );
+
+      // Other project folder was filtered out, and no candidates exist -> returns folder_not_found
+      assert.equal(res.ok, false);
+      assert.equal(res.error, 'folder_not_found');
+      assert.equal(res.message, 'I couldn\'t find a folder named "Home Depot" in this project.');
+      assert.equal(res.candidates, undefined);
+    });
+
+    test('list_folder_files returns timeout message when full-tree crawl times out', async () => {
+      async function mockHangingFetch(url) {
+        const decodedUrl = decodeURIComponent(url);
+        if (decodedUrl.includes("mimeType = 'application/vnd.google-apps.folder'")) {
+          return { ok: true, json: async () => ({ files: [] }) };
+        }
+        return new Promise(() => {});
+      }
+
+      const res = await list_folder_files(
+        { folder: 'Lumber' },
+        {
+          driveTree: null,
+          googleToken: 'mock_token_abc',
+          projectFolderId: 'my_active_lot_root',
+          fetchImpl: mockHangingFetch,
+          timeoutMs: 50
+        }
+      );
+
+      assert.equal(res.ok, false);
+      assert.equal(res.error, 'folder_not_found');
+      assert.ok(res.message.includes('Your project has a lot of folders. Try the exact folder name.'));
+    });
+
+    test('list_folder_files returns drive_unavailable when Drive returns 500 error', async () => {
+      async function mockFailingFetch() {
+        return { ok: false, status: 500 };
+      }
+
+      const res = await list_folder_files(
+        { folder: 'Home Depot' },
+        {
+          driveTree: null,
+          googleToken: 'mock_token_abc',
+          projectFolderId: 'project_123',
+          fetchImpl: mockFailingFetch
+        }
+      );
+
+      assert.equal(res.ok, false);
+      assert.equal(res.error, 'drive_unavailable');
+      assert.ok(res.message.includes("couldn't reach Google Drive"));
+    });
+
+    test('list_folder_files returns drive_unavailable when tree is empty and Google Drive cannot be reached', async () => {
+      const res = await list_folder_files(
+        { folder: 'Home Depot' },
+        {
+          driveTree: null,
+          googleToken: null, // no token
+          projectFolderId: 'project_123'
+        }
+      );
+
+      assert.equal(res.ok, false);
+      assert.equal(res.error, 'drive_unavailable');
+      assert.ok(res.message.includes("couldn't reach Google Drive"));
+      assert.equal(res.candidates, undefined); // NEVER empty candidates list
     });
   });
 });

@@ -81,6 +81,7 @@ export async function askNewJarvis(query, options = {}) {
     currentDashboard = null,
     spreadsheetId = null,
     driveTree = null,
+    projectFolderId = null,
     messages = [],
     apiKey = null,
     onOpenDocument = null,
@@ -124,13 +125,15 @@ export async function askNewJarvis(query, options = {}) {
   const toolContext = {
     projectId,
     projectName,
+    projectFolderId,
     googleToken,
     spreadsheetId,
     driveTree,
     ledgerSource,
     onOpenDocument,
     uid,
-    calendarStore
+    calendarStore,
+    fetchImpl
   };
 
   // 3. Prepare conversation turns and metadata

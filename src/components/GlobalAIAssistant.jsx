@@ -705,6 +705,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         answerPayload = await askNewJarvis(query, {
           projectId,
           projectName,
+          projectFolderId: activeProject?.folderId || selectedFolder?.id || null,
           googleToken,
           currentDashboard,
           spreadsheetId: sheetId,

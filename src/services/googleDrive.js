@@ -949,7 +949,7 @@ export async function listFilesWithDescriptionInFolder(accessToken, folderId) {
  * Helper to fetch all child files and subfolders within a specific parent folder,
  * handling Google Drive API pagination (nextPageToken) automatically.
  */
-async function fetchFolderChildren(accessToken, parentFolderId) {
+async function fetchFolderChildren(accessToken, parentFolderId, fetchImpl = fetch) {
   const items = [];
   let pageToken = null;
   const safeParentId = escapeDriveQueryString(parentFolderId);
@@ -961,7 +961,7 @@ async function fetchFolderChildren(accessToken, parentFolderId) {
       url += `&pageToken=${encodeURIComponent(pageToken)}`;
     }
 
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetchImpl(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     if (!res.ok) {
       console.warn(`[GoogleDrive] Failed to fetch items for folder ${parentFolderId}: HTTP ${res.status}`);
       break;
@@ -988,7 +988,7 @@ async function fetchFolderChildren(accessToken, parentFolderId) {
  * 4. Indexes folders by folder ID and builds a flat `allFiles` manifest.
  * 5. Handles API pagination via `nextPageToken`.
  */
-export async function fetchProjectDriveTree(accessToken, rootFolderId) {
+export async function fetchProjectDriveTree(accessToken, rootFolderId, fetchImpl = fetch) {
   if (!accessToken || !rootFolderId) return null;
 
   try {
@@ -1018,7 +1018,7 @@ export async function fetchProjectDriveTree(accessToken, rootFolderId) {
 
     while (folderQueue.length > 0) {
       const current = folderQueue.shift();
-      const rawChildren = await fetchFolderChildren(accessToken, current.folderId);
+      const rawChildren = await fetchFolderChildren(accessToken, current.folderId, fetchImpl);
 
       const childFolders = rawChildren.filter((i) => i.mimeType === 'application/vnd.google-apps.folder');
       const childFiles = rawChildren.filter((i) => i.mimeType !== 'application/vnd.google-apps.folder');
