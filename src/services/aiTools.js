@@ -1357,8 +1357,9 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       const projLabel = projectContext?.activeProjectName || targetProjectId || 'Lot';
       const storage = typeof localStorage !== 'undefined' ? localStorage : null;
       const itemName = args.itemName || args.item;
+      const category = args.category || args.trade || null;
 
-      const removeRes = await purchasingService.removeItem(targetProjectId, itemName);
+      const removeRes = await purchasingService.removeItem(targetProjectId, itemName, category);
       if (removeRes.success) {
         const updatedDoc = await purchasingService.exportToGoogleDocMarkdown(targetProjectId);
         saveProjectPurchasingDoc(storage, targetProjectId, updatedDoc);
@@ -1373,6 +1374,7 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
         projectId: targetProjectId,
         source: `Firestore (${projLabel} Purchasing Checklist)`,
         itemName: removeRes.item?.itemName || itemName,
+        category: category,
         error: removeRes.success ? undefined : removeRes.message,
         message: removeRes.message
       };
@@ -1401,6 +1403,19 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
       const target = resolvePurchasingTarget(args, projectContext);
       const targetProjectId = target.projectId;
       const sectionName = args.sectionName || args.section || args.category;
+      const isConversational = Boolean(projectContext?.userQuery);
+      if (args.confirmed === false || (isConversational && !args.confirmed)) {
+        resultPayload = {
+          success: false,
+          status: 'needs_confirmation',
+          requiresConfirmation: true,
+          action: 'CONFIRM_REMOVE_SECTION',
+          sectionName,
+          projectId: targetProjectId,
+          message: `Are you sure you want to remove the entire '${sectionName}' section from the purchasing list?`
+        };
+        break;
+      }
 
       const discovery = discoverAndBindProjectPurchasingDoc(storage, targetProjectId, projectContext);
       const docName = target.resourceType === RESOURCE_TYPES.PURCHASING_MASTER 
@@ -2116,6 +2131,7 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
     case 'update_memory': {
       const targetQuery = String(args.searchQuery || args.memoryId || args.updatedText || '').trim();
       const updateTargetProj = args.projectId || projectContext.projectId || null;
+      let targetMemory = null;
       let targetId = args.memoryId;
 
       // Idempotency / Duplicate Check
@@ -2135,53 +2151,47 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
 
       if (!targetId && targetQuery) {
         const found = await searchMemories(targetQuery, { projectId: updateTargetProj, limit: 1 });
-        if (found.length > 0) {
+        if (found.length > 0 && found[0].textMatchScore > 0) {
+          targetMemory = found[0];
           targetId = found[0].id;
+        }
+      } else if (targetId) {
+        const all = await getMemories({ projectId: updateTargetProj, activeOnly: true, includeGlobal: true });
+        targetMemory = all.find(m => m.id === targetId) || null;
+        if (!targetMemory) {
+          const allAny = await getMemories({ activeOnly: true, includeGlobal: true });
+          targetMemory = allAny.find(m => m.id === targetId) || null;
         }
       }
 
-      if (targetId) {
-        const updatedItem = await updateMemory(
-          targetId,
-          { text: args.updatedText },
-          args.reason || 'Updated via conversation'
-        );
+      if (!targetId || !targetMemory) {
         resultPayload = {
-          success: true,
-          status: 'ok',
-          isDuplicate: false,
-          idempotencyKey: idempotency?.key,
-          updated: true,
-          memoryId: targetId,
-          memory: updatedItem,
-          data: updatedItem,
-          message: `I've updated that memory.`
+          success: false,
+          status: 'not_found',
+          updated: false,
+          message: "I couldn't find a memory matching that."
         };
-        if (idempotency?.key) {
-          recordIdempotency(idempotency.key, resultPayload);
-        }
-      } else {
-        // If no existing memory found, save as new
-        const savedNew = await saveMemory({
-          text: args.updatedText,
-          projectId: updateTargetProj,
-          source: 'user_explicit'
-        });
-        resultPayload = {
-          success: true,
-          status: 'ok',
-          isDuplicate: false,
-          idempotencyKey: idempotency?.key,
-          updated: true,
-          isNew: true,
-          memoryId: savedNew.id,
-          memory: savedNew,
-          data: savedNew,
-          message: `I didn't find the exact previous memory, but I've saved the updated information.`
-        };
-        if (idempotency?.key) {
-          recordIdempotency(idempotency.key, resultPayload);
-        }
+        break;
+      }
+
+      const updatedItem = await updateMemory(
+        targetId,
+        { text: args.updatedText },
+        args.reason || 'Updated via conversation'
+      );
+      resultPayload = {
+        success: true,
+        status: 'ok',
+        isDuplicate: false,
+        idempotencyKey: idempotency?.key,
+        updated: true,
+        memoryId: targetId,
+        memory: updatedItem,
+        data: updatedItem,
+        message: `Got it. I've updated that memory.`
+      };
+      if (idempotency?.key) {
+        recordIdempotency(idempotency.key, resultPayload);
       }
       break;
     }
@@ -2189,6 +2199,7 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
     case 'delete_memory': {
       const deleteQuery = String(args.searchQuery || args.memoryId || '').trim();
       const deleteTargetProj = args.projectId || projectContext.projectId || null;
+      let targetMemory = null;
       let deleteId = args.memoryId;
 
       // Idempotency / Duplicate Check
@@ -2207,32 +2218,57 @@ export async function executeClientToolCall(functionName, rawArgs = {}, projectC
 
       if (!deleteId && deleteQuery) {
         const found = await searchMemories(deleteQuery, { projectId: deleteTargetProj, limit: 1 });
-        if (found.length > 0) {
+        if (found.length > 0 && found[0].textMatchScore > 0) {
+          targetMemory = found[0];
           deleteId = found[0].id;
+        }
+      } else if (deleteId) {
+        const all = await getMemories({ projectId: deleteTargetProj, activeOnly: true, includeGlobal: true });
+        targetMemory = all.find(m => m.id === deleteId) || null;
+        if (!targetMemory) {
+          const allAny = await getMemories({ activeOnly: true, includeGlobal: true });
+          targetMemory = allAny.find(m => m.id === deleteId) || null;
         }
       }
 
-      if (deleteId) {
-        await deactivateMemory(deleteId, args.reason || 'Deactivated via user request');
-        resultPayload = {
-          success: true,
-          status: 'ok',
-          isDuplicate: false,
-          idempotencyKey: idempotency?.key,
-          deleted: true,
-          memoryId: deleteId,
-          message: `Got it. I've deactivated that memory.`
-        };
-        if (idempotency?.key) {
-          recordIdempotency(idempotency.key, resultPayload);
-        }
-      } else {
+      if (!deleteId || !targetMemory) {
         resultPayload = {
           success: false,
           status: 'not_found',
           deleted: false,
-          message: `I couldn't locate that specific memory to delete.`
+          message: "I couldn't find a memory matching that."
         };
+        break;
+      }
+
+      const isConversational = Boolean(projectContext?.userQuery);
+      if (!args.confirmed && (isConversational || !args.memoryId)) {
+        resultPayload = {
+          success: false,
+          status: 'needs_confirmation',
+          requiresConfirmation: true,
+          action: 'CONFIRM_DELETE_MEMORY',
+          memoryId: targetMemory.id,
+          memoryText: targetMemory.text,
+          projectId: deleteTargetProj,
+          message: `Delete this memory: '${targetMemory.text}'?`
+        };
+        break;
+      }
+
+      await deactivateMemory(deleteId, args.reason || 'Deactivated via user request');
+      resultPayload = {
+        success: true,
+        status: 'ok',
+        isDuplicate: false,
+        idempotencyKey: idempotency?.key,
+        deleted: true,
+        memoryId: deleteId,
+        memoryText: targetMemory.text,
+        message: `Got it. I've deactivated that memory.`
+      };
+      if (idempotency?.key) {
+        recordIdempotency(idempotency.key, resultPayload);
       }
       break;
     }

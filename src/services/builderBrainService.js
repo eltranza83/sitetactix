@@ -33,6 +33,7 @@ import {
   fetchProjectFinishes,
   formatFinishesForAI
 } from './finishService.js';
+import { TRADE_SECTION_MAP } from '../config/tradesConfig.js';
 
 let _activeSessionCognitiveState = {
   turnIndex: 0,
@@ -54,6 +55,7 @@ export function resetActiveSessionCognitiveState() {
     resetWriteIdempotencyState();
   } catch {}
   clearPendingClarificationAction();
+  clearPendingConfirmationAction();
 }
 
 let _pendingClarificationAction = null;
@@ -65,12 +67,29 @@ export function getPendingClarificationAction() {
 export function setPendingClarificationAction(action) {
   _pendingClarificationAction = action ? {
     ...action,
-    timestamp: Date.now()
+    timestamp: action.timestamp || Date.now()
   } : null;
 }
 
 export function clearPendingClarificationAction() {
   _pendingClarificationAction = null;
+}
+
+let _pendingConfirmationAction = null;
+
+export function getPendingConfirmationAction() {
+  return _pendingConfirmationAction;
+}
+
+export function setPendingConfirmationAction(action) {
+  _pendingConfirmationAction = action ? {
+    ...action,
+    timestamp: action.timestamp || Date.now()
+  } : null;
+}
+
+export function clearPendingConfirmationAction() {
+  _pendingConfirmationAction = null;
 }
 
 export function resolvePendingCategory(query = '') {
@@ -105,6 +124,34 @@ export function didChangeToolSucceed(toolTelemetryList = []) {
   });
 }
 
+export function didCompatibleChangeToolSucceed(userQuery = '', toolTelemetryList = []) {
+  if (!toolTelemetryList || toolTelemetryList.length === 0) return false;
+  const q = String(userQuery || '').toLowerCase();
+
+  const isPurchasingTopic = /\b(purchas\w*|checklist|to buy|needed|materials|fixtures|items|supplies)\b/i.test(q)
+    || Boolean(resolvePendingCategory(q))
+    || Boolean(getPurchasingTrade(q));
+  const isMemoryTopic = /\b(remember|memory|note|forget|olvida|recuerda|memoria|nota|what i told you|lo que te dije)\b/i.test(q);
+
+  return (toolTelemetryList || []).some(t => {
+    if (!t.success) return false;
+    const name = String(t.name || '').toLowerCase();
+    const type = String(t.toolType || '').toUpperCase();
+    const isChangeTool = type === 'WRITE' || /^(add|update|save|remove|delete|sync|set|stage|log)_/.test(name);
+    if (!isChangeTool) return false;
+
+    // Cross-domain mismatch: purchasing request executed a memory tool
+    if (isPurchasingTopic && name.endsWith('_memory')) {
+      return false;
+    }
+    // Cross-domain mismatch: memory request executed a purchasing tool
+    if (isMemoryTopic && /_purchasing_|_finishes_/.test(name)) {
+      return false;
+    }
+    return true;
+  });
+}
+
 export function isChangeRequestQuery(query = '') {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return false;
@@ -121,8 +168,8 @@ export function isChangeRequestQuery(query = '') {
 export function verifyActionExecutionClaims(replyText = '', userQuery = '', toolTelemetryList = []) {
   if (!replyText || typeof replyText !== 'string') return replyText;
 
-  // If a change tool actually ran and succeeded, the claim is verified and legitimate
-  if (didChangeToolSucceed(toolTelemetryList)) {
+  // If a compatible change tool actually ran and succeeded, the claim is verified and legitimate
+  if (didCompatibleChangeToolSucceed(userQuery, toolTelemetryList)) {
     return replyText;
   }
 
@@ -132,8 +179,9 @@ export function verifyActionExecutionClaims(replyText = '', userQuery = '', tool
     return replyText;
   }
 
-  // Check if reply text claims a change
-  const hasClaim = FALSE_CLAIM_PATTERNS.some(p => p.test(replyText));
+  // Check if reply text claims a change or removal
+  const hasClaim = FALSE_CLAIM_PATTERNS.some(p => p.test(replyText))
+    || /\b(removed|deleted|elimin[eé]|borr[eé])\b/i.test(replyText);
   if (!hasClaim) {
     return replyText;
   }
@@ -704,7 +752,8 @@ BEHAVIOR, VERIFICATION & CITATION RULES:
 
 9. STATE-CHANGING ACTIONS & PERMISSIONS:
    - For Google Drive file actions (creating folders, moving files, or deleting files in Drive), you MUST ask for explicit confirmation from the user first (e.g. "Would you like me to go ahead and create the folder '[Folder Name]' in your Google Drive project folder for [Project Name]?").
-   - This confirmation requirement does NOT apply to memory commands (save_memory, update_memory, delete_memory), which execute immediately when explicitly commanded.
+   - Deleting or updating a memory (delete_memory, update_memory) requires user confirmation first: prompt the user with the memory text and wait for confirmation before deactivating or updating.
+   - Never list, extrapolate or invent purchasing items, fixture names or specifications. Only state what a tool returned from Firestore or the project files. If the result is empty, say it is empty.
    - When confirmed by the user, emit the corresponding action code (e.g. [[ACTION:CREATE_FOLDER:FolderName]]).
 
 10. INTENT FIRST & RELEVANCE GUARDRAIL (DATA AVAILABILITY != PERMISSION TO VOLUNTEER):
@@ -827,7 +876,8 @@ ${getSemanticPromptGuidelines()}
 3. STRICT ERROR TRUTH RULE: If a tool execution reports readError: true, state: 'DOCUMENT_READ_ERROR', or contains an error message, you MUST report the exact error to the user (e.g. "I found your Purchasing Checklist in Google Drive, but couldn't read its contents: [error]"). You are STRICTLY FORBIDDEN from stating that a document has zero items or no pending items when a read error occurred.
 4. If a tool succeeded (e.g. saving a reminder/memory or retrieving a list), clearly confirm or format it in your response.
 5. If a tool failed, clearly and concisely report what couldn't be completed without technical jargon.
-6. Provide ONE single, unified, coherent, and professional answer.`;
+6. Provide ONE single, unified, coherent, and professional answer.
+7. Never list, extrapolate or invent purchasing items, fixture names or specifications. Only state what a tool returned from Firestore or the project files. If the result is empty, say it is empty.`;
 }
 
 export function isPurchaseStatusMutationCommand(query = '') {
@@ -1365,7 +1415,7 @@ export function formatToolResultsHumanReadable(toolTelemetryList, userQuery = ''
 }
 
 const AUTHORITATIVE_READ_ACTIONS = /\b(add|create|update|delete|remove|mark|set|save|scan|capture|upload|attach|stage|log)\b/i;
-const AUTHORITATIVE_READ_QUESTION = /\b(what|which|who|when|where|why|how|show|list|tell|do|did|does|is|are|have|has|can)\b|\?/i;
+const AUTHORITATIVE_READ_QUESTION = /\b(what|which|who|when|where|why|how|show|list|tell|do|did|does|is|are|have|has|can|give|send|make|dame|hazme|env[ií]ame|mu[eé]strame|lista|qu[eé]|cu[aá]l|cu[aá]les)\b|\?/i;
 const PREFERENCE_MEMORY_QUERY = /\b(prefer|preference|like|likes|remember|notes?|said|told)\b/i;
 const PURCHASING_BUYING_QUERY = /\b(purchas\w*|buy\w*|bought|orders?|ordered|ordering|needed|needs?|still\s+need|checklist)\b/i;
 const FINANCE_QUERY = /\b(budget|spent|spend|paid|payment|owe|owed|balance|expense|receipt|invoice|draw|quote|contract|capital|money)\b/i;
@@ -1373,12 +1423,120 @@ const INSPECTION_QUERY = /\b(inspection|inspect|framing|rough[ -]?in|foundation|
 const FINISH_QUERY = /\b(finish|paint|color|sheen|stucco|stone|cantera|tile|grout|shingle|fixture spec)\b/i;
 const DRIVE_QUERY = /\b(files?|folders?|documents?|docs?|drive|blueprints?|plans?|permits?|photos?|pdfs?)\b/i;
 
-function getPurchasingTrade(query) {
+export function getPurchasingTrade(query) {
   const normalized = String(query || '').toLowerCase();
-  if (/\b(quartz|countertop|sink)\b/.test(normalized)) return 'quartz';
-  if (/\b(electric\w*|lighting)\b/.test(normalized)) return 'electrical';
-  if (/\b(plumb\w*|faucets?|toilets?|showers?)\b/.test(normalized)) return 'plumbing';
+  if (/\b(quartz|quartz guy|quartz installer|countertops?|sink|cuarzo)\b/i.test(normalized)) return 'quartz';
+  if (/\b(electric\w*|electrician|electricista|lighting|lights|sparky|el[eé]ctric[oa]s?)\b/i.test(normalized)) return 'electrical';
+  if (/\b(plumb\w*|plumber|plomero|plomer[ií]a|faucets?|toilets?|showers?)\b/i.test(normalized)) return 'plumbing';
   return '';
+}
+
+export function isPurchasingListTradeQuery(query = '') {
+  const normalized = String(query || '').toLowerCase();
+  const trade = getPurchasingTrade(normalized);
+  if (!trade) return false;
+
+  const hasListOrNeedKeyword = /\b(list|checklist|lista|what's on the list|give me the list|send me the list|make me a list|what do we need|what's needed|qu[eé] se necesita|qu[eé] necesitamos|dame la lista|hazme una lista|env[ií]ame la lista|mu[eé]strame la lista)\b/i.test(normalized)
+    || /\b(list|lista|checklist)\b/i.test(normalized)
+    || /\b(needed|needs?|to buy|buy|purchas\w*|comprar|compras?)\b/i.test(normalized);
+
+  return Boolean(hasListOrNeedKeyword);
+}
+
+export function isPurchasingOrChecklistQuery(query = '') {
+  const q = String(query || '').toLowerCase();
+  // Explicit memory commands should never be classified as purchasing queries
+  if (/^(?:please |can you |por favor )?(?:forget|olvida|remember|recuerda)\b/i.test(q)) {
+    return false;
+  }
+  if (/\b(?:the (?:note|memory) about|what i told you about|la nota sobre|el recuerdo de|lo que te dije de)\b/i.test(q)) {
+    return false;
+  }
+  if (/\b(purchasing\s+list|purchasing\s+checklist|checklist|to buy|needed|compras?\s+lista|lista\s+de\s+compras?)\b/i.test(q)) {
+    return true;
+  }
+  if (/\b(list|lista)\b/i.test(q) && (getPurchasingTrade(q) || /\b(from the list|of the list|de la lista|on the list)\b/i.test(q))) {
+    return true;
+  }
+  return /\b(purchas\w*|checklist|to buy|buy|bought|needed|materials|fixtures|items|supplies|receipt|expense|drafts|invoice)\b/i.test(q);
+}
+
+export function parsePurchasingRemoval(query = '') {
+  const q = String(query || '').trim();
+  if (!/\b(remove|delete|borra|elimina|quita)\b/i.test(q)) return null;
+  if (!/\b(purchas\w*|checklist|to buy|lista de compras?)\b/i.test(q) && !/\b(quartz|countertop|electrical|lighting|plumbing)\s+(?:list|checklist|lista)\b/i.test(q)) {
+    return null;
+  }
+
+  const match = q.match(/^(?:please |can you )?(?:remove|delete|borra|elimina|quita)\s+(?:the\s+|los?\s+|las?\s+)?(.+?)\s+(?:from|de)\s+(?:the\s+|la\s+)?(?:(.+?)\s+)?(?:purchasing\s+list|purchasing\s+checklist|purchasing|checklist|lista\s+de\s+compras?)(?:\s+list|\s+checklist)?$/i);
+  if (match) {
+    let item = match[1].trim();
+    let categoryPart = (match[2] || '').trim();
+    let category = getPurchasingTrade(categoryPart) || getPurchasingTrade(q) || null;
+    return { item, category };
+  }
+
+  const tradeMatch = q.match(/^(?:please |can you )?(?:remove|delete|borra|elimina|quita)\s+(?:the\s+|los?\s+|las?\s+)?(.+?)\s+(?:from|de)\s+(?:the\s+|la\s+)?(quartz|electrical|plumbing|el[eé]ctric[oa]|plomer[ií]a|cuarzo)\s+(?:list|checklist|lista)$/i);
+  if (tradeMatch) {
+    let item = tradeMatch[1].trim();
+    let category = getPurchasingTrade(tradeMatch[2]);
+    return { item, category };
+  }
+  return null;
+}
+
+export async function guardAgainstInventedPurchasingList(replyText = '', userQuery = '', toolTelemetryList = [], projectContext = {}) {
+  if (!replyText || typeof replyText !== 'string') return replyText;
+
+  // If get_purchasing_list was called successfully this turn, the reply was grounded by the tool
+  const calledPurchasing = (toolTelemetryList || []).some(t => t.name === 'get_purchasing_list' && t.success);
+  if (calledPurchasing) {
+    return replyText;
+  }
+
+  // Check if reply contains a list of items (bullet points or numbered list)
+  const hasListFormat = /(?:^|\n)\s*(?:[-*•]|\d+\.)\s+\S+/m.test(replyText);
+  if (!hasListFormat) {
+    return replyText;
+  }
+
+  // Check if the reply or query is about purchasing, materials, or what a trade needs
+  const trade = getPurchasingTrade(userQuery) || getPurchasingTrade(replyText);
+  const isPurchasingTopic = /\b(purchas\w*|checklist|to buy|needed|materials|fixtures|supplies|items)\b/i.test(userQuery + ' ' + replyText);
+
+  if (!trade && !isPurchasingTopic) {
+    return replyText;
+  }
+
+  // An ungrounded/invented purchasing list was detected! Fetch the real list from Firestore.
+  const targetProjectId = projectContext?.projectId || 'lot_3';
+  const projLabel = projectContext?.activeProjectName || targetProjectId || 'Lot';
+
+  try {
+    const listResult = await executeClientToolCall('get_purchasing_list', {
+      trade: trade || '',
+      projectId: targetProjectId
+    }, projectContext);
+
+    const items = listResult?.items || (listResult?.data && listResult.data.items) || [];
+    const tradeFilter = trade ? trade.toLowerCase() : null;
+    const matchingItems = tradeFilter
+      ? items.filter(it => (it.categoryId || '').toLowerCase() === tradeFilter)
+      : items;
+
+    if (!matchingItems || matchingItems.length === 0) {
+      const tradeLabel = trade ? `${trade} ` : '';
+      return `There are no ${tradeLabel}items on the purchasing list for ${projLabel}.`;
+    }
+
+    const tradeTitle = trade && TRADE_SECTION_MAP[trade] ? TRADE_SECTION_MAP[trade].title : 'Purchasing';
+    const lines = matchingItems.map(it => `- ${it.itemName} (${it.quantity || 1} needed)`);
+    return `Here is the verified ${tradeTitle} purchasing checklist for ${projLabel}:\n${lines.join('\n')}`;
+  } catch (err) {
+    console.warn('[BuilderBrain] Failed to fetch real purchasing list in guardAgainstInventedPurchasingList:', err);
+    const tradeLabel = trade ? `${trade} ` : '';
+    return `There are no ${tradeLabel}items on the purchasing list for ${projLabel}.`;
+  }
 }
 
 /**
@@ -1388,10 +1546,22 @@ function getPurchasingTrade(query) {
  */
 export function getAuthoritativeReadRoute(query = '') {
   const normalized = String(query).trim();
-  if (!normalized || AUTHORITATIVE_READ_ACTIONS.test(normalized) || !AUTHORITATIVE_READ_QUESTION.test(normalized)) return null;
+  if (!normalized) return null;
+
+  if (AUTHORITATIVE_READ_ACTIONS.test(normalized) || !AUTHORITATIVE_READ_QUESTION.test(normalized)) return null;
 
   // Preference and recollection queries belong strictly on the AI path with memory access.
   if (PREFERENCE_MEMORY_QUERY.test(normalized)) return null;
+
+  // Route trade purchasing list requests straight to get_purchasing_list
+  const tradeForList = getPurchasingTrade(normalized);
+  if (isPurchasingListTradeQuery(normalized)) {
+    return {
+      toolName: 'get_purchasing_list',
+      args: { trade: tradeForList, unpurchasedOnly: /\b(need|needed|still|falta|faltan|se necesita)\b/i.test(normalized) },
+      source: 'Firestore Purchasing Checklist'
+    };
+  }
 
   // Finance already has a full dashboard manifest and conversational trade
   // resolution. The direct tool gate reduced a trade to a literal substring
@@ -1412,7 +1582,7 @@ export function getAuthoritativeReadRoute(query = '') {
   if (PURCHASING_BUYING_QUERY.test(normalized)) {
     return {
       toolName: 'get_purchasing_list',
-      args: { trade: getPurchasingTrade(normalized), unpurchasedOnly: /\b(need|needed|still)\b/i.test(normalized) },
+      args: { trade: tradeForList, unpurchasedOnly: /\b(need|needed|still)\b/i.test(normalized) },
       source: 'Firestore Purchasing Checklist'
     };
   }
@@ -1507,6 +1677,135 @@ export async function askGeminiBrain(
   let lastErrorCode = null;
   let toolTelemetryList = [];
 
+  // Handle Pending Confirmation Action (e.g. user answering "yes" / "sí" / "confirmo" / "no" / "cancel" to delete_memory, update_memory, remove_purchasing_section)
+  const pendingConfirmation = getPendingConfirmationAction();
+  if (pendingConfirmation) {
+    const PENDING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const isExpired = Date.now() - (pendingConfirmation.timestamp || 0) > PENDING_TIMEOUT_MS;
+    const isDifferentProject = pendingConfirmation.projectId && pendingConfirmation.projectId !== projectId;
+
+    if (isExpired || isDifferentProject) {
+      clearPendingConfirmationAction();
+    } else {
+      const cleanTrimmedQuery = String(query || '').trim();
+      const isAffirmative = /^(?:yes|yep|yeah|sure|correct|delete it|borralo|bórralo|confirmo|confirm|si|sí|hazlo|procede)\b/i.test(cleanTrimmedQuery);
+      const isNegative = /^(?:no|cancel|never mind|nevermind|olv[ií]dalo|cancela|cancelar|no lo borres|no lo hagas|stop)$/i.test(cleanTrimmedQuery);
+
+      if (isNegative) {
+        clearPendingConfirmationAction();
+        return {
+          text: 'OK, cancelled.',
+          telemetry: {
+            schemaVersion: '1.0',
+            correlationId,
+            modelUsed: 'Pending Confirmation Handler',
+            source: 'Jarvis Action Dispatcher',
+            intent: 'Cancel Pending Confirmation',
+            durationMs: Date.now() - clientStartTime,
+            toolsExecuted: []
+          }
+        };
+      } else if (isAffirmative) {
+        clearPendingConfirmationAction();
+        const fullProjectContext = {
+          activeProjectName,
+          projectId,
+          userQuery: query
+        };
+
+        if (pendingConfirmation.action === 'CONFIRM_DELETE_MEMORY') {
+          const deleteRes = await executeClientToolCall('delete_memory', {
+            memoryId: pendingConfirmation.memoryId,
+            projectId: pendingConfirmation.projectId || projectId,
+            confirmed: true
+          }, fullProjectContext, correlationId);
+          toolTelemetryList.push({
+            name: 'delete_memory',
+            args: { memoryId: pendingConfirmation.memoryId, confirmed: true },
+            toolType: 'WRITE',
+            source: deleteRes.source || 'Gemini Memory Engine',
+            status: deleteRes.status || 'ok',
+            success: Boolean(deleteRes.success),
+            result: deleteRes,
+            data: deleteRes
+          });
+          return {
+            text: deleteRes?.message || "Got it. I've deactivated that memory.",
+            telemetry: {
+              schemaVersion: '1.0',
+              correlationId,
+              modelUsed: 'Pending Confirmation Execution',
+              source: 'Gemini Memory Engine',
+              intent: 'Memory Deletion Confirmed',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [{ name: 'delete_memory', args: { memoryId: pendingConfirmation.memoryId, confirmed: true }, result: deleteRes }]
+            }
+          };
+        } else if (pendingConfirmation.action === 'CONFIRM_UPDATE_MEMORY') {
+          const updateRes = await executeClientToolCall('update_memory', {
+            memoryId: pendingConfirmation.memoryId,
+            updatedText: pendingConfirmation.updatedText,
+            projectId: pendingConfirmation.projectId || projectId,
+            confirmed: true
+          }, fullProjectContext, correlationId);
+          toolTelemetryList.push({
+            name: 'update_memory',
+            args: { memoryId: pendingConfirmation.memoryId, updatedText: pendingConfirmation.updatedText, confirmed: true },
+            toolType: 'WRITE',
+            source: updateRes.source || 'Gemini Memory Engine',
+            status: updateRes.status || 'ok',
+            success: Boolean(updateRes.success),
+            result: updateRes,
+            data: updateRes
+          });
+          return {
+            text: updateRes?.message || "Got it. I've updated that memory.",
+            telemetry: {
+              schemaVersion: '1.0',
+              correlationId,
+              modelUsed: 'Pending Confirmation Execution',
+              source: 'Gemini Memory Engine',
+              intent: 'Memory Update Confirmed',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [{ name: 'update_memory', args: { memoryId: pendingConfirmation.memoryId, confirmed: true }, result: updateRes }]
+            }
+          };
+        } else if (pendingConfirmation.action === 'CONFIRM_REMOVE_SECTION') {
+          const removeSecRes = await executeClientToolCall('remove_purchasing_section', {
+            sectionName: pendingConfirmation.sectionName,
+            projectId: pendingConfirmation.projectId || projectId,
+            confirmed: true
+          }, fullProjectContext, correlationId);
+          toolTelemetryList.push({
+            name: 'remove_purchasing_section',
+            args: { sectionName: pendingConfirmation.sectionName, confirmed: true },
+            toolType: 'WRITE',
+            source: removeSecRes.source || 'Firestore (Purchasing Checklist)',
+            status: removeSecRes.status || 'ok',
+            success: Boolean(removeSecRes.success),
+            result: removeSecRes,
+            data: removeSecRes
+          });
+          return {
+            text: removeSecRes?.message || `Removed the '${pendingConfirmation.sectionName}' section from the purchasing checklist.`,
+            telemetry: {
+              schemaVersion: '1.0',
+              correlationId,
+              modelUsed: 'Pending Confirmation Execution',
+              source: 'Firestore (Purchasing Checklist)',
+              intent: 'Purchasing Section Removal Confirmed',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [{ name: 'remove_purchasing_section', args: { sectionName: pendingConfirmation.sectionName, confirmed: true }, result: removeSecRes }]
+            }
+          };
+        }
+      } else {
+        // Unrelated next message: cancel/discard pending confirmation and handle normally
+        clearPendingConfirmationAction();
+      }
+    }
+  }
+
   // Handle Pending Clarification Action (e.g. user answering "electrical" / "eléctrico" or explicit cancel)
   const pendingClarification = getPendingClarificationAction();
   if (pendingClarification) {
@@ -1594,6 +1893,47 @@ export async function askGeminiBrain(
         clearPendingClarificationAction();
       }
     }
+  }
+
+  // Handle direct purchasing removal command (e.g. "remove the exhaust fans from the electrical purchasing list")
+  const removal = parsePurchasingRemoval(query);
+  if (removal) {
+    const fullProjectContext = {
+      activeProjectName,
+      projectId,
+      userQuery: query
+    };
+    const removeRes = await executeClientToolCall('remove_purchasing_item', {
+      item: removal.item,
+      category: removal.category,
+      projectId
+    }, fullProjectContext, correlationId);
+
+    toolTelemetryList.push({
+      name: 'remove_purchasing_item',
+      args: { item: removal.item, category: removal.category, projectId },
+      toolType: 'WRITE',
+      source: removeRes.source || 'Firestore (Purchasing Checklist)',
+      status: removeRes.success ? 'ok' : (removeRes.isAmbiguous ? 'ambiguous' : 'not_found'),
+      success: Boolean(removeRes.success),
+      result: removeRes,
+      data: removeRes
+    });
+
+    const verified = verifyActionExecutionClaims(removeRes.message, query, toolTelemetryList);
+    return {
+      text: verified,
+      telemetry: {
+        schemaVersion: '1.0',
+        correlationId,
+        modelUsed: 'Direct Purchasing Removal Route',
+        source: removeRes.source || 'Firestore (Purchasing Checklist)',
+        intent: 'Purchasing Item Removed',
+        durationMs: Date.now() - clientStartTime,
+        toolsExecuted: removeRes.success ? [{ name: 'remove_purchasing_item', args: { item: removal.item, category: removal.category }, result: removeRes }] : [],
+        toolsFailed: !removeRes.success ? [{ name: 'remove_purchasing_item', error: removeRes.message }] : []
+      }
+    };
   }
 
   let siteSetupChecks = {};
@@ -1690,7 +2030,8 @@ export async function askGeminiBrain(
     siteSetupData,
     inspectionsData,
     memoriesData,
-    userPreferences
+    userPreferences,
+    userQuery: query
   };
 
   const authoritativeRoute = getAuthoritativeReadRoute(query);
@@ -1956,83 +2297,132 @@ export async function askGeminiBrain(
 
   // 1.3. DIRECT EXPLICIT MEMORY COMMAND PROCESSING
   const qTrim = query.trim();
-  const rememberMatch = qTrim.match(/^(?:i need you to |please )?remember (?:that )?(.+)$/i) 
-    || qTrim.match(/^(?:make a note|take note|save (?:this )?(?:for later|to memory)?|keep (?:this )?in mind)(?: that|:)? (.+)$/i);
+  if (!isPurchasingOrChecklistQuery(qTrim)) {
+    const rememberMatch = qTrim.match(/^(?:i need you to |please )?remember (?:that )?(.+)$/i) 
+      || qTrim.match(/^(?:make a note|take note|save (?:this )?(?:for later|to memory)?|keep (?:this )?in mind)(?: that|:)? (.+)$/i);
 
-  const updateMatch = qTrim.match(/^(?:hey,? )?(?:actually,? )?(?:we need to |please )?(?:change|update)(?: that[.,]?)?(?: note| preference| memory)? (?:to|that)?[:\s]*(.+)$/i)
-    || qTrim.match(/^(?:actually,? )?(?:the painter|he|she|they) (?:wants|prefers) (?:to be paid by )?(.+) now[.,]?$/i);
+    const updateMatch = qTrim.match(/^(?:hey,? )?(?:actually,? )?(?:we need to |please )?(?:change|update)(?: that[.,]?)?(?: note| preference| memory)? (?:to|that)?[:\s]*(.+)$/i)
+      || qTrim.match(/^(?:actually,? )?(?:the painter|he|she|they) (?:wants|prefers) (?:to be paid by )?(.+) now[.,]?$/i);
 
-  const forgetMatch = qTrim.match(/^(?:forget|delete|remove)(?: what i told you about| that note about| the note about| that)? (.+)$/i);
+    const forgetMatch = qTrim.match(/^(?:please )?forget (?:what i told you about |that note about |the note about |that |about )?(.+)$/i)
+      || qTrim.match(/^(?:please )?(?:delete|remove) (?:the (?:note|memory) about|what i told you about) (.+)$/i)
+      || qTrim.match(/^(?:por favor,? )?olvida (?:lo que te dije de |lo que te dije sobre |la nota (?:sobre|del?|de) |el recuerdo de |sobre )?(.+)$/i)
+      || qTrim.match(/^(?:por favor,? )?borra (?:la nota (?:sobre|del?|de) |el recuerdo de |lo que te dije de )(.+)$/i);
 
-  if (rememberMatch && !rememberMatch[1].toLowerCase().startsWith('what') && !rememberMatch[1].toLowerCase().startsWith('how') && !rememberMatch[1].toLowerCase().startsWith('where')) {
-    const textToSave = rememberMatch[1].trim();
-    try {
-      const saveRes = await executeClientToolCall('save_memory', {
-        text: textToSave,
-        projectId
-      }, projectContext);
+    if (rememberMatch && !rememberMatch[1].toLowerCase().startsWith('what') && !rememberMatch[1].toLowerCase().startsWith('how') && !rememberMatch[1].toLowerCase().startsWith('where')) {
+      const textToSave = rememberMatch[1].trim();
+      try {
+        const saveRes = await executeClientToolCall('save_memory', {
+          text: textToSave,
+          projectId
+        }, projectContext);
 
-      if (saveRes && saveRes.saved) {
-        return {
-          text: "Got it. I've saved that to your memory.",
-          telemetry: {
-            modelUsed: determineTaskModel(query, forceDeepReasoning),
-            source: 'Gemini Memory Engine',
-            intent: 'Memory Saved',
-            durationMs: Date.now() - clientStartTime,
-            toolsExecuted: [{ name: 'save_memory', args: { text: textToSave, projectId }, result: saveRes }]
-          }
-        };
+        if (saveRes && saveRes.saved) {
+          return {
+            text: "Got it. I've saved that to your memory.",
+            telemetry: {
+              modelUsed: determineTaskModel(query, forceDeepReasoning),
+              source: 'Gemini Memory Engine',
+              intent: 'Memory Saved',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [{ name: 'save_memory', args: { text: textToSave, projectId }, result: saveRes }]
+            }
+          };
+        }
+      } catch (sErr) {
+        console.warn('[BuilderBrain] Direct memory save fallback failed:', sErr);
       }
-    } catch (sErr) {
-      console.warn('[BuilderBrain] Direct memory save fallback failed:', sErr);
-    }
-  } else if (updateMatch) {
-    const updatedText = updateMatch[1].trim();
-    try {
-      const updateRes = await executeClientToolCall('update_memory', {
-        updatedText,
-        projectId,
-        searchQuery: updatedText
-      }, projectContext);
+    } else if (updateMatch) {
+      const updatedText = updateMatch[1].trim();
+      try {
+        const updateRes = await executeClientToolCall('update_memory', {
+          updatedText,
+          projectId,
+          searchQuery: updatedText
+        }, projectContext);
 
-      if (updateRes && updateRes.updated) {
-        return {
-          text: "Got it. I've updated that memory.",
-          telemetry: {
-            modelUsed: determineTaskModel(query, forceDeepReasoning),
-            source: 'Gemini Memory Engine',
-            intent: 'Memory Updated',
-            durationMs: Date.now() - clientStartTime,
-            toolsExecuted: [{ name: 'update_memory', args: { updatedText, projectId }, result: updateRes }]
-          }
-        };
-      }
-    } catch (uErr) {
-      console.warn('[BuilderBrain] Direct memory update fallback failed:', uErr);
-    }
-  } else if (forgetMatch) {
-    const searchQuery = forgetMatch[1].trim();
-    try {
-      const deleteRes = await executeClientToolCall('delete_memory', {
-        searchQuery,
-        projectId
-      }, projectContext);
+        if (updateRes && (updateRes.requiresConfirmation || updateRes.status === 'needs_confirmation')) {
+          setPendingConfirmationAction(updateRes);
+          return {
+            text: updateRes.message,
+            telemetry: {
+              modelUsed: determineTaskModel(query, forceDeepReasoning),
+              source: 'Gemini Memory Engine',
+              intent: 'Memory Update Confirmation Required',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [],
+              pendingAction: getPendingConfirmationAction()
+            }
+          };
+        }
 
-      if (deleteRes && deleteRes.deleted) {
-        return {
-          text: "Got it. I've removed that from your active memory.",
-          telemetry: {
-            modelUsed: determineTaskModel(query, forceDeepReasoning),
-            source: 'Gemini Memory Engine',
-            intent: 'Memory Deleted',
-            durationMs: Date.now() - clientStartTime,
-            toolsExecuted: [{ name: 'delete_memory', args: { searchQuery, projectId }, result: deleteRes }]
-          }
-        };
+        if (updateRes && updateRes.updated) {
+          return {
+            text: "Got it. I've updated that memory.",
+            telemetry: {
+              modelUsed: determineTaskModel(query, forceDeepReasoning),
+              source: 'Gemini Memory Engine',
+              intent: 'Memory Updated',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [{ name: 'update_memory', args: { updatedText, projectId }, result: updateRes }]
+            }
+          };
+        }
+      } catch (uErr) {
+        console.warn('[BuilderBrain] Direct memory update fallback failed:', uErr);
       }
-    } catch (dErr) {
-      console.warn('[BuilderBrain] Direct memory delete fallback failed:', dErr);
+    } else if (forgetMatch) {
+      const searchQuery = forgetMatch[1].trim();
+      try {
+        const deleteRes = await executeClientToolCall('delete_memory', {
+          searchQuery,
+          projectId
+        }, projectContext);
+
+        if (deleteRes && (deleteRes.requiresConfirmation || deleteRes.status === 'needs_confirmation')) {
+          setPendingConfirmationAction(deleteRes);
+          return {
+            text: deleteRes.message,
+            telemetry: {
+              modelUsed: determineTaskModel(query, forceDeepReasoning),
+              source: 'Gemini Memory Engine',
+              intent: 'Memory Deletion Confirmation Required',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [],
+              pendingAction: getPendingConfirmationAction()
+            }
+          };
+        }
+
+        if (!deleteRes?.success && deleteRes?.message) {
+          return {
+            text: deleteRes.message,
+            telemetry: {
+              modelUsed: determineTaskModel(query, forceDeepReasoning),
+              source: 'Gemini Memory Engine',
+              intent: 'Memory Deletion Failed',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [],
+              toolsFailed: [{ name: 'delete_memory', error: deleteRes.message }]
+            }
+          };
+        }
+
+        if (deleteRes && deleteRes.deleted) {
+          return {
+            text: "Got it. I've removed that from your active memory.",
+            telemetry: {
+              modelUsed: determineTaskModel(query, forceDeepReasoning),
+              source: 'Gemini Memory Engine',
+              intent: 'Memory Deleted',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [{ name: 'delete_memory', args: { searchQuery, projectId }, result: deleteRes }]
+            }
+          };
+        }
+      } catch (dErr) {
+        console.warn('[BuilderBrain] Direct memory delete fallback failed:', dErr);
+      }
     }
   }
 
@@ -2201,9 +2591,11 @@ export async function askGeminiBrain(
 
         for (const tc of normalizedToolCalls) {
           const toolStartTime = Date.now();
-          console.log(`[BuilderBrain] Executing Tool: "${tc.name}" | Parsed Args:`, JSON.stringify(tc.args || {}));
+          const toolArgs = { ...tc.args };
+          delete toolArgs.confirmed; // Defense in depth: AI-originated calls cannot forge confirmation
+          console.log(`[BuilderBrain] Executing Tool: "${tc.name}" | Parsed Args:`, JSON.stringify(toolArgs));
           try {
-            const result = await executeClientToolCall(tc.name, tc.args || {}, fullProjectContext, correlationId);
+            const result = await executeClientToolCall(tc.name, toolArgs, fullProjectContext, correlationId);
             const durationMs = result._executionDurationMs || (Date.now() - toolStartTime);
 
             if (result && (result.error || result.success === false)) {
@@ -2290,6 +2682,44 @@ export async function askGeminiBrain(
           };
         }
 
+        // Fast Route: Check if any tool requested user confirmation (e.g. delete_memory, update_memory, remove_purchasing_section)
+        const confirmationTool = toolTelemetryList.find(t =>
+          t.status === 'needs_confirmation' ||
+          t.data?.requiresConfirmation ||
+          t.result?.requiresConfirmation ||
+          t.data?.status === 'needs_confirmation' ||
+          t.result?.status === 'needs_confirmation'
+        );
+
+        if (confirmationTool) {
+          const payload = confirmationTool.data || confirmationTool.result || {};
+          setPendingConfirmationAction({
+            action: payload.action,
+            tool: confirmationTool.name,
+            memoryId: payload.memoryId,
+            memoryText: payload.memoryText,
+            updatedText: payload.updatedText,
+            sectionName: payload.sectionName,
+            projectId: payload.projectId || projectId,
+            message: payload.message
+          });
+
+          return {
+            text: payload.message,
+            telemetry: {
+              schemaVersion: '1.0',
+              correlationId,
+              modelUsed: 'Confirmation Fast Route',
+              source: 'Jarvis Action Dispatcher',
+              intent: 'Action Confirmation Request',
+              durationMs: Date.now() - clientStartTime,
+              toolsExecuted: [],
+              toolsFailed: [confirmationTool],
+              pendingAction: getPendingConfirmationAction()
+            }
+          };
+        }
+
         // Collect exact provenance strictly from executed tools
         const sourcesUsedSet = new Set();
         for (const t of toolTelemetryList) {
@@ -2352,7 +2782,8 @@ export async function askGeminiBrain(
             ? groundingReport.suggestedCorrection
             : synthesisText;
 
-          const finalResponseText = verifyActionExecutionClaims(rawResponseText, query, toolTelemetryList);
+          let finalResponseText = verifyActionExecutionClaims(rawResponseText, query, toolTelemetryList);
+          finalResponseText = await guardAgainstInventedPurchasingList(finalResponseText, query, toolTelemetryList, projectContext);
 
           return {
             text: finalResponseText,
@@ -2397,7 +2828,8 @@ export async function askGeminiBrain(
         // Grounded fallback if synthesis network failed
         const cleanSummary = formatToolResultsHumanReadable(toolTelemetryList, query, projectContext);
         const fallbackGrounding = verifyResponseGrounding(cleanSummary || '', projectContext, toolTelemetryList);
-        const finalFallbackText = verifyActionExecutionClaims(cleanSummary || 'Action completed.', query, toolTelemetryList);
+        let finalFallbackText = verifyActionExecutionClaims(cleanSummary || 'Action completed.', query, toolTelemetryList);
+        finalFallbackText = await guardAgainstInventedPurchasingList(finalFallbackText, query, toolTelemetryList, projectContext);
 
         return {
           text: finalFallbackText,
@@ -2450,6 +2882,7 @@ export async function askGeminiBrain(
         }
 
         finalReply = verifyActionExecutionClaims(finalReply, query, toolTelemetryList);
+        finalReply = await guardAgainstInventedPurchasingList(finalReply, query, toolTelemetryList, projectContext);
         const sourcesUsed = detectGroundedSourcesUsed(query, finalReply, projectContext);
 
         return {

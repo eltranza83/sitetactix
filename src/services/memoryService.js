@@ -475,38 +475,46 @@ export async function searchMemories(queryStr = '', options = {}) {
   }
 
   const queryTerms = extractTags(queryStr);
-  const lowerQuery = queryStr.toLowerCase();
+  const lowerQuery = queryStr.toLowerCase().trim();
 
   const scored = allMemories.map(mem => {
-    let score = 0;
+    let textMatchScore = 0;
     const memTextLower = (mem.text || '').toLowerCase();
 
     // 1. Exact phrase match bonus
     if (lowerQuery && memTextLower.includes(lowerQuery)) {
-      score += 10;
+      textMatchScore += 10;
     }
 
     // 2. Keyword / tag matches
     for (const term of queryTerms) {
-      if (memTextLower.includes(term)) score += 2;
-      if (mem.tags && mem.tags.includes(term)) score += 3;
+      if (memTextLower.includes(term)) textMatchScore += 2;
+      if (mem.tags && mem.tags.includes(term)) textMatchScore += 3;
     }
 
-    // 3. Project direct match bonus
+    // When a search query is provided, require a real text/tag match!
+    // Project and importance bonuses ONLY rank real matches, never inflate zero-match items.
+    if (lowerQuery && textMatchScore === 0) {
+      return { ...mem, searchScore: 0, textMatchScore: 0 };
+    }
+
+    let score = textMatchScore;
+
+    // 3. Project direct match bonus (only if real text match exists or query is empty)
     if (projectId && mem.projectId && isProjectScopeMatch(mem.projectId, projectId)) {
       score += 2;
     }
 
-    // 4. Importance boost
+    // 4. Importance boost (only if real text match exists or query is empty)
     if (mem.importance === MEMORY_IMPORTANCE.CRITICAL) score += 1.5;
     else if (mem.importance === MEMORY_IMPORTANCE.IMPORTANT) score += 0.5;
 
-    return { ...mem, searchScore: score };
+    return { ...mem, searchScore: score, textMatchScore };
   });
 
   // Filter out non-matching results if search terms were provided
   const results = scored
-    .filter(item => item.searchScore > 0 || !queryStr)
+    .filter(item => (lowerQuery ? item.textMatchScore > 0 : item.searchScore > 0))
     .sort((a, b) => b.searchScore - a.searchScore);
 
   return results.slice(0, limit);

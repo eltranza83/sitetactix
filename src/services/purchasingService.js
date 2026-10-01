@@ -862,17 +862,25 @@ export class PurchasingService {
     };
   }
 
-  async removeItem(projectId, itemNameOrId) {
+  async removeItem(projectId, itemNameOrId, category = null) {
     const existingItems = await this.storage.getItems(projectId);
-    const matchResult = this.findMatchingItems(existingItems, itemNameOrId);
+    let candidateItems = existingItems;
+    if (category) {
+      const catNorm = String(category).toLowerCase().trim();
+      const filtered = existingItems.filter(it => (it.categoryId || '').toLowerCase() === catNorm);
+      if (filtered.length > 0) {
+        candidateItems = filtered;
+      }
+    }
+    const matchResult = this.findMatchingItems(candidateItems, itemNameOrId);
 
     if (matchResult.type === 'AMBIGUOUS') {
-      const candidateList = matchResult.matches.map(m => `• ${m.itemName}`).join('\n');
+      const candidates = matchResult.matches.map(m => `'${m.itemName}'`).join(' or ');
       return {
         success: false,
         isAmbiguous: true,
         matches: matchResult.matches,
-        message: `Multiple items match "${itemNameOrId}":\n${candidateList}\nPlease specify which item you would like to remove.`
+        message: `Did you mean ${candidates}?`
       };
     }
 
@@ -880,14 +888,14 @@ export class PurchasingService {
       return {
         success: false,
         isNotFound: true,
-        message: `"${itemNameOrId}" is not currently listed on the ${projectId} purchasing checklist.`
+        message: `I couldn't find '${itemNameOrId}' on the list.`
       };
     }
 
     const item = matchResult.item;
     const index = existingItems.findIndex(it => it.id === item.id);
     if (index === -1) {
-      return { success: false, message: `Item "${itemNameOrId}" not found in ${projectId}.` };
+      return { success: false, message: `I couldn't find '${itemNameOrId}' on the list.` };
     }
 
     const removed = existingItems.splice(index, 1)[0];
@@ -907,10 +915,11 @@ export class PurchasingService {
       };
     }
 
+    const categoryTitle = removed.categoryTitle || TRADE_SECTION_MAP[removed.categoryId]?.title || 'the purchasing checklist';
     return {
       success: true,
       item: removed,
-      message: `Removed "${removed.itemName}" from the purchasing checklist.`
+      message: `Removed '${removed.itemName}' from ${categoryTitle}.`
     };
   }
 
