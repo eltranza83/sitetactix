@@ -136,7 +136,7 @@ async function isFolderUnderProject(folderId, projectFolderId, googleToken, fetc
       });
       if (!res.ok) {
         console.warn(`[isFolderUnderProject] Drive HTTP error: ${res.status}`);
-        return { isUnder: false, callFailed: true };
+        return { isUnder: false, callFailed: true, authExpired: res.status === 401 };
       }
       const data = await res.json();
       const parents = Array.isArray(data.parents) ? data.parents : [];
@@ -173,7 +173,7 @@ async function searchFoldersByNameLive(folderName, projectFolderId, googleToken,
       headers: { Authorization: `Bearer ${googleToken}` }
     });
 
-    if (!res.ok) return { matches: [], callFailed: true };
+    if (!res.ok) return { matches: [], callFailed: true, authExpired: res.status === 401 };
     const data = await res.json();
     const rawFiles = Array.isArray(data.files) ? data.files : [];
     if (rawFiles.length === 0) return { matches: [], callFailed: false };
@@ -186,7 +186,7 @@ async function searchFoldersByNameLive(folderName, projectFolderId, googleToken,
         } else {
           const parentCheck = await isFolderUnderProject(f.id, projectFolderId, googleToken, fetchImpl);
           if (parentCheck.callFailed) {
-            return { matches: [], callFailed: true };
+            return { matches: [], callFailed: true, authExpired: parentCheck.authExpired === true };
           }
           if (parentCheck.isUnder) {
             verified.push(f);
@@ -309,12 +309,14 @@ export async function list_folder_files(args = {}, context = {}) {
 
   let callActuallyFailed = !googleToken && (!driveTree || allFolders.length === 0);
   let crawlTimedOut = false;
+  let authExpired = false;
 
   // Stage 2: Fast live Drive name search if not matched in tree and token is present
   if (!matched && googleToken) {
     const liveSearch = await searchFoldersByNameLive(targetFolder, projectFolderId, googleToken, fetchImpl);
     if (liveSearch.callFailed) {
       callActuallyFailed = true;
+      authExpired = liveSearch.authExpired === true;
     } else {
       const liveMatches = liveSearch.matches;
       if (liveMatches.length === 1) {
@@ -385,7 +387,16 @@ export async function list_folder_files(args = {}, context = {}) {
     return payload;
   }
 
-  // 2. A Drive call actually failed (no token, network error, non-2xx)
+  // 2. Google sign-in expired (401) -> tell the user to sign in again
+  if (authExpired) {
+    return {
+      ok: false,
+      error: 'needs_auth',
+      message: 'Your Google sign-in expired. Please sign in again.'
+    };
+  }
+
+  // 3. A Drive call actually failed (no token, network error, other non-2xx)
   if (callActuallyFailed) {
     return {
       ok: false,
@@ -394,7 +405,7 @@ export async function list_folder_files(args = {}, context = {}) {
     };
   }
 
-  // 3. Drive answered (or tree was inspected) but no match
+  // 4. Drive answered (or tree was inspected) but no match
   const payload = {
     ok: false,
     error: 'folder_not_found',

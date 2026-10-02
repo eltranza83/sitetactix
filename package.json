@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.4.1",
-  "releaseName": "Folder browsing fix",
+  "version": "1.4.2",
+  "releaseName": "File opening fix",
   "type": "module",
   "scripts": {
     "dev": "vite",

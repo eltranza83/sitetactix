@@ -1,6 +1,18 @@
 const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3';
 const CALENDAR_NAME = 'SiteTactix Reminders';
 
+/**
+ * A 401 means the Google sign-in expired (not a missing Calendar permission).
+ */
+function signInExpired() {
+  return {
+    ok: false,
+    error: 'needs_auth',
+    needsAuth: true,
+    message: 'Your Google sign-in expired. Please sign in again.'
+  };
+}
+
 function getCalendarStorageKey(uid = 'default') {
   return `sitetactix_reminders_calendar_id_${uid || 'default'}`;
 }
@@ -59,7 +71,10 @@ async function getOrCreateRemindersCalendar(googleToken, uid = null) {
       })
     });
 
-    if (createRes.status === 401 || createRes.status === 403) {
+    if (createRes.status === 401) {
+      return signInExpired();
+    }
+    if (createRes.status === 403) {
       return {
         ok: false,
         needsAuth: true,
@@ -192,7 +207,10 @@ export async function add_reminder(args = {}, context = {}) {
       })
     });
 
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401) {
+      return signInExpired();
+    }
+    if (res.status === 403) {
       return {
         ok: false,
         needsAuth: true,
@@ -274,7 +292,10 @@ export async function list_reminders(args = {}, context = {}) {
       headers: { Authorization: `Bearer ${googleToken}` }
     });
 
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401) {
+      return signInExpired();
+    }
+    if (res.status === 403) {
       return {
         ok: false,
         needsAuth: true,

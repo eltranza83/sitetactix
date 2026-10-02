@@ -15,6 +15,7 @@ import {
   loadProjectDashboard
 } from '../services/builderBrainService';
 import { askNewJarvis } from '../services/jarvis/jarvisCore';
+import { buildJarvisFileCards } from '../services/jarvis/fileCards';
 import {
   fetchProjectFinishes,
   saveFinishSpec
@@ -667,10 +668,21 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         });
       }
 
+      const engineMode = (() => {
+        try {
+          return localStorage.getItem('jarvis_engine_mode') || 'classic';
+        } catch {
+          return 'classic';
+        }
+      })();
+      const isNewEngine = engineMode === 'new';
+
       let fileAttachment = null;
       let targetFile = null;
+      // Classic only: guess a referenced file from the user's words. The New engine
+      // opens files only through its own tools (list_folder_files / open_file).
       const isManualNoReceiptIntent = /\b(no\s+(physical\s+)?(scan|receipt|paper|invoice)|stage\s+(a\s+)?(\$?\d+|payment|expense)|log\s+(a\s+)?(\$?\d+|expense))\b/i.test(query);
-      if (!isManualNoReceiptIntent) {
+      if (!isNewEngine && !isManualNoReceiptIntent) {
         targetFile = findReferencedDriveFile(query, currentLiveTree, messages);
         if (targetFile && targetFile.id && googleToken) {
           try {
@@ -688,16 +700,8 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
       const currentDashboard = loadProjectDashboard(projectId);
       const forceDeepReasoning = false;
 
-      const engineMode = (() => {
-        try {
-          return localStorage.getItem('jarvis_engine_mode') || 'classic';
-        } catch {
-          return 'classic';
-        }
-      })();
-
       let answerPayload;
-      if (engineMode === 'new') {
+      if (isNewEngine) {
         const sheetId = (typeof window !== 'undefined' && window.localStorage && projectId)
           ? getCachedDashboardSpreadsheetId(window.localStorage, projectId)
           : (activeProject?.spreadsheetId || null);
@@ -831,7 +835,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
           /^(yes|yeah|sure|yep|ok|okay|please|go ahead|proceed)\b/i.test(query.trim())
         ));
 
-      if (targetFile && targetFile.id && !targetFile.isAmbiguous && viewFiles.length === 0 && isViewIntent) {
+      if (!isNewEngine && targetFile && targetFile.id && !targetFile.isAmbiguous && viewFiles.length === 0 && isViewIntent) {
         viewFiles.push({
           fileId: targetFile.id,
           fileName: targetFile.name,
@@ -840,7 +844,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
       }
 
       // Contextual fallback: If Gemini's text explicitly references opening/viewing an exact Google Drive file
-      if (viewFiles.length === 0 && (isViewIntent || (/\b(opened|opening|here is the file|view on your screen)\b/i.test(cleanAnswer) && !isListOrDataQuery))) {
+      if (!isNewEngine && viewFiles.length === 0 && (isViewIntent || (/\b(opened|opening|here is the file|view on your screen)\b/i.test(cleanAnswer) && !isListOrDataQuery))) {
         const allDriveFiles = [];
         if (currentLiveTree?.directFiles) allDriveFiles.push(...currentLiveTree.directFiles);
         if (currentLiveTree?.subfolders) {
@@ -867,8 +871,8 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
       cleanAnswer = cleanAnswer.replace(/:\s*1\.\s+/g, ':\n\n1. ');
 
       const actionDocTools = (telemetry?.tools || []).filter(t => t.name === 'open_drive_document' || t.name === 'open_drive_folder');
-      const attachedDocs = [];
-      for (const at of actionDocTools) {
+      const attachedDocs = isNewEngine ? buildJarvisFileCards(answerPayload?.executedTools) : [];
+      for (const at of isNewEngine ? [] : actionDocTools) {
         if (at.result?.fileName || at.result?.file) {
           attachedDocs.push({
             name: at.result.fileName || at.result.file?.name,
@@ -880,7 +884,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
           });
         }
       }
-      if (attachedDocs.length === 0 && viewFiles.length > 0) {
+      if (!isNewEngine && attachedDocs.length === 0 && viewFiles.length > 0) {
         for (const vf of viewFiles) {
           attachedDocs.push({
             name: vf.fileName,
