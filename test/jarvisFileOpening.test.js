@@ -185,3 +185,22 @@ describe('v1.4.5 expired sign-in in receipt search', () => {
     }
   });
 });
+
+describe('v1.4.6 opened files preview on desktop', () => {
+  test('open_file hands the viewer a fileId so the Drive preview is used', async () => {
+    const { open_file, authorizeFileId } = await import('../src/services/jarvis/tools/drive.js');
+    const { getStrategyChainForFile } = await import('../src/services/documentViewerService.js');
+
+    authorizeFileId({ id: 'pdf_dolomite', name: 'Lot 3 - Purchase of Mar Nova Dolomite - material.pdf', folderName: 'Floor and Decor' });
+    let opened = null;
+    const res = await open_file({ fileId: 'pdf_dolomite' }, { onOpenDocument: (f) => { opened = f; } });
+
+    assert.equal(res.ok, true);
+    assert.equal(opened.fileId, 'pdf_dolomite');
+    assert.equal(opened.folderName, 'Floor and Decor');
+
+    const desktop = { isMobile: false, isAndroid: false, isIOS: false, pdfViewerEnabled: true, supportsTouch: false };
+    const chain = getStrategyChainForFile(opened, desktop).map(s => s.id);
+    assert.equal(chain[0], 'drive_preview_embed');
+  });
+});

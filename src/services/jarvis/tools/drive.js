@@ -487,10 +487,14 @@ export async function open_file(args = {}, context = {}) {
 
   if (typeof context.onOpenDocument === 'function') {
     try {
+      // DocumentViewerModal reads fileId (and folderName); without fileId it
+      // skips the Drive preview and falls back to "download".
       context.onOpenDocument({
         id: authorized.id,
+        fileId: authorized.id,
         name: authorized.name,
         fileName: authorized.name,
+        folderName: authorized.folderName || null,
         webViewLink: authorized.webViewLink,
         mimeType: authorized.mimeType || 'application/pdf'
       });

@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.4.5",
-  "releaseName": "Jarvis cleanup",
+  "version": "1.4.6",
+  "releaseName": "Desktop file preview fix",
   "type": "module",
   "scripts": {
     "dev": "vite",

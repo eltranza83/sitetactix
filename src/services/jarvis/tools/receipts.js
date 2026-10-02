@@ -42,7 +42,10 @@ export async function open_receipt(args = {}, context = {}) {
   const fileName = matchedTx ? `${matchedTx.vendor} - ${matchedTx.formattedAmount} (${matchedTx.date}).pdf` : 'Receipt.pdf';
   const fileObj = {
     id: targetFileId,
+    fileId: targetFileId,
     name: fileName,
+    fileName,
+    folderName: matchedTx?.vendor || null,
     mimeType: 'application/pdf',
     webViewLink: targetFileId ? `https://drive.google.com/file/d/${targetFileId}/view` : null
   };
