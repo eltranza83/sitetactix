@@ -1,7 +1,6 @@
 import { get_project_summary, get_contractor_balance, get_spending, search_payments } from './money.js';
 import { get_purchasing_list, add_purchasing_item, set_purchasing_status, remove_purchasing_item } from './purchasing.js';
 import { stage_expense } from './expenses.js';
-import { add_reminder, list_reminders, complete_reminder } from './reminders.js';
 import { open_receipt } from './receipts.js';
 import { list_folder_files, open_file } from './drive.js';
 
@@ -17,19 +16,14 @@ export const JARVIS_TOOL_REGISTRY = {
   add_purchasing_item,
   set_purchasing_status,
   remove_purchasing_item,
-  stage_expense,
-  add_reminder,
-  list_reminders,
-  complete_reminder
+  stage_expense
 };
 
 export const WRITE_TOOL_NAMES = new Set([
   'add_purchasing_item',
   'set_purchasing_status',
   'remove_purchasing_item',
-  'stage_expense',
-  'add_reminder',
-  'complete_reminder'
+  'stage_expense'
 ]);
 
 export function isWriteTool(toolName) {

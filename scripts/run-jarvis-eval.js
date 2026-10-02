@@ -89,37 +89,6 @@ if (typeof globalThis.localStorage === 'undefined') {
   };
 }
 
-// 4. In-Memory Calendar Store
-class MockCalendarStore {
-  constructor(initialEvents = []) {
-    this.events = JSON.parse(JSON.stringify(initialEvents));
-  }
-  reset(initialEvents = []) {
-    this.events = JSON.parse(JSON.stringify(initialEvents));
-  }
-  async listEvents() {
-    return this.events;
-  }
-  async addEvent(event) {
-    const newEv = {
-      id: `mock_cal_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      ...event
-    };
-    this.events.push(newEv);
-    return newEv;
-  }
-}
-
-const initialReminders = [
-  {
-    id: 'rem_1',
-    summary: 'Call framing inspector',
-    when: '2026-10-01T15:00:00-05:00',
-    start: { dateTime: '2026-10-01T15:00:00-05:00' }
-  }
-];
-const mockCalendar = new MockCalendarStore(initialReminders);
-
 // 5. Fixture Model Responses (for deterministic offline replay)
 const FIXTURE_RESPONSES = {
   new: {
@@ -204,24 +173,8 @@ const FIXTURE_RESPONSES = {
       text: 'Marked the Ceiling fans as purchased for electrical.'
     },
     C1: {
-      toolCalls: [{ name: 'add_reminder', args: { text: 'Call the electrician', when: '2026-10-02T14:00:00-05:00' } }],
-      text: 'I have scheduled a reminder to call the electrician tomorrow at 2:00 PM.'
-    },
-    C2: {
-      toolCalls: [{ name: 'add_reminder', args: { text: 'Buy grout for the tile', when: '2026-10-02T12:00:00-05:00' } }],
-      text: 'Reminder set for tomorrow at 12:00 PM: Buy grout for the tile.'
-    },
-    C3: {
-      toolCalls: [{ name: 'add_reminder', args: { text: 'Pick up documents at the title company', when: '2026-10-02T14:00:00-05:00' } }],
-      text: 'Reminder set for tomorrow at 2:00 PM: Pick up documents at the title company.'
-    },
-    C4: {
-      toolCalls: [{ name: 'add_reminder', args: { text: 'Lunch at Chipotle to take advantage of special', when: '2026-10-02T11:00:00-05:00' } }],
-      text: 'Reminder set for tomorrow at 11:00 AM: Lunch at Chipotle.'
-    },
-    C5: {
-      toolCalls: [{ name: 'list_reminders', args: {} }],
-      text: 'You have 1 reminder scheduled for today: Call framing inspector at 3:00 PM.'
+      toolCalls: [],
+      text: "I can't set reminders. Try your phone: say \"Hey Google, remind me tomorrow at 2 PM to call the electrician.\""
     },
     E1: {
       toolCalls: [{ name: 'stage_expense', args: { vendor: 'Stripes', amount: 50, costType: 'material', phase: 'Extra Costs & Misc', description: 'Gas' } }],
@@ -240,8 +193,8 @@ const FIXTURE_RESPONSES = {
       text: 'Para el electricista todavía nos falta comprar: ventiladores de techo (ceiling fans) en la lista de compras.'
     },
     S4: {
-      toolCalls: [{ name: 'add_reminder', args: { text: 'Llamar al plomero', when: '2026-10-02T14:00:00-05:00' } }],
-      text: 'Recordatorio programado para mañana a las 2:00 PM: llamar al plomero.'
+      toolCalls: [],
+      text: 'No puedo crear recordatorios. Usa tu teléfono: "Hey Google, recuérdame mañana a las 2 PM llamar al plomero."'
     }
   },
   classic: {
@@ -316,22 +269,6 @@ const FIXTURE_RESPONSES = {
     C1: {
       toolCalls: [],
       text: "I don't have the ability to set Google Calendar reminders."
-    },
-    C2: {
-      toolCalls: [],
-      text: "I cannot manage calendar events."
-    },
-    C3: {
-      toolCalls: [],
-      text: "I cannot manage calendar events."
-    },
-    C4: {
-      toolCalls: [],
-      text: "I cannot manage calendar events."
-    },
-    C5: {
-      toolCalls: [],
-      text: "I cannot check your calendar."
     },
     E1: {
       toolCalls: [{ name: 'stage_manual_transaction', args: { vendor: 'Stripes', amount: 50, costCategory: 'material' } }],
@@ -455,7 +392,6 @@ async function runNewJarvisLive(testCase) {
     driveTree: lot3Fixture.driveTree,
     ledgerSource,
     onOpenDocument: (file) => { openedDocument = file; },
-    calendarStore: mockCalendar,
     fetchImpl: mockFetch,
     messages: []
   };
@@ -548,7 +484,7 @@ function evaluateCaseResult(engineType, testCase, result) {
   // 4. Write Safety check
   const actualWrites = toolCalls.filter(t => {
     if (t.name === 'stage_expense') return false; // stage_expense requires explicit confirmation callback
-    const writeNames = ['add_purchasing_item', 'set_purchasing_status', 'remove_purchasing_item', 'add_reminder', 'complete_reminder'];
+    const writeNames = ['add_purchasing_item', 'set_purchasing_status', 'remove_purchasing_item'];
     return (t.isWrite || writeNames.includes(t.name)) && t.ok !== false;
   });
 
@@ -607,7 +543,6 @@ async function runEval() {
     localStore = {};
     clearPendingAction();
     clearSessionDriveListing();
-    mockCalendar.reset(initialReminders);
     purchasingService.setStorageAdapter(new LocalStoragePurchasingAdapter());
     await purchasingService.initializeProjectFromMaster('lot_3');
 

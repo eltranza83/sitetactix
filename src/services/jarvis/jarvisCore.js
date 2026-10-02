@@ -87,8 +87,7 @@ export async function askNewJarvis(query, options = {}) {
     onOpenDocument = null,
     uid = null,
     fetchImpl = fetch,
-    ledgerSource: customLedgerSource = null,
-    calendarStore = null
+    ledgerSource: customLedgerSource = null
   } = options;
 
   if (!projectId) {
@@ -132,7 +131,6 @@ export async function askNewJarvis(query, options = {}) {
     ledgerSource,
     onOpenDocument,
     uid,
-    calendarStore,
     fetchImpl
   };
 

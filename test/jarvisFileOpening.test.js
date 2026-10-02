@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 
 import { buildJarvisFileCards } from '../src/services/jarvis/fileCards.js';
 import { list_folder_files } from '../src/services/jarvis/tools/drive.js';
-import { add_reminder } from '../src/services/jarvis/tools/reminders.js';
 
 describe('v1.4.2 New Jarvis file opening', () => {
   test('card comes only from the open_file tool Jarvis ran', () => {
@@ -84,29 +83,18 @@ describe('v1.4.2 expired Google sign-in', () => {
     );
     assert.equal(res.error, 'drive_unavailable');
   });
+});
 
-  test('reminders: 401 = sign-in expired, 403 = missing Calendar permission', async () => {
-    const originalFetch = globalThis.fetch;
-    const store = {};
-    const originalStorage = globalThis.localStorage;
-    globalThis.localStorage = {
-      getItem: (k) => store[k] ?? null,
-      setItem: (k, v) => { store[k] = String(v); },
-      removeItem: (k) => { delete store[k]; }
-    };
-    try {
-      globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => ({}), text: async () => '' });
-      const expired = await add_reminder({ text: 'Call the plumber', when: '2026-10-03T14:00:00' }, { googleToken: 'expired', uid: 'u1' });
-      assert.equal(expired.ok, false);
-      assert.equal(expired.message, 'Your Google sign-in expired. Please sign in again.');
+describe('v1.4.3 reminders removed from Jarvis', () => {
+  test('no reminder tools are offered or registered', async () => {
+    const { JARVIS_TOOL_DECLARATIONS } = await import('../api/_lib/jarvis-tools-definitions.js');
+    const { JARVIS_TOOL_REGISTRY } = await import('../src/services/jarvis/tools/index.js');
+    const names = [...JARVIS_TOOL_DECLARATIONS.map(t => t.name), ...Object.keys(JARVIS_TOOL_REGISTRY)];
+    assert.equal(names.some(n => /reminder/i.test(n)), false);
+  });
 
-      globalThis.fetch = async () => ({ ok: false, status: 403, json: async () => ({}), text: async () => '' });
-      const noScope = await add_reminder({ text: 'Call the plumber', when: '2026-10-03T14:00:00' }, { googleToken: 'token', uid: 'u2' });
-      assert.equal(noScope.ok, false);
-      assert.match(noScope.message, /Calendar permission/);
-    } finally {
-      globalThis.fetch = originalFetch;
-      globalThis.localStorage = originalStorage;
-    }
+  test('sign-in no longer asks for Google Calendar permission', () => {
+    const src = readFileSync(new URL('../src/hooks/useGoogleAuth.js', import.meta.url), 'utf8');
+    assert.equal(src.includes('auth/calendar'), false);
   });
 });

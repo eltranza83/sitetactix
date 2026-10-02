@@ -9,7 +9,7 @@ import {
 } from '../services/appStorage';
 import { getFirebaseAuthInstance, signInToFirebaseWithGooglePopup, signOutFromFirebase } from '../services/firebase';
 
-const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar.app.created email profile';
+const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets email profile';
 const GOOGLE_SCOPES = GOOGLE_SCOPE.split(' ');
 const GOOGLE_SCRIPT_ID = 'google-gis-script';
 const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
