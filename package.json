@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.4.3",
-  "releaseName": "Reminders removed from Jarvis",
+  "version": "1.4.4",
+  "releaseName": "Purchase dates in folder lists",
   "type": "module",
   "scripts": {
     "dev": "vite",

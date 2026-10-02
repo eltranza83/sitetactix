@@ -231,6 +231,62 @@ async function fetchTreeWithTimeout(googleToken, projectFolderId, timeoutMs = 10
 }
 
 /**
+ * Reads the receipt details the app stores on a synced Drive file (JSON in the
+ * file description, written by invoiceUpload.js). Returns null fields when the
+ * file wasn't scanned by the app.
+ */
+export function readReceiptDetails(description) {
+  const empty = { purchaseDate: null, amount: null, vendor: null, item: null };
+  if (!description || typeof description !== 'string' || !description.trim().startsWith('{')) return empty;
+  try {
+    const m = JSON.parse(description);
+    const rawAmount = m.amount ?? m.totalCost ?? m.total ?? null;
+    const amount = rawAmount === null || rawAmount === '' ? null : Number(String(rawAmount).replace(/[$,]/g, ''));
+    return {
+      purchaseDate: m.date || m.paymentDate || m.transactionDate || null,
+      amount: Number.isFinite(amount) ? amount : null,
+      vendor: m.vendor || m.payee || null,
+      item: m.description || m.desc || m.item || null
+    };
+  } catch {
+    return empty;
+  }
+}
+
+function toListedFile(f) {
+  const details = readReceiptDetails(f.description);
+  const savedToDrive = f.createdTime ? f.createdTime.split('T')[0] : (f.savedToDrive || null);
+  return {
+    id: f.id || f.driveFileId,
+    name: f.name || f.fileName || 'Untitled',
+    purchaseDate: details.purchaseDate || f.purchaseDate || f.date || null,
+    amount: details.amount ?? f.amount ?? null,
+    vendor: details.vendor || f.vendor || null,
+    item: details.item || f.item || null,
+    savedToDrive,
+    size: f.size ? (typeof f.size === 'number' || /^\d+$/.test(String(f.size)) ? `${Math.round(Number(f.size) / 1024)} KB` : f.size) : '',
+    webViewLink: f.webViewLink || f.link || null,
+    mimeType: f.mimeType || 'application/pdf'
+  };
+}
+
+/**
+ * Files without stored receipt details (e.g. uploaded by hand) take the date and
+ * amount from the spreadsheet row that links to the same Drive file.
+ */
+function fillFromLedger(file, ledgerSource) {
+  if (file.purchaseDate || !ledgerSource?.getTransactionByDriveFileId) return file;
+  const tx = ledgerSource.getTransactionByDriveFileId(file.id);
+  if (!tx) return file;
+  return {
+    ...file,
+    purchaseDate: tx.date || null,
+    amount: file.amount ?? (tx.amount || null),
+    vendor: file.vendor || tx.vendor || null
+  };
+}
+
+/**
  * Lists files LIVE from Google Drive API for a given folder id.
  * Falls back to tree-provided files when offline or when API call fails.
  */
@@ -238,7 +294,7 @@ async function fetchFolderFilesLive(folderId, fallbackFiles = [], googleToken = 
   if (googleToken && folderId) {
     try {
       const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-      const fields = encodeURIComponent('files(id, name, mimeType, createdTime, size, webViewLink)');
+      const fields = encodeURIComponent('files(id, name, mimeType, createdTime, size, webViewLink, description)');
       const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${q}&fields=${fields}&orderBy=name`;
 
       const res = await fetchImpl(url, {
@@ -248,14 +304,7 @@ async function fetchFolderFilesLive(folderId, fallbackFiles = [], googleToken = 
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.files)) {
-          return data.files.map(f => ({
-            id: f.id,
-            name: f.name,
-            date: f.createdTime ? f.createdTime.split('T')[0] : '',
-            size: f.size ? `${Math.round(f.size / 1024)} KB` : '',
-            webViewLink: f.webViewLink || null,
-            mimeType: f.mimeType || 'application/pdf'
-          }));
+          return data.files.map(toListedFile);
         }
       }
     } catch (err) {
@@ -264,14 +313,7 @@ async function fetchFolderFilesLive(folderId, fallbackFiles = [], googleToken = 
   }
 
   // Fallback to fixture / cached tree files
-  return fallbackFiles.map(f => ({
-    id: f.id || f.driveFileId,
-    name: f.name || f.fileName || 'Untitled',
-    date: f.date || f.createdTime?.split('T')[0] || '',
-    size: f.size || '',
-    webViewLink: f.webViewLink || f.link || null,
-    mimeType: f.mimeType || 'application/pdf'
-  }));
+  return fallbackFiles.map(toListedFile);
 }
 
 /**
@@ -354,7 +396,8 @@ export async function list_folder_files(args = {}, context = {}) {
 
   // If matched (from tree or live search), fetch files live and set session listing
   if (matched) {
-    const files = await fetchFolderFilesLive(matched.id, matched.files, googleToken, fetchImpl);
+    const files = (await fetchFolderFilesLive(matched.id, matched.files, googleToken, fetchImpl))
+      .map(f => fillFromLedger(f, context.ledgerSource));
     const listingPayload = {
       folderName: matched.name,
       folderId: matched.id,

@@ -98,3 +98,49 @@ describe('v1.4.3 reminders removed from Jarvis', () => {
     assert.equal(src.includes('auth/calendar'), false);
   });
 });
+
+describe('v1.4.4 folder listings show the purchase date', () => {
+  const folderSearch = (filesResponse) => async (url) => {
+    const u = decodeURIComponent(url);
+    if (u.includes("name = 'Floor and Decor'")) {
+      return { ok: true, json: async () => ({ files: [{ id: 'fld_fd', name: 'Floor and Decor', parents: ['lot3_root'] }] }) };
+    }
+    if (u.includes("'fld_fd' in parents")) {
+      return { ok: true, json: async () => ({ files: filesResponse }) };
+    }
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+
+  test('purchase date comes from the receipt details saved on the Drive file', async () => {
+    const res = await list_folder_files({ folder: 'Floor and Decor' }, {
+      googleToken: 't', projectFolderId: 'lot3_root',
+      fetchImpl: folderSearch([{
+        id: 'pdf_dolomite',
+        name: 'Lot 3 - Purchase of Mar Nova Dolomite - material.pdf',
+        createdTime: '2026-08-28T15:53:00Z',
+        description: JSON.stringify({ date: '2026-02-01', amount: 161.56, vendor: 'Floor and Decor', description: 'Mar Nova Dolomite tile' })
+      }])
+    });
+    assert.equal(res.ok, true);
+    assert.equal(res.files[0].purchaseDate, '2026-02-01');
+    assert.equal(res.files[0].savedToDrive, '2026-08-28');
+    assert.equal(res.files[0].amount, 161.56);
+  });
+
+  test('falls back to the spreadsheet row linked to the same file', async () => {
+    const ledgerSource = {
+      getTransactionByDriveFileId: (id) => (id === 'pdf_manual' ? { date: '2026-03-15', amount: 89.1, vendor: 'Floor and Decor' } : null)
+    };
+    const res = await list_folder_files({ folder: 'Floor and Decor' }, {
+      googleToken: 't', projectFolderId: 'lot3_root', ledgerSource,
+      fetchImpl: folderSearch([
+        { id: 'pdf_manual', name: 'grout.pdf', createdTime: '2026-09-01T10:00:00Z' },
+        { id: 'pdf_unknown', name: 'photo.jpg', createdTime: '2026-09-02T10:00:00Z' }
+      ])
+    });
+    assert.equal(res.files[0].purchaseDate, '2026-03-15');
+    assert.equal(res.files[0].amount, 89.1);
+    assert.equal(res.files[1].purchaseDate, null);
+    assert.equal(res.files[1].savedToDrive, '2026-09-02');
+  });
+});

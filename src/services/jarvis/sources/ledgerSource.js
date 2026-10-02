@@ -239,8 +239,61 @@ export class LedgerSource {
     };
   }
 
+  /**
+   * The spreadsheet/sync-history record linked to a Drive file, or null.
+   */
+  getTransactionByDriveFileId(driveFileId) {
+    if (!driveFileId) return null;
+    return this._collectTransactions().find(t => t.driveFileId === driveFileId) || null;
+  }
+
   getTransactions({ text = '', vendor = '', from = '', to = '', minAmount = null, maxAmount = null } = {}) {
+    let results = this._collectTransactions();
+
+    // Filter by vendor (fuzzy match for speech slips)
+    const vQ = String(vendor || '').toLowerCase().trim();
+    if (vQ) {
+      results = results.filter(tx => {
+        const v = String(tx.vendor || '').toLowerCase();
+        return v.includes(vQ) || stringSimilarity(vQ, v) >= 0.45;
+      });
+    }
+
+    // Filter by search text
+    const tQ = String(text || '').toLowerCase().trim();
+    if (tQ) {
+      const searchWords = tQ.split(/\s+/).filter(w => w.length > 2);
+      results = results.filter(tx => {
+        const target = `${tx.vendor} ${tx.description} ${tx.phase} ${JSON.stringify(tx.lineItems || [])}`.toLowerCase();
+        return searchWords.some(w => target.includes(w));
+      });
+    }
+
+    // Filter by date
+    if (from) {
+      results = results.filter(tx => tx.date >= from);
+    }
+    if (to) {
+      results = results.filter(tx => tx.date <= to);
+    }
+
+    // Filter by amount
+    if (typeof minAmount === 'number' && !isNaN(minAmount)) {
+      results = results.filter(tx => tx.amount >= minAmount);
+    }
+    if (typeof maxAmount === 'number' && !isNaN(maxAmount)) {
+      results = results.filter(tx => tx.amount <= maxAmount);
+    }
+
+    // Sort descending by date
+    results.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+    return results.slice(0, 25);
+  }
+
+  _collectTransactions() {
     const subs = this.dashData.subcontractors || [];
+
     const allTx = [];
 
     // Collect transactions from sheet blocks
@@ -305,46 +358,6 @@ export class LedgerSource {
       }
     });
 
-    let results = allTx;
-
-    // Filter by vendor (fuzzy match for speech slips)
-    const vQ = String(vendor || '').toLowerCase().trim();
-    if (vQ) {
-      results = results.filter(tx => {
-        const v = String(tx.vendor || '').toLowerCase();
-        return v.includes(vQ) || stringSimilarity(vQ, v) >= 0.45;
-      });
-    }
-
-    // Filter by search text
-    const tQ = String(text || '').toLowerCase().trim();
-    if (tQ) {
-      const searchWords = tQ.split(/\s+/).filter(w => w.length > 2);
-      results = results.filter(tx => {
-        const target = `${tx.vendor} ${tx.description} ${tx.phase} ${JSON.stringify(tx.lineItems || [])}`.toLowerCase();
-        return searchWords.some(w => target.includes(w));
-      });
-    }
-
-    // Filter by date
-    if (from) {
-      results = results.filter(tx => tx.date >= from);
-    }
-    if (to) {
-      results = results.filter(tx => tx.date <= to);
-    }
-
-    // Filter by amount
-    if (typeof minAmount === 'number' && !isNaN(minAmount)) {
-      results = results.filter(tx => tx.amount >= minAmount);
-    }
-    if (typeof maxAmount === 'number' && !isNaN(maxAmount)) {
-      results = results.filter(tx => tx.amount <= maxAmount);
-    }
-
-    // Sort descending by date
-    results.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-
-    return results.slice(0, 25);
+    return allTx;
   }
 }

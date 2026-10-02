@@ -97,7 +97,7 @@ export const JARVIS_TOOL_DECLARATIONS = [
   },
   {
     name: 'list_folder_files',
-    description: 'Lists the files (name, date, file ID) in a project Drive folder. Matches folder against real project folder names (e.g. Home Depot, Lowe\'s, Floor & Decor).',
+    description: 'Lists the files in a project Drive folder: name, file ID, and for scanned receipts the purchaseDate, amount, vendor and item. savedToDrive is only the upload date — when talking about when something was bought, use purchaseDate; if it is null, say the purchase date is not recorded rather than giving the upload date. Matches folder against real project folder names (e.g. Home Depot, Lowe\'s, Floor & Decor).',
     parameters: {
       type: 'OBJECT',
       properties: {

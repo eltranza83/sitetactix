@@ -55,7 +55,7 @@ function buildConversationContents(messages = [], userQuery = '') {
     const listingData = [
       `[RECENT DRIVE LISTING (DATA)]`,
       `Folder: "${activeListing.folderName}"`,
-      ...activeListing.files.map(f => `${f.index}. "${f.name}" (fileId: "${f.id}", date: "${f.date || 'unknown'}")`)
+      ...activeListing.files.map(f => `${f.index}. "${f.name}" (fileId: "${f.id}", purchased: "${f.purchaseDate || 'unknown'}")`)
     ].join('\n');
     queryWithData = `${listingData}\n\nUser request: ${userQuery}`;
   }
