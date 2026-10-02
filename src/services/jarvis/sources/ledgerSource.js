@@ -44,6 +44,9 @@ export class LedgerSource {
     this.dashData = dashData || { projectInfo: {}, subcontractors: [], categories: [] };
     this.syncHistory = syncHistory || this.dashData.syncHistory || [];
     this.formulaHyperlinks = formulaHyperlinks || {};
+    // True when Google rejected the sheet read because the sign-in expired (401):
+    // amounts still come from the cached dashboard, but receipt links are missing.
+    this.signInExpired = false;
   }
 
   /**
@@ -53,6 +56,7 @@ export class LedgerSource {
     let dashData = currentDashboard || null;
     let syncHistory = [];
     const formulaHyperlinks = {};
+    let signInExpired = false;
 
     try {
       const appState = loadStoredAppState();
@@ -79,6 +83,7 @@ export class LedgerSource {
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${googleToken}` }
         });
+        if (res.status === 401) signInExpired = true;
         if (res.ok) {
           const data = await res.json();
           (data.valueRanges || []).forEach(vr => {
@@ -99,7 +104,9 @@ export class LedgerSource {
       }
     }
 
-    return new LedgerSource(dashData, syncHistory, formulaHyperlinks);
+    const ledger = new LedgerSource(dashData, syncHistory, formulaHyperlinks);
+    ledger.signInExpired = signInExpired;
+    return ledger;
   }
 
   getSummary() {

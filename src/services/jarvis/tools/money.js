@@ -70,11 +70,14 @@ export async function search_payments(args = {}, context = {}) {
     }
   }
 
+  const data = { count: payments.length, payments };
+  if (ledger.signInExpired) {
+    data.receiptLinksUnavailable = true;
+    data.note = 'Receipt links could not be loaded because the Google sign-in expired. If the user wants to open a receipt, tell them: "Your Google sign-in expired. Please sign in again."';
+  }
+
   return {
     ok: true,
-    data: {
-      count: payments.length,
-      payments
-    }
+    data
   };
 }

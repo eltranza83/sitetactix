@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
  * SiteTactix Jarvis Evaluation Harness (Spec §8)
- * Compares Classic Jarvis vs New Jarvis across 27 real-world user queries.
+ * Runs the New Jarvis (askNewJarvis) against the REAL model on the owner's
+ * questions in test/jarvis-eval/cases.json. There is no offline/fixture mode:
+ * results only count when the real model answered.
  *
  * Usage:
- *   node scripts/run-jarvis-eval.js             # Runs live Gemini API eval if key present
- *   node scripts/run-jarvis-eval.js --fixture   # Runs deterministic offline fixture replay
- *   node scripts/run-jarvis-eval.js --case=M1   # Runs single case
- *   node scripts/run-jarvis-eval.js --engine=new
+ *   node scripts/run-jarvis-eval.js             # needs GEMINI_API_KEY (env or .env)
+ *   node scripts/run-jarvis-eval.js --case=M1   # single case
  */
 
 import { readFileSync } from 'node:fs';
@@ -49,15 +49,11 @@ const lot3Fixture = JSON.parse(readFileSync(fixturePath, 'utf-8'));
 
 // 2. Parse CLI Arguments
 const args = process.argv.slice(2);
-let targetEngine = 'both'; // 'classic' | 'new' | 'both'
 let targetCaseId = null;
-let forceFixture = false;
 let cliApiKey = null;
 
 for (const arg of args) {
-  if (arg.startsWith('--engine=')) targetEngine = arg.split('=')[1].toLowerCase();
-  else if (arg.startsWith('--case=')) targetCaseId = arg.split('=')[1].toUpperCase();
-  else if (arg === '--fixture') forceFixture = true;
+  if (arg.startsWith('--case=')) targetCaseId = arg.split('=')[1].toUpperCase();
   else if (arg.startsWith('--api-key=')) cliApiKey = arg.split('=')[1];
 }
 
@@ -68,7 +64,7 @@ if (!resolvedApiKey) {
     for (const line of envContent.split('\n')) {
       const [k, ...vParts] = line.split('=');
       const val = vParts.join('=').trim();
-      if (k?.trim() === 'GEMINI_API_KEY' && val) {
+      if (['GEMINI_API_KEY', 'VITE_GEMINI_API_KEY'].includes(k?.trim()) && val) {
         resolvedApiKey = val;
         break;
       }
@@ -76,7 +72,10 @@ if (!resolvedApiKey) {
   } catch {}
 }
 
-const isOffline = forceFixture || !resolvedApiKey;
+if (!resolvedApiKey) {
+  console.error('No GEMINI_API_KEY found (env, --api-key=, or .env). This eval only runs against the real model.');
+  process.exit(1);
+}
 
 // 3. Polyfill localStorage for Node.js
 let localStore = {};
@@ -88,210 +87,6 @@ if (typeof globalThis.localStorage === 'undefined') {
     clear: () => { localStore = {}; }
   };
 }
-
-// 5. Fixture Model Responses (for deterministic offline replay)
-const FIXTURE_RESPONSES = {
-  new: {
-    M1: {
-      toolCalls: [{ name: 'get_contractor_balance', args: { contractor: 'electrician' } }],
-      text: 'We currently owe Volt Masters Electrical $6,500.00 for Electrical & Lighting on Lot 3.'
-    },
-    M2: {
-      toolCalls: [{ name: 'get_contractor_balance', args: { contractor: 'electrician' } }],
-      text: 'We owe Volt Masters Electrical $6,500.00 for Electrical & Lighting.'
-    },
-    M3: {
-      toolCalls: [{ name: 'get_spending', args: { phase: 'Framing' } }],
-      text: 'Total spending for Framing Lumber & Truss is $75,200.00 ($41,200.00 in materials and $34,000.00 in labor).'
-    },
-    M4: {
-      toolCalls: [{ name: 'get_project_summary', args: {} }],
-      text: 'Total spending across Lot 3 is $186,450.00 to date.'
-    },
-    M5: {
-      toolCalls: [{ name: 'get_contractor_balance', args: { contractor: 'plumber' } }],
-      text: 'The remaining balance with Apex Plumbing Services is $4,500.00.'
-    },
-    R1: {
-      toolCalls: [{ name: 'search_payments', args: { text: 'drywall' } }],
-      text: "We bought the Sheetrock / drywall at Lowe's on June 18, 2026."
-    },
-    R2: {
-      toolCalls: [{ name: 'search_payments', args: { text: 'cement' } }],
-      text: 'We purchased the cement for the backsplash wall at Floor & Decor on September 14, 2026.'
-    },
-    R3: {
-      toolCalls: [
-        { name: 'search_payments', args: { vendor: 'Vodilias Tile', text: 'tile' } },
-        { name: 'open_receipt', args: { driveFileId: 'drive_bodilios_102' } }
-      ],
-      text: "I pulled up the receipt from Bodilios Tile. We purchased Bodilios Porcelain Tile 24x48 for $3,450.00."
-    },
-    R4: {
-      toolCalls: [
-        { name: 'search_payments', args: { vendor: 'Floor and Decor', text: 'backsplash' } },
-        { name: 'open_receipt', args: { driveFileId: 'drive_floor_decor_101' } }
-      ],
-      text: "I opened the backsplash tile receipt from Floor & Decor ($1,280.00 on August 20, 2026)."
-    },
-    R5: {
-      toolCalls: [
-        { name: 'search_payments', args: { text: 'shower tile' } },
-        { name: 'open_receipt', args: { driveFileId: 'drive_floor_decor_101' } }
-      ],
-      text: "We bought the shower tile at Floor & Decor. It is Artisan White Subway Tile, SKU FD-SUB-9821, purchased on August 15, 2026 at $4.25 per sq ft."
-    },
-    R6: {
-      toolCalls: [{ name: 'list_folder_files', args: { folder: 'Home Depot' } }],
-      text: 'In the Home Depot folder, we have: 2x4 Lumber framing receipt - Aug 12.pdf and Tile mortar & thinset receipt - Sep 01.pdf.'
-    },
-    R7: {
-      toolCalls: [{ name: 'open_file', args: { fileId: 'drv_hd_02' } }],
-      text: 'Opened Tile mortar & thinset receipt - Sep 01.pdf in the viewer.'
-    },
-    R8: {
-      toolCalls: [
-        { name: 'list_folder_files', args: { folder: "Lowe's" } },
-        { name: 'open_file', args: { fileId: 'drv_lowes_02' } }
-      ],
-      text: 'I listed the files in the Lowe\'s folder and opened Electrical junction boxes - Sep 10.pdf in the viewer.'
-    },
-    P1: {
-      toolCalls: [{ name: 'add_purchasing_item', args: { item: 'ring doorbell', trade: 'electrical' } }],
-      text: 'Added "ring doorbell" to the electrical purchasing list.'
-    },
-    P2: {
-      toolCalls: [{ name: 'get_purchasing_list', args: { trade: 'electrical' } }],
-      text: 'The ceiling fans are still on the electrical purchasing list and have not been purchased yet.'
-    },
-    P3: {
-      toolCalls: [{ name: 'set_purchasing_status', args: { item: 'toilets', status: 'purchased' } }],
-      text: 'Marked the toilets as purchased on the plumbing checklist.'
-    },
-    P4: {
-      toolCalls: [{ name: 'set_purchasing_status', args: { item: 'ceiling fans', status: 'purchased' } }],
-      text: 'Marked the Ceiling fans as purchased for electrical.'
-    },
-    C1: {
-      toolCalls: [],
-      text: "I can't set reminders. Try your phone: say \"Hey Google, remind me tomorrow at 2 PM to call the electrician.\""
-    },
-    E1: {
-      toolCalls: [{ name: 'stage_expense', args: { vendor: 'Stripes', amount: 50, costType: 'material', phase: 'Extra Costs & Misc', description: 'Gas' } }],
-      text: "I've prepared a draft for Stripes for $50.00 (material) under Extra Costs & Misc. Should I stage this in your Drafts?"
-    },
-    S1: {
-      toolCalls: [{ name: 'get_contractor_balance', args: { contractor: 'electricista' } }],
-      text: 'Le debemos a Volt Masters Electrical $6,500.00 por el trabajo de Electricidad e Iluminación en el Lote 3.'
-    },
-    S2: {
-      toolCalls: [{ name: 'get_contractor_balance', args: { contractor: 'plomero' } }],
-      text: 'El balance pendiente con Apex Plumbing Services es de $4,500.00.'
-    },
-    S3: {
-      toolCalls: [{ name: 'get_purchasing_list', args: { trade: 'electrical', onlyNeeded: true } }],
-      text: 'Para el electricista todavía nos falta comprar: ventiladores de techo (ceiling fans) en la lista de compras.'
-    },
-    S4: {
-      toolCalls: [],
-      text: 'No puedo crear recordatorios. Usa tu teléfono: "Hey Google, recuérdame mañana a las 2 PM llamar al plomero."'
-    }
-  },
-  classic: {
-    M1: {
-      toolCalls: [{ name: 'get_subcontractor_balance', args: { subcontractorName: 'Volt Masters' } }],
-      text: 'Volt Masters Electrical has a remaining balance of $6,500.00.'
-    },
-    M2: {
-      toolCalls: [{ name: 'get_subcontractor_balance', args: { subcontractorName: 'Volt Masters' } }],
-      text: 'Volt Masters Electrical has a remaining balance of $6,500.00.'
-    },
-    M3: {
-      toolCalls: [{ name: 'get_project_budget', args: {} }],
-      text: 'Total spent on Framing Lumber & Truss is $75,200.00.'
-    },
-    M4: {
-      toolCalls: [{ name: 'get_project_budget', args: {} }],
-      text: 'Total spending for Lot 3 is $186,450.00.'
-    },
-    M5: {
-      toolCalls: [{ name: 'get_subcontractor_balance', args: { subcontractorName: 'Apex Plumbing' } }],
-      text: 'Remaining balance with Apex Plumbing Services is $4,500.00.'
-    },
-    R1: {
-      toolCalls: [{ name: 'search_receipts', args: { query: 'drywall' } }],
-      text: "Drywall was purchased at Lowe's for $8,200.00."
-    },
-    R2: {
-      toolCalls: [{ name: 'search_receipts', args: { query: 'cement' } }],
-      text: 'Cement was purchased at Floor & Decor.'
-    },
-    R3: {
-      toolCalls: [],
-      text: "I could not find receipts from Vodilias Tile."
-    },
-    R4: {
-      toolCalls: [{ name: 'search_receipts', args: { query: 'Floor and Decor' } }],
-      text: 'Found Floor and Decor receipt.'
-    },
-    R5: {
-      toolCalls: [{ name: 'search_receipts', args: { query: 'shower tile' } }],
-      text: "Shower tile was bought at Floor & Decor, but I don't have the SKU recorded."
-    },
-    R6: {
-      toolCalls: [{ name: 'get_project_files', args: { folder: 'Home Depot' } }],
-      text: 'Found files in Home Depot.'
-    },
-    R7: {
-      toolCalls: [],
-      text: 'I cannot open that file.'
-    },
-    R8: {
-      toolCalls: [],
-      text: 'I cannot open that file.'
-    },
-    P1: {
-      toolCalls: [{ name: 'add_purchasing_item', args: { item: 'ring doorbell', category: 'electrical' } }],
-      text: 'Added ring doorbell to the electrical checklist.'
-    },
-    P2: {
-      toolCalls: [],
-      text: "I don't see seating fans on the purchasing checklist."
-    },
-    P3: {
-      toolCalls: [{ name: 'remove_purchasing_item', args: { item: 'toilets' } }],
-      text: 'Removed toilets from the purchasing checklist.'
-    },
-    P4: {
-      toolCalls: [{ name: 'remove_purchasing_item', args: { item: 'Ceiling fans' } }],
-      text: 'Removed Ceiling fans from the checklist.'
-    },
-    C1: {
-      toolCalls: [],
-      text: "I don't have the ability to set Google Calendar reminders."
-    },
-    E1: {
-      toolCalls: [{ name: 'stage_manual_transaction', args: { vendor: 'Stripes', amount: 50, costCategory: 'material' } }],
-      text: "I've drafted the $50 receipt for Stripes in your Drafts tab."
-    },
-    S1: {
-      toolCalls: [],
-      text: "No entendí la consulta sobre el contratista."
-    },
-    S2: {
-      toolCalls: [{ name: 'get_subcontractor_balance', args: { subcontractorName: 'plomero' } }],
-      text: 'Apex Plumbing tiene un saldo pendiente de $4,500.00.'
-    },
-    S3: {
-      toolCalls: [],
-      text: "No pude encontrar la lista de compras del electricista."
-    },
-    S4: {
-      toolCalls: [],
-      text: "No puedo configurar recordatorios en el calendario."
-    }
-  }
-};
 
 // 6. Live Model Execution Engine calling askNewJarvis directly
 async function runNewJarvisLive(testCase) {
@@ -523,157 +318,57 @@ function evaluateCaseResult(engineType, testCase, result) {
 // 8. Execution Loop
 async function runEval() {
   console.log('='.repeat(80));
-  console.log('  SiteTactix Jarvis Evaluation Suite (Spec §8)');
-  console.log(`  Mode: ${isOffline ? 'Deterministic Fixture Replay (Offline)' : 'Live Google Gemini API'}`);
-  console.log(`  Engine: ${targetEngine} | Total Cases: ${testCases.length}`);
+  console.log('  SiteTactix Jarvis Evaluation (live model)');
+  console.log(`  Model: ${process.env.GEMINI_MODEL || AI_CONFIG.primaryModel} | Cases: ${testCases.length}`);
   console.log('='.repeat(80));
-  console.log();
 
-  const results = {
-    new: [],
-    classic: []
-  };
-
-  const casesToRun = targetCaseId 
+  const casesToRun = targetCaseId
     ? testCases.filter(c => c.id === targetCaseId)
     : testCases;
+  const results = [];
 
   for (const tc of casesToRun) {
-    // Reset stores
     localStore = {};
     clearPendingAction();
     clearSessionDriveListing();
     purchasingService.setStorageAdapter(new LocalStoragePurchasingAdapter());
     await purchasingService.initializeProjectFromMaster('lot_3');
 
-    // Evaluate New Engine
-    if (targetEngine === 'new' || targetEngine === 'both') {
-      let runResult;
-      if (!isOffline) {
-        process.stdout.write(`  [Live New] Running ${tc.id.padEnd(3)}: "${tc.say.slice(0, 35)}"... `);
-        try {
-          runResult = await runNewJarvisLive(tc);
-          process.stdout.write(`done\n`);
-        } catch (err) {
-          process.stdout.write(`ERROR: ${err.message}\n`);
-          runResult = { toolCalls: [], text: `Error: ${err.message}` };
-        }
-      } else {
-        runResult = FIXTURE_RESPONSES.new[tc.id] || { toolCalls: [], text: '' };
-      }
-      const evalRes = evaluateCaseResult('new', tc, runResult);
-      results.new.push({ id: tc.id, category: tc.category, say: tc.say, eval: evalRes, runResult });
-      console.log(`    ↳ Answer [${evalRes.passed ? 'PASS ✓' : 'FAIL ✗'}]: "${(runResult.text || '').replace(/\s+/g, ' ').trim()}"`);
+    process.stdout.write(`  Running ${tc.id.padEnd(3)}: "${tc.say.slice(0, 40)}"... `);
+    let runResult;
+    try {
+      runResult = await runNewJarvisLive(tc);
+      process.stdout.write('done\n');
+    } catch (err) {
+      process.stdout.write(`ERROR: ${err.message}\n`);
+      runResult = { toolCalls: [], text: `Error: ${err.message}` };
     }
-
-    // Evaluate Classic Engine
-    if (targetEngine === 'classic' || targetEngine === 'both') {
-      const fixtureRes = FIXTURE_RESPONSES.classic[tc.id] || { toolCalls: [], text: '' };
-      const evalRes = evaluateCaseResult('classic', tc, fixtureRes);
-      results.classic.push({ id: tc.id, category: tc.category, say: tc.say, eval: evalRes });
-    }
-
-    if (!isOffline) {
-      await new Promise(r => setTimeout(r, 4500));
-    }
+    const evalRes = evaluateCaseResult('new', tc, runResult);
+    results.push({ tc, evalRes, runResult });
+    await new Promise(r => setTimeout(r, 4500));
   }
 
-  // 9. Print Case-by-Case Answers & Breakdown
-  console.log('\nCase-by-Case Detailed Answers:');
+  console.log('\nAnswers:');
   console.log('='.repeat(80));
-  for (let i = 0; i < casesToRun.length; i++) {
-    const tc = casesToRun[i];
-    const newEntry = results.new[i];
-    const classicEntry = results.classic[i];
-    const newRes = newEntry?.eval;
-    const classicRes = classicEntry?.eval;
-
-    console.log(`\n[${tc.id}] (${tc.category}) Query: "${tc.say}"${tc.followUp ? ` -> "${tc.followUp}"` : ''}`);
-    if (classicEntry) {
-      console.log(`  Classic Engine:  ${classicRes.passed ? 'PASS ✓' : 'FAIL ✗'}`);
-    }
-    if (newEntry) {
-      console.log(`  New Engine:      ${newRes.passed ? 'PASS ✓' : 'FAIL ✗'}`);
-      console.log(`  Tools Executed:  ${(newEntry?.runResult?.executedTools || []).map(t => t.name).join(', ') || 'none'}`);
-      console.log(`  New Answer:      "${(newEntry?.runResult?.text || '').replace(/\s+/g, ' ').trim()}"`);
-      if (!newRes.passed) {
-        for (const issue of newRes.issues) {
-          console.log(`  ↳ Issue: ${issue}`);
-        }
-      }
-    }
+  for (const { tc, evalRes, runResult } of results) {
+    console.log(`\n[${tc.id}] ${evalRes.passed ? 'PASS ✓' : 'FAIL ✗'} (${tc.category}) "${tc.say}"${tc.followUp ? ` -> "${tc.followUp}"` : ''}`);
+    console.log(`  Tools:  ${(runResult.executedTools || []).map(t => t.name).join(', ') || 'none'}`);
+    console.log(`  Answer: "${(runResult.text || '').replace(/\s+/g, ' ').trim()}"`);
+    for (const issue of evalRes.issues) console.log(`  ↳ Issue: ${issue}`);
   }
 
-  // 10. Print Comparative Scorecard Table
-  console.log('\nCase-by-Case Breakdown:');
-  console.log('-'.repeat(80));
-  console.log(
-    'ID'.padEnd(5) + 
-    'Category'.padEnd(12) + 
-    'Query'.padEnd(35) + 
-    'Classic'.padEnd(12) + 
-    'New (beta)'.padEnd(12)
-  );
-  console.log('-'.repeat(80));
+  const passed = results.filter(r => r.evalRes.passed).length;
+  const total = results.length;
+  const rate = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+  const unintendedWrites = results.filter(r => r.evalRes.issues.some(i => i.includes('UNINTENDED WRITE'))).length;
 
-  for (let i = 0; i < casesToRun.length; i++) {
-    const tc = casesToRun[i];
-    const newRes = results.new[i]?.eval;
-    const classicRes = results.classic[i]?.eval;
-
-    const shortSay = tc.say.length > 32 ? tc.say.slice(0, 31) + '…' : tc.say;
-    const classicStatus = classicRes ? (classicRes.passed ? 'PASS ✓' : 'FAIL ✗') : 'N/A';
-    const newStatus = newRes ? (newRes.passed ? 'PASS ✓' : 'FAIL ✗') : 'N/A';
-
-    console.log(
-      tc.id.padEnd(5) +
-      tc.category.padEnd(12) +
-      shortSay.padEnd(35) +
-      classicStatus.padEnd(12) +
-      newStatus.padEnd(12)
-    );
-
-    if (newRes && !newRes.passed) {
-      for (const issue of newRes.issues) {
-        console.log(`    ↳ [New Error]: ${issue}`);
-      }
-    }
-  }
-
-  console.log('-'.repeat(80));
-  console.log();
-
-  // 10. Summary & Pass Bar
-  const newPassedCount = results.new.filter(r => r.eval.passed).length;
-  const newTotal = results.new.length;
-  const newRate = newTotal > 0 ? ((newPassedCount / newTotal) * 100).toFixed(1) : 0;
-  const newUnintendedWrites = results.new.filter(r => r.eval.issues.some(i => i.includes('UNINTENDED WRITE'))).length;
-
-  const classicPassedCount = results.classic.filter(r => r.eval.passed).length;
-  const classicTotal = results.classic.length;
-  const classicRate = classicTotal > 0 ? ((classicPassedCount / classicTotal) * 100).toFixed(1) : 0;
-
-  console.log('='.repeat(80));
-  console.log('  EVALUATION SCORECARD & SUMMARY');
-  console.log('='.repeat(80));
-  if (targetEngine === 'classic' || targetEngine === 'both') {
-    console.log(`  Classic Engine:          ${classicPassedCount}/${classicTotal} passed (${classicRate}%)`);
-  }
-  if (targetEngine === 'new' || targetEngine === 'both') {
-    console.log(`  New Engine:              ${newPassedCount}/${newTotal} passed (${newRate}%)`);
-    console.log(`  Unintended Writes (New): ${newUnintendedWrites}`);
-  }
-  console.log();
-
-  const passesBar = Number(newRate) >= 95 && newUnintendedWrites === 0;
-
-  if (targetEngine !== 'classic') {
-    if (passesBar) {
-      console.log('  >> VERDICT: PASS (Meets >=95% accuracy and 0 unintended writes) <<');
-    } else {
-      console.log('  >> VERDICT: FAIL (Did not meet required pass criteria) <<');
-      process.exitCode = 1;
-    }
+  console.log('\n' + '='.repeat(80));
+  console.log(`  Passed: ${passed}/${total} (${rate}%) | Unintended writes: ${unintendedWrites}`);
+  if (Number(rate) >= 95 && unintendedWrites === 0) {
+    console.log('  >> VERDICT: PASS (>=95% and 0 unintended writes) <<');
+  } else {
+    console.log('  >> VERDICT: FAIL <<');
+    process.exitCode = 1;
   }
   console.log('='.repeat(80));
 }

@@ -144,3 +144,44 @@ describe('v1.4.4 folder listings show the purchase date', () => {
     assert.equal(res.files[1].savedToDrive, '2026-09-02');
   });
 });
+
+describe('v1.4.5 expired sign-in in receipt search', () => {
+  test('ledger notices a 401 on the sheet read; search and open say so', async () => {
+    const { LedgerSource } = await import('../src/services/jarvis/sources/ledgerSource.js');
+    const { search_payments } = await import('../src/services/jarvis/tools/money.js');
+    const { open_receipt } = await import('../src/services/jarvis/tools/receipts.js');
+
+    const originalFetch = globalThis.fetch;
+    const originalStorage = globalThis.localStorage;
+    globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+    globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
+    try {
+      const ledgerSource = await LedgerSource.create({
+        googleToken: 'expired',
+        spreadsheetId: 'sheet_1',
+        currentDashboard: {
+          projectInfo: {},
+          categories: [],
+          subcontractors: [{
+            payee: 'Floor and Decor', phase: 'Tile & Flooring', category: 'Paint Tile', categorySheetName: 'Paint_Tile',
+            payments: [{ vendor: 'Floor and Decor', materialCost: '$161.56', laborCost: '$0.00', date: '2026-02-01', rowNumber: 5 }]
+          }]
+        }
+      });
+      assert.equal(ledgerSource.signInExpired, true);
+
+      const search = await search_payments({ vendor: 'Floor and Decor' }, { ledgerSource });
+      assert.equal(search.ok, true);
+      assert.equal(search.data.count, 1);
+      assert.equal(search.data.receiptLinksUnavailable, true);
+      assert.match(search.data.note, /sign-in expired/);
+
+      const open = await open_receipt({ vendor: 'Floor and Decor' }, { ledgerSource });
+      assert.equal(open.ok, false);
+      assert.equal(open.error, 'needs_auth');
+    } finally {
+      globalThis.fetch = originalFetch;
+      globalThis.localStorage = originalStorage;
+    }
+  });
+});

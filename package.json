@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.4.4",
-  "releaseName": "Purchase dates in folder lists",
+  "version": "1.4.5",
+  "releaseName": "Jarvis cleanup",
   "type": "module",
   "scripts": {
     "dev": "vite",

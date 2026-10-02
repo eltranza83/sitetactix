@@ -23,6 +23,14 @@ export async function open_receipt(args = {}, context = {}) {
     }
   }
 
+  if (!targetFileId && ledger?.signInExpired) {
+    return {
+      ok: false,
+      error: 'needs_auth',
+      message: 'Your Google sign-in expired. Please sign in again.'
+    };
+  }
+
   if (!targetFileId && !matchedTx) {
     return {
       ok: false,
