@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function EditFormCamera({ videoRef, onCapturePhoto, onStopCamera }) {
+export default function EditFormCamera({ videoRef, onCapturePhoto, onStopCamera, zoomInfo = null, zoomValue = 1, onZoomChange }) {
   return (
     <div className="edit-overlay-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -27,6 +27,22 @@ export default function EditFormCamera({ videoRef, onCapturePhoto, onStopCamera 
           <div className="camera-target-box"></div>
         </div>
       </div>
+
+      {zoomInfo && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 4px' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--color-zinc-400)' }}>Zoom</span>
+          <input
+            type="range"
+            min={zoomInfo.min}
+            max={zoomInfo.max}
+            step={zoomInfo.step}
+            value={zoomValue}
+            onChange={onZoomChange}
+            style={{ flex: 1 }}
+            aria-label="Camera zoom"
+          />
+        </div>
+      )}
 
       <div className="camera-controls">
         <button

@@ -10,7 +10,7 @@ import {
   resetDraftTimer,
   updateDraftField
 } from '../services/stagedDocumentOperations';
-import { normalizeScanDate, buildAutoSplits } from '../services/editFormHelpers';
+import { normalizeScanDate, buildAutoSplits, compressImage } from '../services/editFormHelpers';
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -74,7 +74,10 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
     try {
       let mainImageBase64 = null;
       if (scanItem.mainImage) {
-        mainImageBase64 = await fileToBase64(scanItem.mainImage);
+        // The scan already read the full-size photo; the copy kept in the draft only needs to be sharp enough for the PDF
+        const isImage = String(scanItem.mainImage.type || '').startsWith('image/');
+        const storedImage = isImage ? await compressImage(scanItem.mainImage, 1800, 1800) : scanItem.mainImage;
+        mainImageBase64 = await fileToBase64(storedImage);
       }
 
       const draftMetadata = {

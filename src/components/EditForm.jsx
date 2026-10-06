@@ -373,7 +373,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
   const handleFileChange = async (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const compressedFile = await compressImage(files[0]);
+      const compressedFile = await compressImage(files[0], 1800, 1800);
       const base64 = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result);
@@ -401,17 +401,38 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     };
   }, [cameraStream]);
 
+  const [zoomInfo, setZoomInfo] = useState(null);
+  const [zoomValue, setZoomValue] = useState(1);
+
+  const handleZoomChange = (e) => {
+    const value = Number(e.target.value);
+    setZoomValue(value);
+    const track = cameraStream && cameraStream.getVideoTracks()[0];
+    if (track) {
+      track.applyConstraints({ advanced: [{ zoom: value }] }).catch(() => {});
+    }
+  };
+
   const startCamera = async () => {
     setCameraError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          width: { ideal: 3840 },
+          height: { ideal: 2160 }
         },
         audio: false
       });
+      // Zoom is only offered when the phone's camera supports it
+      const track = stream.getVideoTracks()[0];
+      const caps = track && track.getCapabilities ? track.getCapabilities() : null;
+      if (caps && caps.zoom && caps.zoom.max > caps.zoom.min) {
+        setZoomInfo({ min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 });
+        setZoomValue(caps.zoom.min);
+      } else {
+        setZoomInfo(null);
+      }
       setCameraStream(stream);
       setShowCamera(true);
       
@@ -431,6 +452,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
       cameraStream.getTracks().forEach(track => track.stop());
       setCameraStream(null);
     }
+    setZoomInfo(null);
     setShowCamera(false);
   };
 
@@ -451,7 +473,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         if (blob) {
           const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
           stopCamera();
-          const compressed = await compressImage(file);
+          const compressed = await compressImage(file, 1800, 1800);
           const base64 = await new Promise((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
@@ -521,6 +543,9 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         videoRef={videoRef}
         onCapturePhoto={capturePhoto}
         onStopCamera={stopCamera}
+        zoomInfo={zoomInfo}
+        zoomValue={zoomValue}
+        onZoomChange={handleZoomChange}
       />
     );
   }
