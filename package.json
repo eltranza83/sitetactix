@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.1",
-  "releaseName": "Old Jarvis removed",
+  "version": "1.5.2",
+  "releaseName": "Receipt SKUs and cleaner PDF",
   "type": "module",
   "scripts": {
     "dev": "vite",

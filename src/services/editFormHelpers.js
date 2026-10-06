@@ -223,3 +223,12 @@ export function suggestSplitId(description, splits) {
 
   return null;
 }
+
+/**
+ * The scanned line items (with SKUs) assigned to one split,
+ * so each split's PDF lists only its own items.
+ */
+export function getItemsForSplit(lineItems, itemAllocations, splitId) {
+  if (!Array.isArray(lineItems) || !itemAllocations) return [];
+  return lineItems.filter((_, idx) => itemAllocations[idx] === splitId);
+}

@@ -179,6 +179,7 @@ export async function syncInvoiceDocument({
         tradeCategory: split.tradeCategory || metadata.tradeCategory,
         tradePhase: split.tradePhase || metadata.tradePhase,
         costCategory: split.costCategory || metadata.costCategory,
+        lineItems: Array.isArray(split.items) ? split.items : [],
         splits: null
       };
       const splitPdfBlob = await generateDocumentPDF(splitMetadata, images);

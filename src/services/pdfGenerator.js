@@ -401,16 +401,70 @@ export async function generateDocumentPDF(metadata, imageUrls) {
     hour: '2-digit',
     minute: '2-digit'
   });
-  pdf.text(`Created: ${now}`, pageWidth - margin - 50, 23, { align: 'right' });
+  pdf.text(`Created: ${now}`, pageWidth - margin, 14, { align: 'right' });
 
   // 2. Draw Metadata Grid Block
   let currentY = 50;
   const hasCheck = !!metadata.checkNumber;
   const hasSplits = metadata.splits && metadata.splits.length > 0;
-  
-  // Calculate height needed for splits table
+  const lineItems = Array.isArray(metadata.lineItems) ? metadata.lineItems.filter(it => it && it.description) : [];
+
+  const GOLD_DARK = [147, 107, 40];
+  const BLUE = [30, 64, 175];
+  const LABEL_COLOR = [82, 82, 91];
+  const VALUE_COLOR = [24, 24, 27];
+
+  // Rows of the grid. Values share one column; it only moves right if a label is ever too wide to fit.
+  const gridRows = [
+    { label: 'LOT NUMBER / ADDRESS:', value: metadata.lotNumber || 'N/A' },
+    { label: 'JOB / ITEM DESCRIPTION:', value: metadata.description || 'N/A', wrap: true },
+    { label: 'CONTACT / VENDOR:', value: metadata.vendor || 'N/A', wrap: true },
+    { label: 'DATE OF TRANSACTION:', value: metadata.date || 'N/A' },
+    hasSplits
+      ? { label: 'COST CLASSIFICATION:', value: 'MULTIPLE (SPLIT)', bold: true, color: GOLD_DARK }
+      : metadata.costCategory === 'labor'
+        ? { label: 'COST CLASSIFICATION:', value: 'LABOR COST', bold: true, color: BLUE }
+        : { label: 'COST CLASSIFICATION:', value: 'MATERIAL COST', bold: true, color: GOLD_DARK },
+    { label: hasSplits ? 'TOTAL AMOUNT (SPLIT):' : 'TOTAL AMOUNT:', value: `$${Number(metadata.amount || 0).toFixed(2)}`, bold: true, size: 11 },
+    { label: 'TRADE CATEGORY:', value: metadata.tradeCategory || 'N/A', wrap: true },
+    { label: 'PROJECT PHASE BLOCK:', value: metadata.tradePhase || 'N/A', wrap: true }
+  ];
+  if (hasCheck) gridRows.push({ label: 'CHECK NUMBER:', value: String(metadata.checkNumber) });
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  const widestLabel = Math.max(...gridRows.map(r => pdf.getTextWidth(r.label)));
+  const valueX = Math.max(margin + 55, margin + 5 + widestLabel + 4); // 55mm keeps every value in one aligned column
+  const valueWidth = pageWidth - margin - 5 - valueX;
+
+  const MAX_VALUE_LINES = 3;
+  const LINE_H = 4.5;
+  const ROW_GAP = 8;
+  gridRows.forEach(row => {
+    pdf.setFont('helvetica', row.bold ? 'bold' : 'normal');
+    pdf.setFontSize(row.size || 10);
+    let lines = row.wrap ? pdf.splitTextToSize(String(row.value), valueWidth) : [String(row.value)];
+    if (lines.length > MAX_VALUE_LINES) {
+      lines = lines.slice(0, MAX_VALUE_LINES);
+      lines[MAX_VALUE_LINES - 1] = lines[MAX_VALUE_LINES - 1].replace(/\s*\S{0,3}$/, '') + '...';
+    }
+    row.lines = lines;
+    row.height = ROW_GAP + (lines.length - 1) * LINE_H;
+  });
+  const gridHeight = 4 + gridRows.reduce((sum, r) => sum + r.height, 0) + 2;
+
+  // Line items table (SKU shown when the receipt printed one)
+  const MAX_ITEMS_SHOWN = 20;
+  const shownItems = lineItems.slice(0, MAX_ITEMS_SHOWN);
+  const hiddenItems = lineItems.length - shownItems.length;
+  const ITEM_ROW_H = 5.5;
+  const itemsHeight = lineItems.length > 0
+    ? 19 + shownItems.length * ITEM_ROW_H + (hiddenItems > 0 ? ITEM_ROW_H : 0) + 2
+    : 0;
+
+  // Splits table
   const splitsHeight = hasSplits ? (15 + (metadata.splits.length * 6)) : 0;
-  const boxHeight = (hasCheck ? 83 : 75) + splitsHeight;
+  const boxHeight = gridHeight + itemsHeight + splitsHeight;
 
   // Draw Box Container for Metadata
   pdf.setFillColor(244, 244, 245); // Zinc 100
@@ -419,97 +473,74 @@ export async function generateDocumentPDF(metadata, imageUrls) {
   pdf.setLineWidth(0.5);
   pdf.rect(margin, currentY, contentWidth, boxHeight, 'S');
 
-  // Text inside Grid
-  pdf.setTextColor(82, 82, 91); // Zinc 600
-  pdf.setFont('helvetica', 'bold');
+  let gridY = currentY + 10;
+  gridRows.forEach(row => {
+    pdf.setTextColor(...LABEL_COLOR);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.text(row.label, margin + 5, gridY);
+
+    pdf.setTextColor(...(row.color || VALUE_COLOR));
+    pdf.setFont('helvetica', row.bold ? 'bold' : 'normal');
+    pdf.setFontSize(row.size || 10);
+    row.lines.forEach((line, i) => {
+      pdf.text(line, valueX, gridY + i * LINE_H);
+    });
+    gridY += row.height;
+  });
   pdf.setFontSize(10);
 
-  // Row 1
-  pdf.text('LOT NUMBER / ADDRESS:', margin + 5, currentY + 10);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(24, 24, 27); // Zinc 900
-  pdf.text(metadata.lotNumber || 'N/A', margin + 55, currentY + 10);
+  // Draw Line Items if present
+  if (lineItems.length > 0) {
+    const itemsStartY = currentY + gridHeight + 7;
+    const colDescX = margin + 5;
+    const colSkuX = margin + contentWidth - 75;
+    const colQtyX = margin + contentWidth - 38;
+    const colPriceX = margin + contentWidth - 5;
+    const descWidth = colSkuX - colDescX - 4;
 
-  // Row 2
-  pdf.setTextColor(82, 82, 91);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('JOB / ITEM DESCRIPTION:', margin + 5, currentY + 18);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(24, 24, 27);
-  pdf.text(metadata.description || 'N/A', margin + 55, currentY + 18);
+    pdf.setDrawColor(200, 200, 204);
+    pdf.setLineWidth(0.3);
+    pdf.line(margin + 5, itemsStartY - 4, margin + contentWidth - 5, itemsStartY - 4);
 
-  // Row 3
-  pdf.setTextColor(82, 82, 91);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('CONTACT / VENDOR:', margin + 5, currentY + 26);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(24, 24, 27);
-  pdf.text(metadata.vendor || 'N/A', margin + 55, currentY + 26);
-
-  // Row 4
-  pdf.setTextColor(82, 82, 91);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('DATE OF TRANSACTION:', margin + 5, currentY + 34);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(24, 24, 27);
-  pdf.text(metadata.date || 'N/A', margin + 55, currentY + 34);
-
-  // Row 5
-  pdf.setTextColor(82, 82, 91);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('COST CLASSIFICATION:', margin + 5, currentY + 42);
-  pdf.setFont('helvetica', 'bold');
-  if (hasSplits) {
-    pdf.setTextColor(147, 107, 40); // Adepec Dark Gold
-    pdf.text('MULTIPLE (SPLIT)', margin + 55, currentY + 42);
-  } else if (metadata.costCategory === 'labor') {
-    pdf.setTextColor(30, 64, 175); // Royal Blue
-    pdf.text('LABOR COST', margin + 55, currentY + 42);
-  } else {
-    pdf.setTextColor(147, 107, 40); // Adepec Dark Gold
-    pdf.text('MATERIAL COST', margin + 55, currentY + 42);
-  }
-
-  // Row 6
-  pdf.setTextColor(82, 82, 91);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text(hasSplits ? 'TOTAL AMOUNT (SPLIT):' : 'TOTAL AMOUNT:', margin + 5, currentY + 50);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(24, 24, 27);
-  pdf.setFontSize(11);
-  pdf.text(`$${Number(metadata.amount || 0).toFixed(2)}`, margin + 55, currentY + 50);
-  pdf.setFontSize(10); // reset
-
-  // Row 7 (Subcontractor Category)
-  pdf.setTextColor(82, 82, 91);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('SUBCONTRACTOR CATEGORY:', margin + 5, currentY + 58);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(24, 24, 27);
-  pdf.text(metadata.tradeCategory || 'N/A', margin + 55, currentY + 58);
-
-  // Row 8 (Project Phase)
-  pdf.setTextColor(82, 82, 91);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('PROJECT PHASE BLOCK:', margin + 5, currentY + 66);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(24, 24, 27);
-  pdf.text(metadata.tradePhase || 'N/A', margin + 55, currentY + 66);
-
-  // Row 9 (Check Number if present)
-  if (hasCheck) {
-    pdf.setTextColor(82, 82, 91);
+    pdf.setTextColor(197, 160, 89);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('CHECK NUMBER:', margin + 5, currentY + 74);
+    pdf.setFontSize(9);
+    pdf.text('LINE ITEMS', margin + 5, itemsStartY);
+
+    pdf.setTextColor(113, 113, 122);
+    pdf.setFontSize(8);
+    pdf.text('DESCRIPTION', colDescX, itemsStartY + 5);
+    pdf.text('SKU', colSkuX, itemsStartY + 5);
+    pdf.text('QTY', colQtyX, itemsStartY + 5, { align: 'right' });
+    pdf.text('PRICE', colPriceX, itemsStartY + 5, { align: 'right' });
+    pdf.line(margin + 5, itemsStartY + 7, margin + contentWidth - 5, itemsStartY + 7);
+
     pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(24, 24, 27);
-    pdf.text(metadata.checkNumber, margin + 55, currentY + 74);
+    pdf.setTextColor(...VALUE_COLOR);
+    shownItems.forEach((item, idx) => {
+      const y = itemsStartY + 12 + idx * ITEM_ROW_H;
+      const descLines = pdf.splitTextToSize(String(item.description), descWidth);
+      let desc = descLines[0];
+      if (descLines.length > 1) desc = desc.replace(/\s*\S{0,3}$/, '') + '...';
+      pdf.text(desc, colDescX, y);
+      const sku = item.sku ? String(item.sku) : '-';
+      const skuWidth = colQtyX - 14 - colSkuX;
+      pdf.text(pdf.splitTextToSize(sku, skuWidth)[0], colSkuX, y);
+      const qty = item.quantity != null && item.quantity !== '' ? String(item.quantity) : '-';
+      pdf.text(qty, colQtyX, y, { align: 'right' });
+      pdf.text(`$${Number(item.price || 0).toFixed(2)}`, colPriceX, y, { align: 'right' });
+    });
+    if (hiddenItems > 0) {
+      pdf.setTextColor(113, 113, 122);
+      pdf.text(`+ ${hiddenItems} more items on the receipt image`, colDescX, itemsStartY + 12 + shownItems.length * ITEM_ROW_H);
+    }
   }
 
   // Draw Splits Table if present
   if (hasSplits) {
-    const splitsStartY = currentY + (hasCheck ? 82 : 74);
-    
+    const splitsStartY = currentY + gridHeight + itemsHeight + 4;
+
     // Divider line
     pdf.setDrawColor(200, 200, 204);
     pdf.setLineWidth(0.3);
@@ -525,7 +556,7 @@ export async function generateDocumentPDF(metadata, imageUrls) {
     pdf.setTextColor(113, 113, 122); // Zinc 500
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(8);
-    
+
     // Column coordinates
     const colLotX = margin + 5;
     const colCatX = margin + 45;
@@ -543,35 +574,35 @@ export async function generateDocumentPDF(metadata, imageUrls) {
     // Table Rows
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(24, 24, 27); // Zinc 900
-    
+
     metadata.splits.forEach((split, idx) => {
-      const rowY = splitsStartY + 12 + (idx * 6);
-      
+      const splitRowY = splitsStartY + 12 + (idx * 6);
+
       // Lot
-      pdf.text(split.lotNumber || 'N/A', colLotX, rowY);
-      
+      pdf.text(split.lotNumber || 'N/A', colLotX, splitRowY);
+
       // Category
       pdf.setFont('helvetica', 'bold');
       if (split.costCategory === 'labor') {
         pdf.setTextColor(30, 64, 175);
-        pdf.text('LABOR', colCatX, rowY);
+        pdf.text('LABOR', colCatX, splitRowY);
       } else {
         pdf.setTextColor(147, 107, 40);
-        pdf.text('MATERIAL', colCatX, rowY);
+        pdf.text('MATERIAL', colCatX, splitRowY);
       }
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(24, 24, 27);
-      
+
       // Trade Phase + Description
       const phase = split.tradePhase || metadata.tradePhase || 'N/A';
       const desc = split.description || metadata.description || '';
       const displayText = desc ? `${phase} (${desc})` : phase;
       const truncatedText = displayText.length > 40 ? displayText.substring(0, 37) + '...' : displayText;
-      pdf.text(truncatedText, colDescX, rowY);
-      
+      pdf.text(truncatedText, colDescX, splitRowY);
+
       // Amount
       pdf.setFont('helvetica', 'bold');
-      pdf.text(`$${Number(split.amount || 0).toFixed(2)}`, colAmtX, rowY, { align: 'right' });
+      pdf.text(`$${Number(split.amount || 0).toFixed(2)}`, colAmtX, splitRowY, { align: 'right' });
       pdf.setFont('helvetica', 'normal');
     });
   }

@@ -11,7 +11,8 @@ import {
   isValidPhase,
   suggestSplitId,
   distributeReceiptTotalToSplits,
-  checkLineItemsDiscrepancy
+  checkLineItemsDiscrepancy,
+  getItemsForSplit
 } from '../services/editFormHelpers';
 
 export default function EditForm({ stagedItem, onSave, onCancel, history = [], stagedItems = [], projects = [] }) {
@@ -492,15 +493,19 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         lotNumber: s.lotNumber.trim(),
         description: s.description.trim(),
         tradeCategory: s.tradeCategory || formData.tradeCategory,
-        tradePhase: s.tradePhase || formData.tradePhase
+        tradePhase: s.tradePhase || formData.tradePhase,
+        items: getItemsForSplit(stagedItem.metadata.lineItems, itemAllocations, s.id)
       }));
     }
+
+    const scannedLineItems = Array.isArray(stagedItem.metadata.lineItems) ? stagedItem.metadata.lineItems : [];
 
     onSave({
       metadata: {
         ...formData,
         amount: finalAmount,
-        splits: finalSplits
+        splits: finalSplits,
+        ...(scannedLineItems.length > 0 ? { lineItems: scannedLineItems } : {})
       },
       mainImageBase64,
       secondaryImageBase64
