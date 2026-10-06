@@ -1,9 +1,23 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { extractDocumentData } from '../services/gemini';
-import { detectDocumentCorners } from '../services/documentCorners';
+import { detectDocumentCorners, rotationForTextDirection } from '../services/documentCorners';
 
 const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024; // the scan upload limit is 4 MB
+
+/** Returns the canvas turned clockwise by 0, 90, 180 or 270 degrees. */
+function rotateCanvas(canvas, degrees) {
+  if (!degrees) return canvas;
+  const turned = document.createElement('canvas');
+  const sideways = degrees === 90 || degrees === 270;
+  turned.width = sideways ? canvas.height : canvas.width;
+  turned.height = sideways ? canvas.width : canvas.height;
+  const ctx = turned.getContext('2d');
+  ctx.translate(turned.width / 2, turned.height / 2);
+  ctx.rotate((degrees * Math.PI) / 180);
+  ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+  return turned;
+}
 
 function canvasToBlob(canvas, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
@@ -188,6 +202,7 @@ export default function Scanner({ onDataExtracted, onError }) {
   // WebRTC inline camera states
   const [showCamera, setShowCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
+  const [textDirection, setTextDirection] = useState('upright');
   const [zoomInfo, setZoomInfo] = useState(null);
   const [zoomValue, setZoomValue] = useState(1);
   const videoRef = useRef(null);
@@ -261,6 +276,7 @@ export default function Scanner({ onDataExtracted, onError }) {
       
       canvas.toBlob((blob) => {
         if (blob) {
+          setTextDirection('upright');
           const rotatedFile = new File([blob], `rotated_${Date.now()}.jpg`, { type: 'image/jpeg' });
           setOriginalFile(rotatedFile);
           
@@ -302,7 +318,7 @@ export default function Scanner({ onDataExtracted, onError }) {
       setCroppingImageSrc(null);
       setOriginalFile(null);
 
-      const blob = await canvasToJpegUnderLimit(canvas);
+      const blob = await canvasToJpegUnderLimit(rotateCanvas(canvas, rotationForTextDirection(textDirection)));
       if (blob) {
         await analyzeCroppedFile(new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' }));
       } else {
@@ -350,7 +366,7 @@ export default function Scanner({ onDataExtracted, onError }) {
       
       setStatusMessage('Analyzing document with Gemini AI...');
       
-      canvasToJpegUnderLimit(warpedCanvas).then(async (blob) => {
+      canvasToJpegUnderLimit(rotateCanvas(warpedCanvas, rotationForTextDirection(textDirection))).then(async (blob) => {
         if (blob) {
           const croppedFile = new File([blob], `cropped_${Date.now()}.jpg`, { type: 'image/jpeg' });
           await analyzeCroppedFile(croppedFile);
@@ -528,7 +544,8 @@ export default function Scanner({ onDataExtracted, onError }) {
 
       // Find the paper's edges so the crop starts on the document (falls back to the default box)
       setStatusMessage('Finding the document edges...');
-      const detectedCorners = await detectDocumentCorners(await compressImage(file, 1000, 1000));
+      const detected = await detectDocumentCorners(await compressImage(file, 1000, 1000));
+      setTextDirection(detected?.textDirection || 'upright');
       
       // Load image into crop editor
       const url = URL.createObjectURL(compressedFile);
@@ -536,7 +553,7 @@ export default function Scanner({ onDataExtracted, onError }) {
       setCroppingImageSrc(url);
       
       // Reset handles
-      setCorners(detectedCorners || [
+      setCorners(detected?.corners || [
         { x: 0.1, y: 0.1 },
         { x: 0.9, y: 0.1 },
         { x: 0.9, y: 0.9 },
@@ -581,6 +598,11 @@ export default function Scanner({ onDataExtracted, onError }) {
         <p style={{ fontSize: '0.8rem', color: 'var(--color-zinc-400)', margin: 0, lineHeight: 1.4 }}>
           The gold corners start on the document's edges. Drag them if they are off, or use "Rotate 90°" if needed.
         </p>
+        {textDirection !== 'upright' && (
+          <p style={{ fontSize: '0.78rem', color: 'var(--color-amber-400)', margin: 0, lineHeight: 1.4 }}>
+            This photo is turned sideways. It will be turned upright after the crop.
+          </p>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'center', backgroundColor: '#000', borderRadius: '12px', overflow: 'hidden', padding: '10px' }}>
           <div 

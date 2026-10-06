@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseDetectedCorners } from '../src/services/documentCorners.js';
+import { parseDetectedCorners, parseTextDirection, rotationForTextDirection } from '../src/services/documentCorners.js';
 import { generateDocumentCorners, DOCUMENT_CORNERS_PROMPT } from '../api/_lib/document-corners.js';
 
 const goodCorners = [
@@ -74,7 +74,7 @@ describe('generateDocumentCorners', () => {
       apiKey: 'test-key',
       fetchImpl: reply('not json at all')
     });
-    assert.deepEqual(result, { found: false, corners: [] });
+    assert.deepEqual(result, { found: false, textDirection: 'upright', corners: [] });
   });
 
   test('the key goes in the header, never in the URL', async () => {
@@ -93,7 +93,37 @@ describe('generateDocumentCorners', () => {
   });
 
   test('the prompt asks for the document\'s own top-left so sideways photos come out upright', () => {
-    assert.ok(DOCUMENT_CORNERS_PROMPT.includes('OWN top-left'));
+    assert.ok(DOCUMENT_CORNERS_PROMPT.includes('reads_top_to_bottom'));
     assert.ok(DOCUMENT_CORNERS_PROMPT.includes('clockwise'));
+  });
+});
+
+describe('turning a sideways photo upright', () => {
+  test('text that reads top-to-bottom is turned back a quarter turn counter-clockwise', () => {
+    assert.equal(rotationForTextDirection('reads_top_to_bottom'), 270);
+    assert.equal(rotationForTextDirection('reads_bottom_to_top'), 90);
+    assert.equal(rotationForTextDirection('upside_down'), 180);
+    assert.equal(rotationForTextDirection('upright'), 0);
+  });
+
+  test('anything unexpected counts as upright and is not rotated', () => {
+    assert.equal(parseTextDirection({ textDirection: 'sideways?' }), 'upright');
+    assert.equal(parseTextDirection(null), 'upright');
+    assert.equal(rotationForTextDirection(undefined), 0);
+  });
+
+  test('the model answer is passed through', async () => {
+    const result = await generateDocumentCorners({
+      bytes: new Uint8Array([1]),
+      mimeType: 'image/jpeg',
+      apiKey: 'test-key',
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ found: true, textDirection: 'reads_top_to_bottom', corners: goodCorners }) }] } }] })
+      })
+    });
+    assert.equal(result.textDirection, 'reads_top_to_bottom');
+    assert.equal(parseTextDirection(result), 'reads_top_to_bottom');
   });
 });

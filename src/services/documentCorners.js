@@ -45,10 +45,28 @@ export function parseDetectedCorners(raw) {
   return points;
 }
 
+const TEXT_DIRECTIONS = ['upright', 'reads_top_to_bottom', 'reads_bottom_to_top', 'upside_down'];
+
+/** Which way the document's text runs; anything unexpected counts as upright. */
+export function parseTextDirection(raw) {
+  return TEXT_DIRECTIONS.includes(raw?.textDirection) ? raw.textDirection : 'upright';
+}
+
 /**
- * Asks the server for the document's corners. Resolves to four 0-1 points, or null when
- * nothing usable came back (signed out, slow, error, or no clear document), so the crop
- * screen simply starts where it always has.
+ * Degrees to turn the photo clockwise so the text reads upright.
+ * Text that reads top-to-bottom means the photo was turned a quarter turn clockwise, so it is turned back.
+ */
+export function rotationForTextDirection(direction) {
+  if (direction === 'reads_top_to_bottom') return 270;
+  if (direction === 'reads_bottom_to_top') return 90;
+  if (direction === 'upside_down') return 180;
+  return 0;
+}
+
+/**
+ * Asks the server for the document's corners and which way its text runs.
+ * Resolves to { corners, textDirection } where corners is four 0-1 points or null, or to null
+ * when nothing came back (signed out, slow, error), so the crop screen simply starts where it always has.
  */
 export async function detectDocumentCorners(blob, { fetchImpl = fetch, timeoutMs = 10000 } = {}) {
   try {
@@ -73,7 +91,10 @@ export async function detectDocumentCorners(blob, { fetchImpl = fetch, timeoutMs
       });
       if (!response.ok) return null;
       const payload = await response.json();
-      return parseDetectedCorners(payload?.corners);
+      return {
+        corners: parseDetectedCorners(payload?.corners),
+        textDirection: payload?.corners?.found === true ? parseTextDirection(payload.corners) : 'upright'
+      };
     } finally {
       clearTimeout(timer);
     }
