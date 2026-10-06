@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit2, CloudLightning, FileText, CheckCircle, Trash2, Clock, Sparkles, AlertCircle } from 'lucide-react';
 import { STATUS_MESSAGES } from '../services/appErrors';
-import { isDraftPhaseValid } from '../services/editFormHelpers';
+import { isDraftPhaseValid, TRADE_SECTIONS_CONFIG } from '../services/editFormHelpers';
 
 function formatTime(ms) {
   const totalSecs = Math.floor(ms / 1000);
@@ -193,7 +193,17 @@ export default function StagingCard({
                 fontWeight: 700,
                 color: s.costCategory === 'labor' ? 'var(--color-sky-400)' : 'var(--color-amber-400)' 
               }}>{s.costCategory === 'labor' ? 'LAB' : 'MAT'}</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.description}>{s.description || metadata.description}</span>
+              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.description}>{s.description || metadata.description}</span>
+                {s.tradePhase && (
+                  <span
+                    style={{ fontSize: '0.62rem', color: 'var(--color-zinc-500)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={`${TRADE_SECTIONS_CONFIG[s.tradeCategory]?.label || s.tradeCategory || ''} / ${s.tradePhase}`}
+                  >
+                    {s.tradePhase}
+                  </span>
+                )}
+              </span>
               <span style={{ textAlign: 'right', fontWeight: 600 }}>${Number(s.amount || 0).toFixed(2)}</span>
             </div>
           ))}

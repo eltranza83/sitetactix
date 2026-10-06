@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.6",
-  "releaseName": "Drafts split automatically",
+  "version": "1.5.7",
+  "releaseName": "Phase shown on split drafts",
   "type": "module",
   "scripts": {
     "dev": "vite",
