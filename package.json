@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.4.8",
-  "releaseName": "New Jarvis by default",
+  "version": "1.4.9",
+  "releaseName": "Memory Vault removed",
   "type": "module",
   "scripts": {
     "dev": "vite",

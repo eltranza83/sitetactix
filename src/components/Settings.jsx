@@ -90,7 +90,7 @@ export default function Settings({
               onClick={() => handleSetJarvisEngine('new')}
               style={{ fontSize: '0.78rem', padding: '6px 12px' }}
             >
-              New (beta)
+              New
             </button>
           </div>
         </div>

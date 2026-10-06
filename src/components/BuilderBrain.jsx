@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Zap,
   Trash2,
-  Brain,
   X,
   Plus,
   CheckSquare,
@@ -23,8 +22,6 @@ import {
   AlertCircle,
   CheckCircle2
 } from 'lucide-react';
-import MemoryVault from './MemoryVault.jsx';
-import { getMemories } from '../services/memoryService.js';
 import {
   loadGlobalPhases,
   saveGlobalPhases,
@@ -369,16 +366,8 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
   const projectId = activeProject?.id || selectedFolder?.name || 'default_site';
   const projectName = activeProject?.name || selectedFolder?.name || 'Active Job Site';
 
-  const [activeSubTab, setActiveSubTab] = useState('site_setup'); // 'site_setup' | 'phases' | 'specs' | 'vault'
+  const [activeSubTab, setActiveSubTab] = useState('site_setup'); // 'site_setup' | 'phases' | 'specs'
   const [_driveTree, setDriveTree] = useState(() => loadProjectDriveTree(projectId));
-  const [memoryVaultCount, setMemoryVaultCount] = useState(0);
-
-  useEffect(() => {
-    getMemories({ projectId, includeGlobal: true, activeOnly: true })
-      .then((mems) => setMemoryVaultCount(Array.isArray(mems) ? mems.length : 0))
-      .catch(() => {});
-  }, [projectId, activeSubTab]);
-
   // Finish Selections & Specs state (Firestore-First)
   const [specs, setSpecs] = useState([]);
   const [specsCategoryFilter, setSpecsCategoryFilter] = useState('all');
@@ -1185,37 +1174,7 @@ export default function BuilderBrain({ activeProject, selectedFolder, googleToke
           <Palette size={15} />
           <span>Finishes & Specs ({specs.length})</span>
         </button>
-
-        <button
-          onClick={() => setActiveSubTab('vault')}
-          style={{
-            flex: '1 1 120px',
-            padding: '9px 10px',
-            borderRadius: '8px',
-            border: activeSubTab === 'vault' ? '1px solid var(--st-line)' : '1px solid transparent',
-            backgroundColor: activeSubTab === 'vault' ? 'var(--st-panel)' : 'transparent',
-            color: activeSubTab === 'vault' ? 'var(--st-gold)' : 'var(--st-muted)',
-            fontSize: '0.80rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            transition: 'all 0.15s ease',
-            whiteSpace: 'nowrap',
-            boxShadow: activeSubTab === 'vault' ? '0 1px 4px rgba(0, 0, 0, 0.25)' : 'none'
-          }}
-        >
-          <Brain size={15} />
-          <span>Memory Vault ({memoryVaultCount})</span>
-        </button>
       </div>
-
-      {/* DEDICATED PERSISTENT MEMORY VAULT VIEW */}
-      {activeSubTab === 'vault' && (
-        <MemoryVault projectId={projectId} projectName={projectName} />
-      )}
 
       {/* DEDICATED FINISHES & SPECS VIEW */}
       {activeSubTab === 'specs' && (
