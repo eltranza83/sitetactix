@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.10",
-  "releaseName": "Crop finds the edges",
+  "version": "1.5.11",
+  "releaseName": "Crop buttons no longer hidden",
   "type": "module",
   "scripts": {
     "dev": "vite",
