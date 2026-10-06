@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { extractDocumentData } from '../services/gemini';
+import { detectDocumentCorners } from '../services/documentCorners';
 
 const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024; // the scan upload limit is 4 MB
 
@@ -282,6 +283,36 @@ export default function Scanner({ onDataExtracted, onError }) {
     img.src = croppingImageSrc;
   };
 
+  const handleScanAsIs = () => {
+    if (!originalFile || !croppingImageSrc) return;
+
+    setLoading(true);
+    setStatusMessage('Analyzing document with Gemini AI...');
+
+    const img = new Image();
+    img.onload = async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+
+      if (croppingImageSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(croppingImageSrc);
+      }
+      setCroppingImageSrc(null);
+      setOriginalFile(null);
+
+      const blob = await canvasToJpegUnderLimit(canvas);
+      if (blob) {
+        await analyzeCroppedFile(new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' }));
+      } else {
+        setLoading(false);
+        if (onError) onError('Failed to prepare the photo.');
+      }
+    };
+    img.src = croppingImageSrc;
+  };
+
   const handleCropAndScan = () => {
     if (!originalFile || !croppingImageSrc) return;
     
@@ -494,6 +525,10 @@ export default function Scanner({ onDataExtracted, onError }) {
 
       // Compress client-side first
       const compressedFile = await compressImage(file);
+
+      // Find the paper's edges so the crop starts on the document (falls back to the default box)
+      setStatusMessage('Finding the document edges...');
+      const detectedCorners = await detectDocumentCorners(await compressImage(file, 1000, 1000));
       
       // Load image into crop editor
       const url = URL.createObjectURL(compressedFile);
@@ -501,7 +536,7 @@ export default function Scanner({ onDataExtracted, onError }) {
       setCroppingImageSrc(url);
       
       // Reset handles
-      setCorners([
+      setCorners(detectedCorners || [
         { x: 0.1, y: 0.1 },
         { x: 0.9, y: 0.1 },
         { x: 0.9, y: 0.9 },
@@ -544,7 +579,7 @@ export default function Scanner({ onDataExtracted, onError }) {
         </div>
 
         <p style={{ fontSize: '0.8rem', color: 'var(--color-zinc-400)', margin: 0, lineHeight: 1.4 }}>
-          Drag the gold corners to match the boundaries of the receipt or invoice. Use "Rotate 90°" if needed.
+          The gold corners start on the document's edges. Drag them if they are off, or use "Rotate 90°" if needed.
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center', backgroundColor: '#000', borderRadius: '12px', overflow: 'hidden', padding: '10px' }}>
@@ -628,6 +663,14 @@ export default function Scanner({ onDataExtracted, onError }) {
             Crop & Scan
           </button>
         </div>
+        <button
+          type="button"
+          onClick={handleScanAsIs}
+          className="btn btn-secondary"
+          style={{ width: '100%', padding: '10px', fontSize: '0.8rem' }}
+        >
+          Scan as is (no crop)
+        </button>
       </div>
     );
   }

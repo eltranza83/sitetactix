@@ -8,6 +8,7 @@ import {
   requireScannerAccess
 } from './_lib/firebase-auth.js';
 import { resolveServerGeminiKey, sanitizeUpstreamAiError } from './_lib/ai-auth.js';
+import { generateDocumentCorners } from './_lib/document-corners.js';
 
 const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
@@ -108,6 +109,15 @@ export async function POST(request) {
     }
     if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
       throw new HttpError(413, 'This document is too large. Please use a file smaller than 4 MB.');
+    }
+
+    // The crop screen asks for just the document's corners (photos only)
+    if ((request.headers.get('x-document-task') || '').toLowerCase() === 'corners') {
+      if (mimeType === 'application/pdf') {
+        throw new HttpError(415, 'Corner finding works on photos only.');
+      }
+      const corners = await generateDocumentCorners({ bytes, mimeType, apiKey });
+      return jsonResponse({ corners });
     }
 
     const data = await generateDocumentData({ bytes, mimeType, apiKey });

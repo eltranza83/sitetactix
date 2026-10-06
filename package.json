@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.9",
-  "releaseName": "Camera upgrade everywhere",
+  "version": "1.5.10",
+  "releaseName": "Crop finds the edges",
   "type": "module",
   "scripts": {
     "dev": "vite",
