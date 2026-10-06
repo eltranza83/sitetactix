@@ -15,6 +15,7 @@ import {
   loadProjectDashboard
 } from '../services/builderBrainService';
 import { askNewJarvis } from '../services/jarvis/jarvisCore';
+import { createTranscriptAccumulator } from '../services/speechTranscript';
 import { buildJarvisFileCards } from '../services/jarvis/fileCards';
 import {
   fetchProjectFinishes,
@@ -1047,7 +1048,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
     rec.lang = aiLanguage === 'es' ? 'es-US' : aiLanguage === 'en' ? 'en-US' : (typeof navigator !== 'undefined' && navigator.language?.startsWith('es')) ? 'es-US' : 'en-US';
 
     let silenceDebounceTimer = null;
-    let accumulatedFinalText = '';
+    const finalTranscript = createTranscriptAccumulator();
     let latestTranscript = '';
     let isCommitted = false;
 
@@ -1062,7 +1063,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         clearTimeout(silenceDebounceTimer);
         silenceDebounceTimer = null;
       }
-      accumulatedFinalText = '';
+      finalTranscript.reset();
       latestTranscript = '';
 
       // Acoustic Feedback Check
@@ -1114,13 +1115,13 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         const res = e.results[i];
         const piece = res[0]?.transcript || '';
         if (res.isFinal) {
-          accumulatedFinalText = (accumulatedFinalText ? (accumulatedFinalText.trim() + ' ' + piece.trim()) : piece.trim()).trim();
+          finalTranscript.addFinal(piece);
         } else {
-          interimText += piece;
+          interimText = piece; // only the latest interim phrase counts
         }
       }
 
-      const combined = (accumulatedFinalText ? (accumulatedFinalText + (interimText ? ' ' + interimText.trim() : '')) : interimText.trim()).trim();
+      const combined = finalTranscript.previewWith(interimText).trim();
       if (!combined) return;
 
       latestTranscript = combined;
