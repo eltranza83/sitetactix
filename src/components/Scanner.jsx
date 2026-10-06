@@ -2,10 +2,33 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { extractDocumentData } from '../services/gemini';
 
+const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024; // the scan upload limit is 4 MB
+
+function canvasToBlob(canvas, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+}
+
+/**
+ * Saves a canvas as JPEG, shrinking it a little at a time until it fits the upload limit.
+ */
+async function canvasToJpegUnderLimit(canvas) {
+  let current = canvas;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const blob = await canvasToBlob(current, 0.85);
+    if (!blob || blob.size <= MAX_UPLOAD_BYTES) return blob;
+    const smaller = document.createElement('canvas');
+    smaller.width = Math.round(current.width * 0.8);
+    smaller.height = Math.round(current.height * 0.8);
+    smaller.getContext('2d').drawImage(current, 0, 0, smaller.width, smaller.height);
+    current = smaller;
+  }
+  return canvasToBlob(current, 0.7);
+}
+
 /**
  * Resizes and compresses an image client-side in a memory-efficient manner.
  */
-function compressImage(file, maxWidth = 1200, maxHeight = 1200) {
+function compressImage(file, maxWidth = 3000, maxHeight = 3000) {
   return new Promise((resolve) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
@@ -45,7 +68,7 @@ function compressImage(file, maxWidth = 1200, maxHeight = 1200) {
         } else {
           resolve(file);
         }
-      }, 'image/jpeg', 0.8);
+      }, 'image/jpeg', 0.85);
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
@@ -164,6 +187,8 @@ export default function Scanner({ onDataExtracted, onError }) {
   // WebRTC inline camera states
   const [showCamera, setShowCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
+  const [zoomInfo, setZoomInfo] = useState(null);
+  const [zoomValue, setZoomValue] = useState(1);
   const videoRef = useRef(null);
 
   // Crop & Perspective Correction states
@@ -294,7 +319,7 @@ export default function Scanner({ onDataExtracted, onError }) {
       
       setStatusMessage('Analyzing document with Gemini AI...');
       
-      warpedCanvas.toBlob(async (blob) => {
+      canvasToJpegUnderLimit(warpedCanvas).then(async (blob) => {
         if (blob) {
           const croppedFile = new File([blob], `cropped_${Date.now()}.jpg`, { type: 'image/jpeg' });
           await analyzeCroppedFile(croppedFile);
@@ -303,7 +328,7 @@ export default function Scanner({ onDataExtracted, onError }) {
           const captureErr = 'Failed to capture cropped canvas.';
           if (onError) onError(captureErr);
         }
-      }, 'image/jpeg', 0.85);
+      });
     };
     img.src = croppingImageSrc;
   };
@@ -348,11 +373,20 @@ export default function Scanner({ onDataExtracted, onError }) {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          width: { ideal: 3840 },
+          height: { ideal: 2160 }
         },
         audio: false
       });
+      // Zoom is only offered when the phone's camera supports it
+      const track = stream.getVideoTracks()[0];
+      const caps = track && track.getCapabilities ? track.getCapabilities() : null;
+      if (caps && caps.zoom && caps.zoom.max > caps.zoom.min) {
+        setZoomInfo({ min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 });
+        setZoomValue(caps.zoom.min);
+      } else {
+        setZoomInfo(null);
+      }
       setCameraStream(stream);
       setShowCamera(true);
       
@@ -373,7 +407,17 @@ export default function Scanner({ onDataExtracted, onError }) {
       cameraStream.getTracks().forEach(track => track.stop());
       setCameraStream(null);
     }
+    setZoomInfo(null);
     setShowCamera(false);
+  };
+
+  const handleZoomChange = (e) => {
+    const value = Number(e.target.value);
+    setZoomValue(value);
+    const track = cameraStream && cameraStream.getVideoTracks()[0];
+    if (track) {
+      track.applyConstraints({ advanced: [{ zoom: value }] }).catch(() => {});
+    }
   };
 
   const capturePhoto = () => {
@@ -615,6 +659,13 @@ export default function Scanner({ onDataExtracted, onError }) {
             <div className="camera-target-box"></div>
           </div>
         </div>
+
+        {zoomInfo && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 4px' }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--color-zinc-400)' }}>Zoom</span>
+            <input type="range" min={zoomInfo.min} max={zoomInfo.max} step={zoomInfo.step} value={zoomValue} onChange={handleZoomChange} style={{ flex: 1 }} aria-label="Camera zoom" />
+          </div>
+        )}
 
         <div className="camera-controls">
           <button 

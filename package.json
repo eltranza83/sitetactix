@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.7",
-  "releaseName": "Phase shown on split drafts",
+  "version": "1.5.8",
+  "releaseName": "Bigger sharper camera",
   "type": "module",
   "scripts": {
     "dev": "vite",
