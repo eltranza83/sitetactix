@@ -1,6 +1,6 @@
 /**
  * Centralized Trade Categories Configuration
- * Single Source of Truth for Purchasing, Specs, and AI Trade Recognition
+ * Single Source of Truth for trade sections, specs, and AI trade recognition
  */
 
 export const TRADE_SECTION_MAP = {

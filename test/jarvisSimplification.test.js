@@ -2,7 +2,6 @@ import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  isPurchasingItemGrounded,
   isExpenseGrounded,
   verifyActionExecutionClaims
 } from '../src/services/jarvis/verify.js';
@@ -28,14 +27,6 @@ import {
   getAllCanonicalPhases
 } from '../src/services/jarvis/tools/expenses.js';
 
-import {
-  get_purchasing_list,
-  add_purchasing_item,
-  set_purchasing_status,
-  remove_purchasing_item
-} from '../src/services/jarvis/tools/purchasing.js';
-
-import { purchasingService, LocalStoragePurchasingAdapter } from '../src/services/purchasingService.js';
 import {
   list_folder_files,
   open_file,
@@ -64,19 +55,9 @@ describe('v1.4.0 Jarvis Simplification Core Suite', () => {
     globalThis.localStorage = createMockStorage();
     clearPendingAction();
     clearSessionDriveListing();
-    purchasingService.setStorageAdapter(new LocalStoragePurchasingAdapter());
   });
 
   describe('1. Verification & Safety Guards (verify.js)', () => {
-    test('isPurchasingItemGrounded handles singular/plural, stems, and accents', () => {
-      assert.equal(isPurchasingItemGrounded('exhaust fans', 'add two exhaust fans to the list'), true);
-      assert.equal(isPurchasingItemGrounded('exhaust fan', 'add two exhaust fans to the list'), true);
-      assert.equal(isPurchasingItemGrounded('ceiling fans', 'check if we already bought the ceiling fan'), true);
-      assert.equal(isPurchasingItemGrounded('ventiladores', 'agrega un ventilador para el baño'), true);
-      assert.equal(isPurchasingItemGrounded('ring doorbell', 'Add a ring doorbell to the electrician purchasing list'), true);
-      assert.equal(isPurchasingItemGrounded('copper pipes', 'add two exhaust fans to the list'), false);
-    });
-
     test('isExpenseGrounded verifies vendor and amount', () => {
       assert.equal(isExpenseGrounded('Stripes', 50, 'I just pumped the gas at Stripes today for $50'), true);
       assert.equal(isExpenseGrounded('Home Depot', 125.50, 'spent $125.50 at Home Depot on lumber'), true);
@@ -244,64 +225,6 @@ describe('v1.4.0 Jarvis Simplification Core Suite', () => {
     });
   });
 
-  describe('4. Purchasing Tools (tools/purchasing.js)', () => {
-    test('add_purchasing_item requires trade selection if missing', async () => {
-      const res = await add_purchasing_item({ item: 'ring doorbell' }, { projectId: 'lot_3' });
-      assert.equal(res.ok, false);
-      assert.equal(res.needs, 'trade');
-      assert.deepEqual(res.options, ['quartz', 'electrical', 'plumbing']);
-    });
-
-    test('add_purchasing_item adds item with trade', async () => {
-      const res = await add_purchasing_item({ item: 'ring doorbell', trade: 'electrical' }, { projectId: 'lot_3' });
-      assert.equal(res.ok, true);
-      assert.equal(res.added, true);
-
-      // Verify item is now in checklist
-      const listRes = await get_purchasing_list({ trade: 'electrical' }, { projectId: 'lot_3' });
-      assert.ok(listRes.data.items.some(i => i.item.toLowerCase().includes('ring doorbell')));
-    });
-
-    test('Instruction 6b: set_purchasing_status marks item purchased rather than deleting', async () => {
-      // Add toilets
-      await add_purchasing_item({ item: 'toilets', trade: 'plumbing' }, { projectId: 'lot_3' });
-
-      // User says we already bought toilets -> mark purchased
-      const updateRes = await set_purchasing_status({ item: 'toilets', status: 'purchased' }, { projectId: 'lot_3' });
-      assert.equal(updateRes.ok, true);
-      assert.equal(updateRes.status, 'purchased');
-
-      // Verify item still exists on list under purchased status
-      const listRes = await get_purchasing_list({ trade: 'plumbing' }, { projectId: 'lot_3' });
-      const toiletItem = listRes.data.items.find(i => i.item.toLowerCase().includes('toilet'));
-      assert.ok(toiletItem);
-      assert.equal(toiletItem.status, 'purchased');
-      assert.equal(toiletItem.isPurchased, true);
-    });
-
-    test('set_purchasing_status returns ok:false when updateItemStatus fails', async () => {
-      const failingAdapter = {
-        getItems: async () => [{ id: 'mock-item-1', itemName: 'Faulty Item', categoryId: 'electrical', status: 'needed' }],
-        saveItems: async () => { throw new Error('Firestore write error'); }
-      };
-      purchasingService.setStorageAdapter(failingAdapter);
-
-      const res = await set_purchasing_status({ item: 'Faulty Item', status: 'purchased' }, { projectId: 'lot_3' });
-      assert.equal(res.ok, false);
-      assert.equal(res.error, 'update_failed');
-    });
-
-    test('remove_purchasing_item removes item only when explicit', async () => {
-      await add_purchasing_item({ item: 'extra exhaust fans', trade: 'electrical' }, { projectId: 'lot_3' });
-      const delRes = await remove_purchasing_item({ item: 'extra exhaust fans', trade: 'electrical' }, { projectId: 'lot_3' });
-      assert.equal(delRes.ok, true);
-      assert.equal(delRes.removed, true);
-
-      const listRes = await get_purchasing_list({ trade: 'electrical' }, { projectId: 'lot_3' });
-      assert.ok(!listRes.data.items.some(i => i.item.includes('extra exhaust fans')));
-    });
-  });
-
   describe('5. Expense Staging Tool (tools/expenses.js)', () => {
     test('stage_expense requires confirmation and validates canonical phase', async () => {
       const res = await stage_expense({
@@ -382,12 +305,6 @@ describe('v1.4.0 Jarvis Simplification Core Suite', () => {
       assert.ok(plumberRes.contractors.some(c => c.name === 'Apex Plumbing Services' && c.phase.toLowerCase().includes('plumbing')));
     });
 
-    test('S3: get_purchasing_list maps Spanish trade and returns only needed items', async () => {
-      const res = await get_purchasing_list({ trade: 'electricista', onlyNeeded: true }, { projectId: 'lot_3' });
-      assert.equal(res.ok, true);
-      assert.equal(res.data.trade, 'electrical');
-      assert.ok(res.data.items.every(i => !i.isPurchased));
-    });
   });
 
   describe('7. Drive Folder Browsing and File Opening (tools/drive.js)', () => {

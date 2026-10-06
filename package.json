@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.12",
-  "releaseName": "Sideways photos turn upright",
+  "version": "1.6.0",
+  "releaseName": "Purchasing list removed",
   "type": "module",
   "scripts": {
     "dev": "vite",

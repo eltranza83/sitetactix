@@ -266,78 +266,6 @@
     ]
   },
   {
-    "id": "P1",
-    "category": "Purchasing",
-    "say": "Add a ring doorbell to the electrician purchasing list.",
-    "lang": "en",
-    "expect": {
-      "tools": [
-        "add_purchasing_item"
-      ],
-      "argsInclude": {
-        "item": "ring doorbell",
-        "trade": "electrical"
-      },
-      "noWrites": false
-    },
-    "never": [
-      "refuse",
-      "add to another trade"
-    ]
-  },
-  {
-    "id": "P2",
-    "category": "Purchasing",
-    "say": "Can you check if we already bought the seating fans for this project?",
-    "lang": "en",
-    "expect": {
-      "tools": [
-        "get_purchasing_list"
-      ],
-      "noWrites": true
-    },
-    "never": [
-      "write anything"
-    ]
-  },
-  {
-    "id": "P3",
-    "category": "Purchasing",
-    "say": "Jarvis, we already bought the toilets for this project, so go ahead and uh scratch them off.",
-    "lang": "en",
-    "expect": {
-      "tools": [
-        "set_purchasing_status"
-      ],
-      "argsInclude": {
-        "status": "purchased"
-      },
-      "noWrites": false
-    },
-    "never": [
-      "delete the item"
-    ]
-  },
-  {
-    "id": "P4",
-    "category": "Purchasing",
-    "say": "We already purchased the Ceiling fans for the electrician so remove those.",
-    "lang": "en",
-    "expect": {
-      "tools": [
-        "set_purchasing_status"
-      ],
-      "argsInclude": {
-        "status": "purchased"
-      },
-      "noWrites": false
-    },
-    "never": [
-      "delete the item",
-      "act on another trade"
-    ]
-  },
-  {
     "id": "C1",
     "category": "Reminders",
     "say": "Can you remind me tomorrow to call the electrician at two p.m.",
@@ -421,25 +349,6 @@
     },
     "never": [
       "invent a number"
-    ]
-  },
-  {
-    "id": "S3",
-    "category": "Spanish",
-    "say": "Que falta combrarle al eletricista..",
-    "lang": "es",
-    "expect": {
-      "tools": [
-        "get_purchasing_list"
-      ],
-      "argsInclude": {
-        "trade": "electric"
-      },
-      "noWrites": true
-    },
-    "never": [
-      "write anything",
-      "list another trade"
     ]
   },
   {

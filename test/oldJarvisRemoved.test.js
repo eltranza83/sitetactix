@@ -18,6 +18,8 @@ describe('v1.5.1 old Jarvis removed', () => {
       '../src/services/finishService.js',
       '../src/services/documentContentProvider.js',
       '../src/services/googleDocsPurchasingService.js',
+      '../src/services/purchasingService.js',
+      '../src/services/jarvis/tools/purchasing.js',
       '../api/ask-brain.js',
       '../api/observe-preference.js',
       '../api/_lib/ai-tools-definitions.js'
@@ -31,7 +33,6 @@ describe('v1.5.1 old Jarvis removed', () => {
       '../api/jarvis.js',
       '../api/_lib/jarvis-tools-definitions.js',
       '../src/services/jarvis/jarvisCore.js',
-      '../src/services/purchasingService.js',
       '../src/services/buyerHandoverPdfGenerator.js'
     ]) {
       assert.equal(exists(p), true, `${p} must exist`);

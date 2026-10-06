@@ -15,7 +15,6 @@ test('toCanonicalProjectId normalizes lot names', () => {
 test('toCanonicalProjectId slugifies other names and handles special values', () => {
   assert.equal(toCanonicalProjectId('Westlake Commercial Lot 12'), 'westlake_commercial_lot_12');
   assert.equal(toCanonicalProjectId('master'), 'master');
-  assert.equal(toCanonicalProjectId('purchasing_master'), 'master');
   assert.equal(toCanonicalProjectId(''), 'default');
   assert.equal(toCanonicalProjectId(null), 'default');
   assert.equal(toCanonicalProjectId('!!!'), 'default');

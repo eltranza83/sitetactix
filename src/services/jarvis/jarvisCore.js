@@ -2,7 +2,6 @@ import { getFirebaseAuthInstance } from '../firebase.js';
 import { LedgerSource } from './sources/ledgerSource.js';
 import { executeJarvisTool, isWriteTool } from './tools/index.js';
 import {
-  isPurchasingItemGrounded,
   isExpenseGrounded,
   verifyActionExecutionClaims
 } from './verify.js';
@@ -225,16 +224,7 @@ export async function askNewJarvis(query, options = {}) {
       let toolResult = null;
 
       // Grounding & safety verification for writes
-      if (toolName === 'add_purchasing_item' || toolName === 'set_purchasing_status' || toolName === 'remove_purchasing_item') {
-        const item = safeArgs.item || '';
-        if (!isPurchasingItemGrounded(item, query)) {
-          toolResult = {
-            ok: false,
-            ungrounded: true,
-            message: `I didn't complete that — which item did you mean?`
-          };
-        }
-      } else if (toolName === 'stage_expense') {
+      if (toolName === 'stage_expense') {
         if (!isExpenseGrounded(safeArgs.vendor, safeArgs.amount, query)) {
           toolResult = {
             ok: false,
