@@ -10,8 +10,6 @@ import {
   TRADE_SECTION_MAP
 } from '../src/services/purchasingService.js';
 
-import { executeClientToolCall, clearIdempotencyCache } from '../src/services/aiTools.js';
-import { formatToolResultsHumanReadable } from '../src/services/builderBrainService.js';
 
 /**
  * In-memory Mock Firestore Database replicating Firebase Firestore Lite SDK behavior:
@@ -162,7 +160,6 @@ describe('Firestore Authoritative Purchasing Persistence Suite', () => {
 
   beforeEach(() => {
     mockDb = new MockFirestoreDatabase();
-    clearIdempotencyCache();
   });
 
   test('1. Status Change persists to Firestore & survives fresh service with empty localStorage', async () => {

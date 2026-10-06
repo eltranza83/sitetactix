@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createProjectFolder, listProjectFolders } from '../services/settingsDrive';
 import { getDriveErrorMessage, getFolderErrorMessage, getValidationErrorMessage } from '../services/appErrors';
-import { toCanonicalProjectId } from '../services/googleDocsPurchasingService';
+import { toCanonicalProjectId } from '../services/projectIds';
 import { saveUserProject, deleteUserProject } from '../services/projectService';
 
 export function useSettingsProjects({

@@ -59,7 +59,7 @@ test('generateDocumentData sends inline bytes and parses Gemini JSON', async () 
 });
 
 test('requireScannerAccess rejects unauthenticated request with 401', async () => {
-  const req = new Request('https://example.test/api/ask-brain', {
+  const req = new Request('https://example.test/api/jarvis', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: 'test' })
@@ -85,7 +85,7 @@ test('requireScannerAccess rejects unauthorized user without invite document wit
     return new Response('', { status: 404 });
   };
 
-  const req = new Request('https://example.test/api/ask-brain', {
+  const req = new Request('https://example.test/api/jarvis', {
     method: 'POST',
     headers: { authorization: 'Bearer invalid-access-token' }
   });
@@ -109,7 +109,7 @@ test('requireScannerAccess rejects user with unverified email with 403', async (
     return Response.json({ name: 'access' });
   };
 
-  const req = new Request('https://example.test/api/ask-brain', {
+  const req = new Request('https://example.test/api/jarvis', {
     method: 'POST',
     headers: { authorization: 'Bearer unverified-token' }
   });
@@ -133,7 +133,7 @@ test('requireScannerAccess enforces rate limits when threshold exceeded', async 
     return Response.json({ name: 'access' });
   };
 
-  const req = new Request('https://example.test/api/ask-brain', {
+  const req = new Request('https://example.test/api/jarvis', {
     headers: { authorization: 'Bearer valid-token' }
   });
 

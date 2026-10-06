@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.0",
-  "releaseName": "Field Brain removed",
+  "version": "1.5.1",
+  "releaseName": "Old Jarvis removed",
   "type": "module",
   "scripts": {
     "dev": "vite",

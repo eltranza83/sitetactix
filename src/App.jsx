@@ -858,7 +858,6 @@ export default function App() {
           activeProject={activeProject}
           selectedFolder={selectedFolder}
           googleToken={googleToken}
-          onNavigateTab={setActiveTab}
         />
       </DashboardErrorBoundary>
 

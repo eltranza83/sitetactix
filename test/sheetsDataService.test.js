@@ -14,6 +14,7 @@ import {
   parseCurrency,
   parseSummaryDashboard
 } from '../src/services/sheetsDataService.js';
+import { LedgerSource } from '../src/services/jarvis/sources/ledgerSource.js';
 
 test('basic spreadsheet helpers normalize labels and currency', () => {
   assert.equal(normalizeKey(' Paint & Tile '), 'painttile');
@@ -197,8 +198,6 @@ test('template-generated blank/formula rows do NOT create phantom payment transa
 });
 
 test('unbounded row range reads transactions beyond row 80 and enables AI retrieval', async () => {
-  const { executeClientToolCall } = await import('../src/services/aiTools.js');
-
   const rows = [
     ['Task Description', 'Contractor / Vendor', 'Material Cost', 'Labor Cost', 'Payment Date', 'Check or Trans #', 'Contractor Payee', 'Total Paid', 'Original Quote', 'Remaining Balance', 'Notes / Status'],
     ['→ Electrical & Lighting', 'Electrical Payee', '', '', '', '', '', '', '$25,000.00', '$16,550.00', 'In Progress']
@@ -219,24 +218,17 @@ test('unbounded row range reads transactions beyond row 80 and enables AI retrie
   assert.equal(parsed[0].payments[0].materialCost, '$8,450.00');
   assert.equal(parsed[0].payments[0].date, '2026-08-01');
 
-  // Verify search_receipts finds the row 121 transaction
-  const mockDashboardData = {
-    projectInfo: { name: 'Lot 3' },
-    subcontractors: parsed
-  };
-
-  const receiptResult = await executeClientToolCall('search_receipts', { query: 'Apex Industrial' }, { dashboardData: mockDashboardData });
-  assert.equal(receiptResult.found, true);
-  assert.equal(receiptResult.count, 1);
-  assert.equal(receiptResult.receipts[0].payee, 'Apex Industrial Supply');
-  assert.equal(receiptResult.receipts[0].amount, 8450);
-  assert.equal(receiptResult.receipts[0].date, '2026-08-01');
-  assert.equal(receiptResult.receipts[0].checkNumber, '5042');
+  // Verify the Jarvis ledger finds the row 121 transaction
+  const ledger = new LedgerSource({ projectInfo: { name: 'Lot 3' }, subcontractors: parsed });
+  const found = ledger.getTransactions({ text: 'Apex Industrial' });
+  assert.equal(found.length, 1);
+  assert.equal(found[0].vendor, 'Apex Industrial Supply');
+  assert.equal(found[0].amount, 8450);
+  assert.equal(found[0].date, '2026-08-01');
+  assert.equal(found[0].checkNumber, '5042');
 });
 
 test('subcontractor payee section keeps contractorPaid separate from material store receipts in AI retrieval', async () => {
-  const { executeClientToolCall } = await import('../src/services/aiTools.js');
-
   const summaryMeta = {
     phase: 'Electrical & Lighting',
     status: 'In Progress',
@@ -269,19 +261,13 @@ test('subcontractor payee section keeps contractorPaid separate from material st
   assert.equal(trade.totalMaterial, '$143.80');
   assert.equal(trade.totalSpent, '$5,143.80');
 
-  // Verify AI tool get_subcontractor_balance reports contractor paid and balance truthfully without conflating Home Depot
-  const mockDashboardData = {
-    projectInfo: { name: 'Lot 3' },
-    subcontractors: parsed
-  };
-
-  const balanceResult = await executeClientToolCall('get_subcontractor_balance', { tradeOrContractor: 'electrician' }, { dashboardData: mockDashboardData });
-  assert.equal(balanceResult.found, true);
-  assert.equal(balanceResult.foundCount, 1);
-  assert.equal(balanceResult.results[0].contractor, 'Enrique Vallejo');
-  assert.equal(balanceResult.results[0].quote, 15000);
-  assert.equal(balanceResult.results[0].totalPaid, 5000);
-  assert.equal(balanceResult.results[0].contractorPaid, 5000);
-  assert.equal(balanceResult.results[0].remainingBalance, 10000);
-  assert.equal(balanceResult.results[0].phaseSpent, 5143.8);
+  // Verify the Jarvis ledger reports contractor paid and balance without conflating Home Depot
+  const ledger = new LedgerSource({ projectInfo: { name: 'Lot 3' }, subcontractors: parsed });
+  const balance = ledger.getContractors('electric');
+  assert.equal(balance.matched, true);
+  assert.equal(balance.contractors.length, 1);
+  assert.equal(balance.contractors[0].name, 'Enrique Vallejo');
+  assert.equal(balance.contractors[0].quote, '$15,000.00');
+  assert.equal(balance.contractors[0].laborPaid, '$5,000.00');
+  assert.equal(balance.contractors[0].stillOwed, '$10,000.00');
 });

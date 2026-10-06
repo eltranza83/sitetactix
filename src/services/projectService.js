@@ -1,7 +1,7 @@
 import { getFirebaseDb } from './firebase.js';
 import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore/lite';
 import { APP_STORAGE_KEYS, getStoredJson, persistProjects } from './appStorage.js';
-import { toCanonicalProjectId } from './googleDocsPurchasingService.js';
+import { toCanonicalProjectId } from './projectIds.js';
 
 export function cleanProjectId(rawId) {
   if (!rawId) return 'default_project';

@@ -89,7 +89,7 @@ describe('CSP & Production Security Headers Smoke Test Suite', () => {
   it('authorizes Gemini AI backend requests in CSP', () => {
     const connectSrc = parsed['connect-src'] || [];
 
-    assert.ok(connectSrc.includes("'self'"), "connect-src must allow 'self' for /api/ask-brain");
+    assert.ok(connectSrc.includes("'self'"), "connect-src must allow 'self' for /api/jarvis");
     assert.ok(connectSrc.includes('https://generativelanguage.googleapis.com'), 'connect-src must allow generativelanguage.googleapis.com for direct model queries');
   });
 });

@@ -8,7 +8,6 @@ import SettingsProjectProfilesCard from './SettingsProjectProfilesCard';
 import { useSettingsAdmin } from '../hooks/useSettingsAdmin';
 import { useSettingsProjects } from '../hooks/useSettingsProjects';
 import { APP_BUILD_LABEL, APP_RELEASE_NAME } from '../config/appConfig';
-import { getJarvisEngineMode } from '../services/jarvis/engineMode';
 
 export default function Settings({
   googleClientId: _googleClientId,
@@ -28,16 +27,6 @@ export default function Settings({
 }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [jarvisEngine, setJarvisEngine] = useState(() => getJarvisEngineMode());
-
-  const handleSetJarvisEngine = (mode) => {
-    setJarvisEngine(mode);
-    try {
-      localStorage.setItem('jarvis_engine_mode', mode);
-    } catch {}
-    window.dispatchEvent(new CustomEvent('jarvis-engine-changed', { detail: mode }));
-  };
-
   const admin = useSettingsAdmin({ setError, setSuccess });
 
   const projectSettings = useSettingsProjects({
@@ -65,37 +54,6 @@ export default function Settings({
         onSignIn={onSignIn}
         onSignOut={onSignOut}
       />
-
-      {/* Jarvis Engine Selection */}
-      <div className="settings-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-zinc-100)' }}>Jarvis Engine</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--color-zinc-400)', marginTop: '2px' }}>
-              Choose the AI engine for the floating Field Assistant.
-            </p>
-          </div>
-          <div className="sliding-toggle-container" style={{ margin: 0, padding: '2px', background: 'var(--color-zinc-900)' }}>
-            <button
-              type="button"
-              className={`sliding-toggle-btn ${jarvisEngine === 'classic' ? 'active' : ''}`}
-              onClick={() => handleSetJarvisEngine('classic')}
-              style={{ fontSize: '0.78rem', padding: '6px 12px' }}
-            >
-              Classic
-            </button>
-            <button
-              type="button"
-              className={`sliding-toggle-btn ${jarvisEngine === 'new' ? 'active' : ''}`}
-              onClick={() => handleSetJarvisEngine('new')}
-              style={{ fontSize: '0.78rem', padding: '6px 12px' }}
-            >
-              New
-            </button>
-          </div>
-        </div>
-      </div>
-
 
       {(googleToken || googleUser) && (
         <SettingsProjectProfilesCard

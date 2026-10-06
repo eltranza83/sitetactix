@@ -20,14 +20,14 @@ function apiDevPlugin() {
     name: 'api-dev-middleware',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if ((req.url === '/api/ask-brain' || req.url === '/api/jarvis') && req.method === 'POST') {
+        if (req.url === '/api/jarvis' && req.method === 'POST') {
           try {
             const chunks = [];
             for await (const chunk of req) {
               chunks.push(chunk);
             }
             const bodyBuffer = Buffer.concat(chunks);
-            const routePath = req.url === '/api/jarvis' ? './api/jarvis.js' : './api/ask-brain.js';
+            const routePath = './api/jarvis.js';
             const { POST } = await import(routePath);
             const webRequest = new Request(`http://localhost:5173${req.url}`, {
               method: 'POST',

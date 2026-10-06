@@ -46,12 +46,12 @@ describe('v1.4.2 New Jarvis file opening', () => {
     ]).length, 1);
   });
 
-  test('assistant skips Classic file guessing when the New engine is on', () => {
+  test('the assistant has no old-Jarvis file guessing; cards come only from open tools', () => {
     const src = readFileSync(new URL('../src/components/GlobalAIAssistant.jsx', import.meta.url), 'utf8');
-    assert.match(src, /if \(!isNewEngine && !isManualNoReceiptIntent\) \{\s*targetFile = findReferencedDriveFile/);
-    assert.match(src, /const attachedDocs = isNewEngine \? buildJarvisFileCards\(answerPayload\?\.executedTools\) : \[\];/);
-    assert.match(src, /if \(!isNewEngine && targetFile && targetFile\.id/);
-    assert.match(src, /if \(!isNewEngine && viewFiles\.length === 0 && \(isViewIntent/);
+    assert.doesNotMatch(src, /findReferencedDriveFile/);
+    assert.doesNotMatch(src, /askGeminiBrain/);
+    assert.doesNotMatch(src, /isViewIntent/);
+    assert.ok(src.includes('buildJarvisFileCards(executedTools)'));
   });
 });
 
