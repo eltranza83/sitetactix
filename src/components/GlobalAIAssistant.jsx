@@ -16,6 +16,7 @@ import {
 } from '../services/builderBrainService';
 import { askNewJarvis } from '../services/jarvis/jarvisCore';
 import { createTranscriptAccumulator } from '../services/speechTranscript';
+import { getJarvisEngineMode } from '../services/jarvis/engineMode';
 import { buildJarvisFileCards } from '../services/jarvis/fileCards';
 import {
   fetchProjectFinishes,
@@ -184,12 +185,10 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState(() => {
-    const hr = new Date().getHours();
-    const timeGreeting = hr < 12 ? 'Good morning Sir' : hr < 17 ? 'Good afternoon Sir' : 'Good evening Sir';
     return [
       {
         sender: 'ai',
-        text: `${timeGreeting}. Online and at your service. I have indexed all project financials, Google Drive files, and field protocols for "${projectName}". How may I assist you today?`,
+        text: 'Online and at your service.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ];
@@ -669,13 +668,7 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         });
       }
 
-      const engineMode = (() => {
-        try {
-          return localStorage.getItem('jarvis_engine_mode') || 'classic';
-        } catch {
-          return 'classic';
-        }
-      })();
+      const engineMode = getJarvisEngineMode();
       const isNewEngine = engineMode === 'new';
 
       let fileAttachment = null;

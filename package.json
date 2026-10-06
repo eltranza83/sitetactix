@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.4.7",
-  "releaseName": "Voice repeat fix",
+  "version": "1.4.8",
+  "releaseName": "New Jarvis by default",
   "type": "module",
   "scripts": {
     "dev": "vite",

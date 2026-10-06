@@ -8,6 +8,7 @@ import SettingsProjectProfilesCard from './SettingsProjectProfilesCard';
 import { useSettingsAdmin } from '../hooks/useSettingsAdmin';
 import { useSettingsProjects } from '../hooks/useSettingsProjects';
 import { APP_BUILD_LABEL, APP_RELEASE_NAME } from '../config/appConfig';
+import { getJarvisEngineMode } from '../services/jarvis/engineMode';
 
 export default function Settings({
   googleClientId: _googleClientId,
@@ -27,13 +28,7 @@ export default function Settings({
 }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [jarvisEngine, setJarvisEngine] = useState(() => {
-    try {
-      return localStorage.getItem('jarvis_engine_mode') || 'classic';
-    } catch {
-      return 'classic';
-    }
-  });
+  const [jarvisEngine, setJarvisEngine] = useState(() => getJarvisEngineMode());
 
   const handleSetJarvisEngine = (mode) => {
     setJarvisEngine(mode);
