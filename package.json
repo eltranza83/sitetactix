@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.4",
-  "releaseName": "SKUs shown while staging",
+  "version": "1.5.5",
+  "releaseName": "Split by item category",
   "type": "module",
   "scripts": {
     "dev": "vite",

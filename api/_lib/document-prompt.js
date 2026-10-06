@@ -73,6 +73,18 @@ export const GEMINI_RESPONSE_SCHEMA = {
   required: ['type', 'description', 'vendor', 'costCategory', 'amount', 'date', 'tradeCategory', 'tradePhase']
 };
 
+// Each line item also carries its own trade, so a mixed receipt can be split by category.
+GEMINI_RESPONSE_SCHEMA.properties.lineItems.items.properties.tradeCategory = {
+  type: 'STRING',
+  nullable: true,
+  enum: GEMINI_RESPONSE_SCHEMA.properties.tradeCategory.enum
+};
+GEMINI_RESPONSE_SCHEMA.properties.lineItems.items.properties.tradePhase = {
+  type: 'STRING',
+  nullable: true,
+  enum: GEMINI_RESPONSE_SCHEMA.properties.tradePhase.enum
+};
+
 export const DOCUMENT_EXTRACTION_PROMPT = `
 You are an expert OCR and financial data extraction assistant for a luxury residential construction company.
 Analyze the attached image or PDF of a bank check, vendor invoice, or material receipt and extract the structured details.
@@ -98,4 +110,5 @@ High-Precision OCR Rules:
 7. If a receipt contains items for more than one phase, choose the phase with the largest dollar amount. Never combine phase names.
 8. DATE: Return the transaction date printed on the document as YYYY-MM-DD (US receipts print month first, so 02/01/2026 is 2026-02-01). If no date is readable, return an empty string. Never guess or use today's date.
 9. LINE ITEMS & REORDERS: Extract itemized line items if present. For each line item, extract optional sku, brand, unit (e.g. box, sq ft, each), quantity, and unitPrice ONLY when explicitly printed on the receipt. Never guess or fabricate these fields.
+10. LINE ITEM TRADES: For every line item also return its own tradeCategory and tradePhase from the classification lists above, based on what that item is and what it is used for. A receipt with plumbing, electrical and tile items gives each item its own category and phase. If you are unsure about an item, use the receipt's own tradeCategory and tradePhase.
 `;

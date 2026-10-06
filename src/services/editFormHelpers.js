@@ -177,51 +177,41 @@ export function compressImage(file, maxWidth = 1200, maxHeight = 1200) {
   });
 }
 
-export function hasWholeWord(desc, keywords) {
-  if (!desc) return false;
-  const lowerDesc = desc.toLowerCase();
-  return keywords.some(word => {
-    const escaped = word.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-    return regex.test(lowerDesc);
-  });
+function isValidTrade(category, phase) {
+  return !!TRADE_SECTIONS_CONFIG[category]?.phases.includes(phase);
 }
 
-export function suggestSplitId(description, splits) {
-  if (!description || !splits || splits.length === 0) return null;
+/**
+ * Groups the scanned line items by the category and phase the scanner gave each one.
+ * An item with no (or an invalid) trade of its own takes the receipt's main trade.
+ * Groups come back in the order they first appear: [{ tradeCategory, tradePhase, itemIndexes }].
+ */
+export function planSplitsFromLineItems(lineItems, mainTrade) {
+  if (!Array.isArray(lineItems)) return [];
+  const groups = [];
+  lineItems.forEach((item, idx) => {
+    const own = item && isValidTrade(item.tradeCategory, item.tradePhase)
+      ? { tradeCategory: item.tradeCategory, tradePhase: item.tradePhase }
+      : mainTrade;
+    if (!own || !own.tradeCategory || !own.tradePhase) return;
+    let group = groups.find(g => g.tradeCategory === own.tradeCategory && g.tradePhase === own.tradePhase);
+    if (!group) {
+      group = { tradeCategory: own.tradeCategory, tradePhase: own.tradePhase, itemIndexes: [] };
+      groups.push(group);
+    }
+    group.itemIndexes.push(idx);
+  });
+  return groups;
+}
 
-  const keywords = {
-    plumbing: ['pvc', 'elbow', 'valve', 'pipe', 'drain', 'shower', 'solder', 'copper', 'faucet', 'sink', 'toilet', 'brass', 'tee', 'flange', 'abs', 'cpvc', 'nipple', 'plumb', 'hose', 'washer', 'coupling', 'tub', 'cleanout'],
-    electrical: ['wire', 'box', 'switch', 'outlet', 'breaker', 'conduit', 'gang', 'romex', 'cable', 'lamp', 'bulb', 'light', 'electric', 'receptacle', 'connector', 'dimmer', 'ground', 'fuse', 'tape', 'pigtail', 'fixture', 'junction'],
-    hvac: ['duct', 'register', 'vent', 'grille', 'thermostat', 'ac', 'furnace', 'hvac', 'damper', 'flex', 'insulation', 'compressor', 'fan', 'filter', 'baffle'],
-    framing: ['lumber', 'stud', 'plywood', 'nail', 'bolt', 'truss', 'header', 'joist', 'timber', 'post', 'screw', 'anchor', 'wood', 'hanger', 'plate', 'frame', 'sheathing', 'tie'],
-    cabinets: ['cabinet', 'closet', 'rod', 'shelf', 'bracket', 'drawer', 'handle', 'hinge', 'trim', 'molding', 'door', 'pull', 'vanity'],
-    drywall: ['drywall', 'sheetrock', 'mud', 'joint', 'compound', 'plaster', 'gypsum'],
-    paint: ['paint', 'brush', 'roller', 'primer', 'caulk', 'sealer', 'varnish', 'stain', 'solvent']
-  };
-
-  const isPlumbingItem = hasWholeWord(description, keywords.plumbing);
-  const isElectricalItem = hasWholeWord(description, keywords.electrical);
-  const isHVACItem = hasWholeWord(description, keywords.hvac);
-  const isFramingItem = hasWholeWord(description, keywords.framing);
-  const isCabinetItem = hasWholeWord(description, keywords.cabinets);
-  const isDrywallItem = hasWholeWord(description, keywords.drywall);
-  const isPaintItem = hasWholeWord(description, keywords.paint);
-
-  for (const s of splits) {
-    const phaseLower = (s.tradePhase || '').toLowerCase();
-    const catLower = (s.tradeCategory || '').toLowerCase();
-
-    if (isPlumbingItem && (phaseLower.includes('plumb') || phaseLower.includes('sewer') || phaseLower.includes('water') || catLower.includes('plumb'))) return s.id;
-    if (isElectricalItem && (phaseLower.includes('elect') || phaseLower.includes('light') || phaseLower.includes('power') || phaseLower.includes('wire') || catLower.includes('elect'))) return s.id;
-    if (isHVACItem && (phaseLower.includes('hvac') || phaseLower.includes('duct') || phaseLower.includes('heat') || phaseLower.includes('vent') || phaseLower.includes('air') || phaseLower.includes('ac '))) return s.id;
-    if (isFramingItem && (phaseLower.includes('frame') || phaseLower.includes('lumber') || phaseLower.includes('wood') || phaseLower.includes('truss') || catLower.includes('frame') || catLower.includes('lumb'))) return s.id;
-    if (isCabinetItem && (phaseLower.includes('cabinet') || phaseLower.includes('trim') || phaseLower.includes('closet') || phaseLower.includes('rod') || phaseLower.includes('bracket') || phaseLower.includes('shelf') || phaseLower.includes('molding') || phaseLower.includes('door') || catLower.includes('finish'))) return s.id;
-    if (isDrywallItem && (phaseLower.includes('drywall') || phaseLower.includes('sheetrock') || phaseLower.includes('mud') || phaseLower.includes('joint') || phaseLower.includes('compound') || catLower.includes('finish'))) return s.id;
-    if (isPaintItem && (phaseLower.includes('paint') || phaseLower.includes('brush') || phaseLower.includes('roller') || phaseLower.includes('primer') || catLower.includes('paint') || catLower.includes('tile'))) return s.id;
-  }
-
-  return null;
+/**
+ * The split an item belongs to: the one with the same category and phase the scanner gave it,
+ * otherwise the first split.
+ */
+export function pickSplitForItem(item, splits) {
+  if (!Array.isArray(splits) || splits.length === 0) return null;
+  const match = item && splits.find(s => s.tradeCategory === item.tradeCategory && s.tradePhase === item.tradePhase);
+  return (match || splits[0]).id;
 }
 
 /**

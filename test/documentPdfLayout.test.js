@@ -79,3 +79,68 @@ describe('normalizeScanDate', () => {
     assert.equal(normalizeScanDate('13/13/2026'), '');
   });
 });
+
+describe('splitting a mixed receipt by each item\'s own category', () => {
+  const main = { tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In' };
+  const item = (description, tradeCategory, tradePhase) => ({ description, price: 1, tradeCategory, tradePhase });
+
+  test('one split per category and phase, with the right items', async () => {
+    const { planSplitsFromLineItems } = await import('../src/services/editFormHelpers.js');
+    const groups = planSplitsFromLineItems([
+      item('2IN PVC ELBOW', 'Mechanicals_&_Utilities', 'Plumbing Rough-In'),
+      item('2-GANG WIRE BOX', 'Mechanicals_&_Utilities', 'Electrical & Lighting'),
+      item('MAR NOVA DOLOMITE BRASS POL II', 'Paint_Tile', 'Tile & Flooring'),
+      item('ROUGH-IN SHOWER VALVE', 'Mechanicals_&_Utilities', 'Plumbing Rough-In')
+    ], main);
+    assert.deepEqual(groups, [
+      { tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In', itemIndexes: [0, 3] },
+      { tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Electrical & Lighting', itemIndexes: [1] },
+      { tradeCategory: 'Paint_Tile', tradePhase: 'Tile & Flooring', itemIndexes: [2] }
+    ]);
+  });
+
+  test('a word like "brass" does not decide the trade; the scanned trade does', async () => {
+    const { planSplitsFromLineItems } = await import('../src/services/editFormHelpers.js');
+    const groups = planSplitsFromLineItems([
+      item('MAR NOVA DOLOMITE BRASS POL II', 'Paint_Tile', 'Tile & Flooring'),
+      item('CER 8X24 WOODVILLE BLANCO', 'Paint_Tile', 'Tile & Flooring')
+    ], { tradeCategory: 'Paint_Tile', tradePhase: 'Tile & Flooring' });
+    assert.equal(groups.length, 1);
+    assert.deepEqual(groups[0].itemIndexes, [0, 1]);
+  });
+
+  test('items with no or an invalid trade take the receipt\'s main trade', async () => {
+    const { planSplitsFromLineItems } = await import('../src/services/editFormHelpers.js');
+    const groups = planSplitsFromLineItems([
+      { description: 'Mystery item', price: 1 },
+      item('Bad pair', 'Paint_Tile', 'Plumbing Rough-In')
+    ], main);
+    assert.deepEqual(groups, [{ ...main, itemIndexes: [0, 1] }]);
+  });
+
+  test('no line items gives no groups', async () => {
+    const { planSplitsFromLineItems } = await import('../src/services/editFormHelpers.js');
+    assert.deepEqual(planSplitsFromLineItems(undefined, main), []);
+    assert.deepEqual(planSplitsFromLineItems([], main), []);
+  });
+
+  test('pickSplitForItem uses the split with the item\'s trade, else the first split', async () => {
+    const { pickSplitForItem } = await import('../src/services/editFormHelpers.js');
+    const splits = [
+      { id: 'a', tradeCategory: 'Paint_Tile', tradePhase: 'Tile & Flooring' },
+      { id: 'b', tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Electrical & Lighting' }
+    ];
+    assert.equal(pickSplitForItem(item('x', 'Mechanicals_&_Utilities', 'Electrical & Lighting'), splits), 'b');
+    assert.equal(pickSplitForItem(item('x', 'Interior_Finishes', 'Glass Work'), splits), 'a');
+    assert.equal(pickSplitForItem({ description: 'x' }, splits), 'a');
+    assert.equal(pickSplitForItem({ description: 'x' }, []), null);
+  });
+
+  test('the scan asks for a trade on every line item, from the same lists', async () => {
+    const { GEMINI_RESPONSE_SCHEMA, DOCUMENT_EXTRACTION_PROMPT } = await import('../api/_lib/document-prompt.js');
+    const props = GEMINI_RESPONSE_SCHEMA.properties.lineItems.items.properties;
+    assert.deepEqual(props.tradeCategory.enum, GEMINI_RESPONSE_SCHEMA.properties.tradeCategory.enum);
+    assert.deepEqual(props.tradePhase.enum, GEMINI_RESPONSE_SCHEMA.properties.tradePhase.enum);
+    assert.ok(DOCUMENT_EXTRACTION_PROMPT.includes('LINE ITEM TRADES'));
+  });
+});

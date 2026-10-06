@@ -7,9 +7,9 @@ import {
   ROUTING_TEST_SPLITS,
   TRADE_SECTIONS_CONFIG,
   compressImage,
-  hasWholeWord,
   isValidPhase,
-  suggestSplitId,
+  planSplitsFromLineItems,
+  pickSplitForItem,
   distributeReceiptTotalToSplits,
   checkLineItemsDiscrepancy,
   getItemsForSplit,
@@ -105,17 +105,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         stagedItem.metadata.lineItems.forEach((item, idx) => {
           // Only auto-suggest if user hasn't manually assigned this item
           if (!manualAllocations[idx]) {
-            const suggestedId = suggestSplitId(item.description, splits);
-            if (suggestedId) {
-              next[idx] = suggestedId;
-            } else {
-              // Default fallback
-              if (idx === 0) {
-                next[idx] = splits[0].id;
-              } else {
-                next[idx] = splits[1] ? splits[1].id : splits[0].id;
-              }
-            }
+            next[idx] = pickSplitForItem(item, splits);
           }
         });
         return next;
@@ -922,84 +912,33 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                   const hasLineItems = Array.isArray(stagedItem.metadata.lineItems) && stagedItem.metadata.lineItems.length > 0;
                   const receiptAmtStr = formData.amount ? (parseFloat(formData.amount) || 0).toFixed(2) : '';
 
-                  // Scan line items for trade categories
-                  const detectedTrades = [];
-                  (stagedItem.metadata.lineItems || []).forEach(item => {
-                    const desc = item.description || '';
-                    const isPlumb = hasWholeWord(desc, ['pvc', 'elbow', 'valve', 'pipe', 'drain', 'shower', 'solder', 'copper', 'faucet', 'sink', 'toilet', 'brass', 'tee', 'flange', 'abs', 'cpvc', 'nipple', 'plumb', 'hose', 'washer', 'coupling', 'tub', 'cleanout']);
-                    if (isPlumb && !detectedTrades.some(t => t.tradePhase === 'Plumbing Rough-In')) {
-                      detectedTrades.push({ tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In' });
-                    }
-                    const isElect = hasWholeWord(desc, ['wire', 'box', 'switch', 'outlet', 'breaker', 'conduit', 'gang', 'romex', 'cable', 'lamp', 'bulb', 'light', 'electric', 'receptacle', 'connector', 'dimmer', 'ground', 'fuse', 'tape', 'pigtail', 'fixture', 'junction']);
-                    if (isElect && !detectedTrades.some(t => t.tradePhase === 'Electrical & Lighting')) {
-                      detectedTrades.push({ tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Electrical & Lighting' });
-                    }
-                    const isHvac = hasWholeWord(desc, ['duct', 'register', 'vent', 'grille', 'thermostat', 'ac', 'furnace', 'hvac', 'damper', 'flex', 'insulation', 'compressor', 'fan', 'filter', 'baffle']);
-                    if (isHvac && !detectedTrades.some(t => t.tradePhase === 'HVAC / AC Systems')) {
-                      detectedTrades.push({ tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'HVAC / AC Systems' });
-                    }
-                    const isFrame = hasWholeWord(desc, ['lumber', 'stud', 'plywood', 'nail', 'bolt', 'truss', 'header', 'joist', 'timber', 'post', 'screw', 'anchor', 'wood', 'hanger', 'plate', 'frame', 'sheathing', 'tie']);
-                    if (isFrame && !detectedTrades.some(t => t.tradeCategory === 'Framing_&_Lumber')) {
-                      detectedTrades.push({ tradeCategory: 'Framing_&_Lumber', tradePhase: 'Framing Lumber & Truss' });
-                    }
-                    const isCabinet = hasWholeWord(desc, ['cabinet', 'closet', 'rod', 'shelf', 'bracket', 'drawer', 'handle', 'hinge', 'trim', 'molding', 'door', 'pull', 'vanity']);
-                    if (isCabinet && !detectedTrades.some(t => t.tradePhase === 'Cabinets & Trim Carpentry')) {
-                      detectedTrades.push({ tradeCategory: 'Interior_Finishes', tradePhase: 'Cabinets & Trim Carpentry' });
-                    }
-                    const isDrywall = hasWholeWord(desc, ['drywall', 'sheetrock', 'mud', 'joint', 'compound', 'plaster', 'gypsum']);
-                    if (isDrywall && !detectedTrades.some(t => t.tradePhase === 'Drywall & Sheetrock')) {
-                      detectedTrades.push({ tradeCategory: 'Interior_Finishes', tradePhase: 'Drywall & Sheetrock' });
-                    }
-                    const isPaint = hasWholeWord(desc, ['paint', 'brush', 'roller', 'primer', 'caulk', 'sealer', 'varnish', 'stain', 'solvent']);
-                    if (isPaint && !detectedTrades.some(t => t.tradePhase === 'Paint & Finishes')) {
-                      detectedTrades.push({ tradeCategory: 'Paint_Tile', tradePhase: 'Paint & Finishes' });
-                    }
+                  // One split per category and phase the scanner found on the line items
+                  const mainTrade = {
+                    tradeCategory: formData.tradeCategory || 'Mechanicals_&_Utilities',
+                    tradePhase: formData.tradePhase || 'Plumbing Rough-In'
+                  };
+                  const groups = planSplitsFromLineItems(stagedItem.metadata.lineItems, mainTrade);
+                  const trades = groups.length >= 2
+                    ? groups
+                    : [groups[0] || { ...mainTrade, itemIndexes: [] }, { ...(groups[0] || mainTrade), itemIndexes: [] }];
+                  const newSplits = trades.map((trade, i) => ({
+                    id: `split_init_${i + 1}`,
+                    amount: '',
+                    costCategory: formData.costCategory || 'material',
+                    lotNumber: activeName,
+                    description: '',
+                    tradeCategory: trade.tradeCategory,
+                    tradePhase: trade.tradePhase
+                  }));
+                  if (!hasLineItems) newSplits[0].amount = receiptAmtStr;
+
+                  const plannedAllocations = {};
+                  trades.forEach((trade, i) => {
+                    (trade.itemIndexes || []).forEach(idx => { plannedAllocations[idx] = newSplits[i].id; });
                   });
-
-                  // Setup defaults based on main settings and detected trades
-                  const mainTradeCategory = formData.tradeCategory || 'Mechanicals_&_Utilities';
-                  const mainTradePhase = formData.tradePhase || 'Plumbing Rough-In';
-
-                  let split1Trade = { tradeCategory: mainTradeCategory, tradePhase: mainTradePhase };
-                  let split2Trade = null;
-
-                  // Find a detected trade that is different from the main trade for Split 2
-                  const diffTrade = detectedTrades.find(t => t.tradePhase !== mainTradePhase);
-                  if (diffTrade) {
-                    split2Trade = diffTrade;
-                  } else {
-                    // Fallbacks if no different trade detected
-                    if (mainTradePhase === 'Plumbing Rough-In') {
-                      split2Trade = { tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Electrical & Lighting' };
-                    } else if (mainTradePhase === 'Electrical & Lighting') {
-                      split2Trade = { tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In' };
-                    } else if (mainTradeCategory === 'Interior_Finishes') {
-                      split2Trade = { tradeCategory: 'Framing_&_Lumber', tradePhase: 'Framing Lumber & Truss' };
-                    } else {
-                      split2Trade = { tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In' };
-                    }
-                  }
-                  
-                  setSplits([
-                    {
-                      id: 'split_init_1',
-                      amount: hasLineItems ? '' : receiptAmtStr,
-                      costCategory: formData.costCategory || 'material',
-                      lotNumber: activeName,
-                      description: '',
-                      tradeCategory: split1Trade.tradeCategory,
-                      tradePhase: split1Trade.tradePhase
-                    },
-                    {
-                      id: 'split_init_2',
-                      amount: '',
-                      costCategory: formData.costCategory || 'material',
-                      lotNumber: activeName,
-                      description: '',
-                      tradeCategory: split2Trade.tradeCategory,
-                      tradePhase: split2Trade.tradePhase
-                    }
-                  ]);
+                  setSplits(newSplits);
+                  setItemAllocations(plannedAllocations);
+                  setManualAllocations(Object.fromEntries(Object.keys(plannedAllocations).map(k => [k, true])));
                 }
               }}
               style={{

@@ -26,7 +26,9 @@ Response JSON Schema:
       "brand": "Optional brand or null",
       "unit": "Optional unit (box, sq ft, each) or null",
       "quantity": 1,
-      "unitPrice": 0.00
+      "unitPrice": 0.00,
+      "tradeCategory": "The category this item belongs to",
+      "tradePhase": "The phase this item belongs to"
     }
   ]
 }
@@ -47,7 +49,7 @@ Instructions:
 2. Extract payee/vendor, total, date, check number when applicable, and material/labor classification.
 3. Make the description concise and useful to a construction manager.
 4. Extract individual line items for invoices and receipts, capturing optional sku, brand, unit, quantity, and unitPrice only when explicitly printed.
-5. Choose only category and phase values from the lists above.
+5. Choose only category and phase values from the lists above. Give every line item its own tradeCategory and tradePhase from the same lists (use the receipt's own if unsure).
 6. Output only valid JSON without markdown fences.
 7. If a receipt contains items for more than one phase, choose the phase with the largest dollar amount. Never combine phase names.
 `;
@@ -143,7 +145,9 @@ async function extractDocumentDataDirectly(fileOrBlob, apiKey, fetchImpl = fetch
             brand: { type: 'STRING', nullable: true },
             unit: { type: 'STRING', nullable: true },
             quantity: { type: 'NUMBER', nullable: true },
-            unitPrice: { type: 'NUMBER', nullable: true }
+            unitPrice: { type: 'NUMBER', nullable: true },
+            tradeCategory: { type: 'STRING', nullable: true },
+            tradePhase: { type: 'STRING', nullable: true }
           },
           required: ['description', 'price']
         }
