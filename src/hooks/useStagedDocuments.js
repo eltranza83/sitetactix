@@ -10,7 +10,7 @@ import {
   resetDraftTimer,
   updateDraftField
 } from '../services/stagedDocumentOperations';
-import { normalizeScanDate } from '../services/editFormHelpers';
+import { normalizeScanDate, buildAutoSplits } from '../services/editFormHelpers';
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -77,13 +77,18 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
         mainImageBase64 = await fileToBase64(scanItem.mainImage);
       }
 
+      const draftMetadata = {
+        ...scanItem.metadata,
+        date: normalizeScanDate(scanItem.metadata?.date) || scanItem.metadata?.date || '',
+        lotNumber: activeProject ? activeProject.name : ''
+      };
+      // Items from different trades (plumbing + electrical + tile...) start out already split
+      const autoSplits = buildAutoSplits(draftMetadata);
+      if (autoSplits) draftMetadata.splits = autoSplits;
+
       const newDraft = {
         id: `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        metadata: {
-          ...scanItem.metadata,
-          date: normalizeScanDate(scanItem.metadata?.date) || scanItem.metadata?.date || '',
-          lotNumber: activeProject ? activeProject.name : ''
-        },
+        metadata: draftMetadata,
         mainImageBase64,
         secondaryImageBase64: null,
         createdAt: Date.now(),

@@ -13,6 +13,7 @@ import {
   distributeReceiptTotalToSplits,
   checkLineItemsDiscrepancy,
   getItemsForSplit,
+  getItemIndexesForSplit,
   normalizeScanDate
 } from '../services/editFormHelpers';
 
@@ -87,9 +88,19 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
   });
 
   // itemAllocations maps: itemIndex -> split.id
-  const [itemAllocations, setItemAllocations] = useState({});
+  // A draft that was already split keeps its item assignments when it is opened again
+  const savedAllocations = () => {
+    const out = {};
+    (stagedItem.metadata.splits || []).forEach((s, sIdx) => {
+      (s.itemIndexes || []).forEach(idx => { out[idx] = splits[sIdx]?.id; });
+    });
+    return out;
+  };
+  const [itemAllocations, setItemAllocations] = useState(savedAllocations);
   // Track manual allocations by the user so suggestions don't override them
-  const [manualAllocations, setManualAllocations] = useState({});
+  const [manualAllocations, setManualAllocations] = useState(() => (
+    Object.fromEntries(Object.keys(savedAllocations()).map(k => [k, true]))
+  ));
   // Track manual split descriptions so auto-generator doesn't override them
   const [manualDescriptions, setManualDescriptions] = useState({});
   // Track manual split amounts typed by user so line-item reallocations don't override them
@@ -485,7 +496,8 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         description: s.description.trim(),
         tradeCategory: s.tradeCategory || formData.tradeCategory,
         tradePhase: s.tradePhase || formData.tradePhase,
-        items: getItemsForSplit(stagedItem.metadata.lineItems, itemAllocations, s.id)
+        items: getItemsForSplit(stagedItem.metadata.lineItems, itemAllocations, s.id),
+        itemIndexes: getItemIndexesForSplit(stagedItem.metadata.lineItems, itemAllocations, s.id)
       }));
     }
 

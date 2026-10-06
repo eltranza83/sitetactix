@@ -215,6 +215,39 @@ export function pickSplitForItem(item, splits) {
 }
 
 /**
+ * When the scan found items in two or more different categories, builds the splits right away
+ * (same lot as the receipt, amounts spread so they add up to the receipt total).
+ * Returns null for a receipt that needs no split.
+ */
+export function buildAutoSplits(metadata) {
+  const lineItems = Array.isArray(metadata?.lineItems) ? metadata.lineItems : [];
+  const mainTrade = { tradeCategory: metadata?.tradeCategory, tradePhase: metadata?.tradePhase };
+  const groups = planSplitsFromLineItems(lineItems, mainTrade);
+  if (groups.length < 2) return null;
+
+  const baseSums = groups.map(g => g.itemIndexes.reduce((sum, idx) => sum + (parseFloat(lineItems[idx].price) || 0), 0));
+  const amounts = distributeReceiptTotalToSplits(baseSums, metadata.amount);
+
+  return groups.map((group, i) => ({
+    id: `split_auto_${i + 1}`,
+    amount: parseFloat(amounts[i]) || 0,
+    costCategory: metadata.costCategory || 'material',
+    lotNumber: metadata.lotNumber || '',
+    description: group.itemIndexes.map(idx => lineItems[idx].description).join(', '),
+    tradeCategory: group.tradeCategory,
+    tradePhase: group.tradePhase,
+    itemIndexes: group.itemIndexes,
+    items: group.itemIndexes.map(idx => lineItems[idx])
+  }));
+}
+
+/** Positions (in the scanned line items) of the items assigned to one split. */
+export function getItemIndexesForSplit(lineItems, itemAllocations, splitId) {
+  if (!Array.isArray(lineItems) || !itemAllocations) return [];
+  return lineItems.map((_, idx) => idx).filter(idx => itemAllocations[idx] === splitId);
+}
+
+/**
  * The scanned line items (with SKUs) assigned to one split,
  * so each split's PDF lists only its own items.
  */

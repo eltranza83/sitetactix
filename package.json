@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.5",
-  "releaseName": "Split by item category",
+  "version": "1.5.6",
+  "releaseName": "Drafts split automatically",
   "type": "module",
   "scripts": {
     "dev": "vite",

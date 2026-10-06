@@ -144,3 +144,43 @@ describe('splitting a mixed receipt by each item\'s own category', () => {
     assert.ok(DOCUMENT_EXTRACTION_PROMPT.includes('LINE ITEM TRADES'));
   });
 });
+
+describe('drafts that start out already split', () => {
+  const lineItems = [
+    { description: '2IN PVC ELBOW', price: 4.5, sku: null, tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In' },
+    { description: 'ROUGH-IN SHOWER VALVE', price: 89, sku: null, tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In' },
+    { description: '2-GANG WIRE BOX', price: 2.8, sku: null, tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Electrical & Lighting' },
+    { description: 'DECORA LIGHT SWITCH (10PK)', price: 18.5, sku: null, tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Electrical & Lighting' }
+  ];
+  const base = {
+    lotNumber: 'Lot 3', amount: 156.6, costCategory: 'material',
+    tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In', lineItems
+  };
+
+  test('items from two trades become two splits in the same lot that add up to the receipt total', async () => {
+    const { buildAutoSplits } = await import('../src/services/editFormHelpers.js');
+    const splits = buildAutoSplits(base);
+    assert.equal(splits.length, 2);
+    assert.deepEqual(splits.map(s => s.tradePhase), ['Plumbing Rough-In', 'Electrical & Lighting']);
+    assert.deepEqual(splits.map(s => s.lotNumber), ['Lot 3', 'Lot 3']);
+    assert.deepEqual(splits.map(s => s.itemIndexes), [[0, 1], [2, 3]]);
+    assert.equal(splits[0].items.length, 2);
+    const total = splits.reduce((sum, s) => sum + Math.round(s.amount * 100), 0);
+    assert.equal(total, 15660);
+    assert.equal(splits[0].description, '2IN PVC ELBOW, ROUGH-IN SHOWER VALVE');
+  });
+
+  test('a receipt in one trade, or with no items, is not split', async () => {
+    const { buildAutoSplits } = await import('../src/services/editFormHelpers.js');
+    assert.equal(buildAutoSplits({ ...base, lineItems: lineItems.slice(0, 2) }), null);
+    assert.equal(buildAutoSplits({ ...base, lineItems: [] }), null);
+    assert.equal(buildAutoSplits({ ...base, lineItems: undefined }), null);
+    assert.equal(buildAutoSplits(undefined), null);
+  });
+
+  test('getItemIndexesForSplit lists the positions of a split\'s items', async () => {
+    const { getItemIndexesForSplit } = await import('../src/services/editFormHelpers.js');
+    assert.deepEqual(getItemIndexesForSplit(lineItems, { 0: 'a', 1: 'a', 2: 'b', 3: 'b' }, 'b'), [2, 3]);
+    assert.deepEqual(getItemIndexesForSplit(undefined, { 0: 'a' }, 'a'), []);
+  });
+});
