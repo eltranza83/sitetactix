@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.4.9",
-  "releaseName": "Memory Vault removed",
+  "version": "1.5.0",
+  "releaseName": "Field Brain removed",
   "type": "module",
   "scripts": {
     "dev": "vite",

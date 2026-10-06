@@ -1,6 +1,6 @@
 import GlobalAIAssistant from './components/GlobalAIAssistant';
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { Camera, Settings as SettingsIcon, Sparkles, Folder, LogIn, FileText, TrendingUp, MapPin, Check, Trash2, X, Zap, ChevronDown, CloudLightning } from 'lucide-react';
+import { Camera, Settings as SettingsIcon, Sparkles, Folder, LogIn, FileText, TrendingUp, MapPin, Check, Trash2, X, ChevronDown, CloudLightning } from 'lucide-react';
 import StagingCard from './components/StagingCard';
 import { useGoogleAuth } from './hooks/useGoogleAuth';
 import { useInvoiceSync } from './hooks/useInvoiceSync';
@@ -38,7 +38,6 @@ const Settings = lazyWithRetry(() => import('./components/Settings'));
 const InviteScreen = lazyWithRetry(() => import('./components/InviteScreen'));
 const Dashboard = lazyWithRetry(() => import('./components/Dashboard'));
 const BlueprintPinboard = lazyWithRetry(() => import('./components/BlueprintPinboard'));
-const BuilderBrain = lazyWithRetry(() => import('./components/BuilderBrain'));
 
 function IronManIcon({ size = 18 }) {
   return (
@@ -337,14 +336,6 @@ export default function App() {
             {stagedItems.length > 0 && (
               <span className="studio-nav-badge">{stagedItems.length}</span>
             )}
-          </button>
-          <button 
-            type="button"
-            className={`studio-nav-item ${activeTab === 'brain' ? 'active' : ''}`}
-            onClick={() => setActiveTab('brain')}
-          >
-            <Zap size={18} />
-            <span>Field Brain</span>
           </button>
           <button 
             type="button"
@@ -834,14 +825,6 @@ export default function App() {
               onShowToast={setSuccess}
             />
           </DashboardErrorBoundary>
-        ) : activeTab === 'brain' ? (
-          <DashboardErrorBoundary>
-            <BuilderBrain
-              activeProject={activeProject}
-              selectedFolder={selectedFolder}
-              googleToken={googleToken}
-            />
-          </DashboardErrorBoundary>
         ) : activeTab === 'xray' ? (
           <BlueprintPinboard
             googleToken={googleToken}
@@ -898,13 +881,6 @@ export default function App() {
                 {stagedItems.length}
               </span>
             )}
-          </button>
-          <button 
-            className={`nav-item ${activeTab === 'brain' ? 'active' : ''}`}
-            onClick={() => setActiveTab('brain')}
-          >
-            <Zap size={20} />
-            <span>Field Brain</span>
           </button>
           <button 
             className={`nav-item ${activeTab === 'xray' ? 'active' : ''}`}
