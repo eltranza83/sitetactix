@@ -62,6 +62,10 @@ export default function StagingCard({
     return () => clearInterval(interval);
   }, [createdAt, timerDuration]);
 
+  const scannedItems = Array.isArray(metadata.lineItems) ? metadata.lineItems : [];
+  const itemCount = scannedItems.length;
+  const skuCount = scannedItems.filter(item => item && item.sku).length;
+
   return (
     <div className="staging-box" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {/* Row 0: Merged Header & Timer */}
@@ -73,6 +77,14 @@ export default function StagingCard({
           {metadata.splits && metadata.splits.length > 0 && (
             <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', backgroundColor: 'rgba(241, 215, 167, 0.15)', color: '#F1D7A7', border: '1px solid rgba(241, 215, 167, 0.3)', flexShrink: 0 }}>
               Split ({metadata.splits.length})
+            </span>
+          )}
+          {itemCount > 0 && (
+            <span
+              style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', backgroundColor: 'rgba(161, 161, 170, 0.12)', color: 'var(--color-zinc-300)', border: '1px solid rgba(161, 161, 170, 0.3)', flexShrink: 0 }}
+              title="Line items read from the receipt, and how many have a SKU"
+            >
+              {itemCount} {itemCount === 1 ? 'item' : 'items'} · {skuCount} {skuCount === 1 ? 'SKU' : 'SKUs'}
             </span>
           )}
           

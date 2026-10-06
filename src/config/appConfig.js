@@ -8,9 +8,9 @@ export const STORAGE_KEYS = {
 
 const ENV = import.meta.env || {};
 
-export const APP_VERSION = ENV.VITE_APP_VERSION || '1.5.3';
+export const APP_VERSION = ENV.VITE_APP_VERSION || '1.5.4';
 export const APP_BUILD_LABEL = ENV.VITE_APP_BUILD_LABEL || `v${APP_VERSION}`;
-export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Scanned dates show in Edit';
+export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'SKUs shown while staging';
 
 export const DEFAULT_FIREBASE_CONFIG = {
   apiKey: ENV.VITE_FIREBASE_API_KEY || 'AIzaSyDjYPPkW8ffQMOCByCo9gMlVxQ8PsMpAoU',

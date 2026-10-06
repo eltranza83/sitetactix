@@ -1269,6 +1269,12 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                               <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-zinc-400)' }}>
                                 ${Number(item.price || 0).toFixed(2)}
                               </span>
+                              <span
+                                style={{ fontSize: '0.66rem', color: item.sku ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)' }}
+                                title="SKU read from the receipt"
+                              >
+                                {item.sku ? `SKU ${item.sku}` : 'No SKU read'}
+                              </span>
                             </div>
                             
                             <select

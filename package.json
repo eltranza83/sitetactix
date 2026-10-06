@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.3",
-  "releaseName": "Scanned dates show in Edit",
+  "version": "1.5.4",
+  "releaseName": "SKUs shown while staging",
   "type": "module",
   "scripts": {
     "dev": "vite",
