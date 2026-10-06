@@ -96,5 +96,6 @@ High-Precision OCR Rules:
 5. Select exact tradeCategory and tradePhase from the classification rules above.
 6. BUILDER / PAYER SELF-IDENTITY RULE: The builder and client company is ADEPEC Group LLC / ADEPEC Homes. ADEPEC is NEVER the vendor. On handwritten generic receipt pads, if an individual appears in "SOLD TO" and ADEPEC appears in "SHIP TO", the individual (e.g. Irene Godoy) is the service provider / vendor, and ADEPEC is the customer. Never extract ADEPEC as the vendor.
 7. If a receipt contains items for more than one phase, choose the phase with the largest dollar amount. Never combine phase names.
-8. LINE ITEMS & REORDERS: Extract itemized line items if present. For each line item, extract optional sku, brand, unit (e.g. box, sq ft, each), quantity, and unitPrice ONLY when explicitly printed on the receipt. Never guess or fabricate these fields.
+8. DATE: Return the transaction date printed on the document as YYYY-MM-DD (US receipts print month first, so 02/01/2026 is 2026-02-01). If no date is readable, return an empty string. Never guess or use today's date.
+9. LINE ITEMS & REORDERS: Extract itemized line items if present. For each line item, extract optional sku, brand, unit (e.g. box, sq ft, each), quantity, and unitPrice ONLY when explicitly printed on the receipt. Never guess or fabricate these fields.
 `;

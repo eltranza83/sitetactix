@@ -232,3 +232,36 @@ export function getItemsForSplit(lineItems, itemAllocations, splitId) {
   if (!Array.isArray(lineItems) || !itemAllocations) return [];
   return lineItems.filter((_, idx) => itemAllocations[idx] === splitId);
 }
+
+/**
+ * Turns a scanned date into YYYY-MM-DD, which is what the date box needs.
+ * Accepts 2026-02-01, 02/01/2026, 2/1/26 and 02-01-2026 (month first, as on US receipts;
+ * a first number above 12 is read as the day). Returns '' when the text is not a real date.
+ */
+export function normalizeScanDate(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+
+  let year;
+  let month;
+  let day;
+  const iso = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  const us = text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/);
+  if (iso) {
+    [, year, month, day] = iso.map(Number);
+  } else if (us) {
+    let first = Number(us[1]);
+    let second = Number(us[2]);
+    year = Number(us[3]);
+    if (us[3].length === 2) year += 2000;
+    if (first > 12 && second <= 12) [first, second] = [second, first];
+    month = first;
+    day = second;
+  } else {
+    return '';
+  }
+
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return '';
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}

@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.5.2",
-  "releaseName": "Receipt SKUs and cleaner PDF",
+  "version": "1.5.3",
+  "releaseName": "Scanned dates show in Edit",
   "type": "module",
   "scripts": {
     "dev": "vite",

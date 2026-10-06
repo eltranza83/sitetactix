@@ -12,7 +12,8 @@ import {
   suggestSplitId,
   distributeReceiptTotalToSplits,
   checkLineItemsDiscrepancy,
-  getItemsForSplit
+  getItemsForSplit,
+  normalizeScanDate
 } from '../services/editFormHelpers';
 
 export default function EditForm({ stagedItem, onSave, onCancel, history = [], stagedItems = [], projects = [] }) {
@@ -23,7 +24,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     vendor: stagedItem.metadata.vendor || '',
     costCategory: stagedItem.metadata.costCategory ?? '',
     amount: stagedItem.metadata.amount || '',
-    date: stagedItem.metadata.date || '',
+    date: normalizeScanDate(stagedItem.metadata.date),
     checkNumber: stagedItem.metadata.checkNumber || '',
     tradeCategory: stagedItem.metadata.tradeCategory || 'Mechanicals_&_Utilities',
     tradePhase: stagedItem.metadata.tradePhase || 'Plumbing Rough-In',

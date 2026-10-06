@@ -52,3 +52,30 @@ describe('document PDF with line items and long text', () => {
     assert.ok(blob.size > 1000);
   });
 });
+
+describe('normalizeScanDate', () => {
+  test('turns common scanned formats into YYYY-MM-DD', async () => {
+    const { normalizeScanDate } = await import('../src/services/editFormHelpers.js');
+    assert.equal(normalizeScanDate('2026-02-01'), '2026-02-01');
+    assert.equal(normalizeScanDate('02/01/2026'), '2026-02-01');
+    assert.equal(normalizeScanDate('2/1/26'), '2026-02-01');
+    assert.equal(normalizeScanDate('02-01-2026'), '2026-02-01');
+    assert.equal(normalizeScanDate('2026/2/1'), '2026-02-01');
+    assert.equal(normalizeScanDate(' 10/26/23 '), '2023-10-26');
+  });
+
+  test('reads a first number above 12 as the day', async () => {
+    const { normalizeScanDate } = await import('../src/services/editFormHelpers.js');
+    assert.equal(normalizeScanDate('26/10/2023'), '2023-10-26');
+  });
+
+  test('returns an empty string for blanks and things that are not dates', async () => {
+    const { normalizeScanDate } = await import('../src/services/editFormHelpers.js');
+    assert.equal(normalizeScanDate(''), '');
+    assert.equal(normalizeScanDate(null), '');
+    assert.equal(normalizeScanDate(undefined), '');
+    assert.equal(normalizeScanDate('sometime in March'), '');
+    assert.equal(normalizeScanDate('02/30/2026'), '');
+    assert.equal(normalizeScanDate('13/13/2026'), '');
+  });
+});

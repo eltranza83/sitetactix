@@ -10,6 +10,7 @@ import {
   resetDraftTimer,
   updateDraftField
 } from '../services/stagedDocumentOperations';
+import { normalizeScanDate } from '../services/editFormHelpers';
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -80,6 +81,7 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
         id: `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         metadata: {
           ...scanItem.metadata,
+          date: normalizeScanDate(scanItem.metadata?.date) || scanItem.metadata?.date || '',
           lotNumber: activeProject ? activeProject.name : ''
         },
         mainImageBase64,
