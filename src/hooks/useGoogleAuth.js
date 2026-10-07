@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   clearGoogleIdentity,
   clearGoogleSession,
@@ -8,6 +8,7 @@ import {
   APP_STORAGE_KEYS,
 } from '../services/appStorage';
 import { getFirebaseAuthInstance, signInToFirebaseWithGooglePopup, signOutFromFirebase } from '../services/firebase';
+import { getGoogleTokenAgeMs, shouldRenewGoogleToken, getGoogleConnectionStatus } from '../services/googleSessionStatus';
 
 const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets email profile';
 const GOOGLE_SCOPES = GOOGLE_SCOPE.split(' ');
@@ -73,6 +74,10 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
   const [googleToken, setGoogleToken] = useState(() => loadStoredAppState().googleToken);
   const [googleUser, setGoogleUser] = useState(() => loadStoredAppState().googleUser);
   const [signingIn, setSigningIn] = useState(false);
+  // Drives the top-bar dot: renewal result plus a clock so the dot turns amber once the token is too old
+  const [renewFailed, setRenewFailed] = useState(false);
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  const lastRenewAttemptRef = useRef(0);
 
   // 1. Firebase Auth listener: Keep user session continuously active from Firebase IndexedDB
   useEffect(() => {
@@ -107,10 +112,16 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
           client_id: googleClientId,
           scope: GOOGLE_SCOPE,
           hint: storedUser?.email || '',
+          error_callback: (err) => {
+            console.warn('Google token request did not complete:', err?.type || err);
+            setRenewFailed(true);
+          },
           callback: async (tokenResponse) => {
             if (tokenResponse.access_token) {
               setGoogleToken(tokenResponse.access_token);
               persistGoogleToken(tokenResponse.access_token);
+              setRenewFailed(false);
+              setClockNow(Date.now());
               setError?.(null);
 
               try {
@@ -122,6 +133,7 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
               }
             } else if (tokenResponse.error) {
               console.warn('Silent Google token request note:', tokenResponse.error);
+              setRenewFailed(true);
               // CRITICAL: NEVER wipe existing stored token or user session on silent background error
               try {
                 const currentStoredToken = localStorage.getItem(APP_STORAGE_KEYS.googleToken);
@@ -155,6 +167,51 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
     }
   }, [googleClientId, setError]);
 
+  useEffect(() => {
+    const MIN_GAP_MS = 60 * 1000;
+    const renewIfOld = () => {
+      setClockNow(Date.now());
+      const state = loadStoredAppState();
+      const ageMs = getGoogleTokenAgeMs({
+        token: state.googleToken,
+        issuedAt: localStorage.getItem(APP_STORAGE_KEYS.googleTokenIssuedAt)
+      });
+      if (!state.googleUser || !shouldRenewGoogleToken(ageMs)) return;
+      if (!window.googleTokenClient) return;
+      if (Date.now() - lastRenewAttemptRef.current < MIN_GAP_MS) return;
+      lastRenewAttemptRef.current = Date.now();
+      try {
+        window.googleTokenClient.requestAccessToken({ hint: state.googleUser.email || '', prompt: 'none' });
+      } catch (err) {
+        console.warn('Quiet Google renewal could not start:', err);
+        setRenewFailed(true);
+      }
+    };
+
+    // The Google script loads asynchronously; give it a moment on first open
+    const firstCheck = setTimeout(renewIfOld, 1500);
+    const interval = setInterval(renewIfOld, 5 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') renewIfOld();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearTimeout(firstCheck);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [googleClientId]);
+
+  const googleStatus = getGoogleConnectionStatus({
+    ageMs: getGoogleTokenAgeMs({
+      token: googleToken,
+      issuedAt: typeof localStorage !== 'undefined' ? localStorage.getItem(APP_STORAGE_KEYS.googleTokenIssuedAt) : null,
+      now: clockNow
+    }),
+    hasGoogleUser: Boolean(googleUser),
+    renewFailed
+  });
+
   const requestDriveAccessToken = useCallback((options = {}) => {
     const user = loadStoredAppState().googleUser;
     const emailHint = user?.email || '';
@@ -181,6 +238,8 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
       const info = await buildSignedInUser(firebaseResult.accessToken, firebaseResult.user);
       setGoogleToken(firebaseResult.accessToken);
       persistGoogleToken(firebaseResult.accessToken);
+      setRenewFailed(false);
+      setClockNow(Date.now());
       setGoogleUser(info);
       persistGoogleUser(info);
       setSuccess?.('Successfully signed in with Google!');
@@ -258,5 +317,6 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
     reconnectGoogleDrive,
     handleSessionExpired,
     requestDriveAccessToken,
+    googleStatus,
   };
 }

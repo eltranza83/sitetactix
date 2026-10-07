@@ -70,7 +70,8 @@ export default function App() {
     signOut: googleSignOut,
     reconnectGoogleDrive,
     handleSessionExpired,
-    requestDriveAccessToken
+    requestDriveAccessToken,
+    googleStatus
   } = useGoogleAuth({
     setError,
     setSuccess,
@@ -333,10 +334,19 @@ export default function App() {
 
             {/* Right: Drive connection dot and the Lot picker */}
             <div className="command-actions-cluster">
-              {googleToken && (
+              {googleStatus === 'connected' && (
                 <div
                   className="command-sync-dot"
-                  title="Google Drive connected & synced"
+                  title="Google Drive connected"
+                />
+              )}
+              {googleStatus === 'needs_signin' && (
+                <button
+                  type="button"
+                  className="command-sync-dot command-sync-dot--expired"
+                  title="Google sign-in expired. Tap to reconnect."
+                  aria-label="Google sign-in expired. Tap to reconnect."
+                  onClick={() => reconnectGoogleDrive()}
                 />
               )}
               <div 

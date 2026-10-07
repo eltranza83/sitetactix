@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.7.0",
-  "releaseName": "Jarvis retired",
+  "version": "1.7.1",
+  "releaseName": "Google dot shows sign-in status",
   "type": "module",
   "scripts": {
     "dev": "vite",
