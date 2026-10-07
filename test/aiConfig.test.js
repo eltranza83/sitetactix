@@ -1,17 +1,14 @@
 import assert from 'node:assert/strict';
 import { test, describe, before, after } from 'node:test';
-import { AI_CONFIG } from '../src/config/aiConfig.js';
 import { AI_CONFIG as SERVER_AI_CONFIG } from '../api/_lib/ai-config.js';
 import { fetchWithExponentialBackoff } from '../api/_lib/ai-retry.js';
 
 describe('Centralized AI Configuration', () => {
-  test('the single model default is Flash-Lite on both the app and the server', () => {
-    assert.equal(AI_CONFIG.primaryModel, 'gemini-3.1-flash-lite');
+  test('the single model default is Flash-Lite on the server', () => {
     assert.equal(SERVER_AI_CONFIG.primaryModel, 'gemini-3.1-flash-lite');
   });
 
   test('the old reasoning-model routing is gone', () => {
-    assert.equal(AI_CONFIG.reasoningModel, undefined);
     assert.equal(SERVER_AI_CONFIG.reasoningModel, undefined);
   });
 

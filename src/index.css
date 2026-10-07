@@ -296,25 +296,6 @@ button, input, select, textarea {
     gap: 14px;
   }
 
-  .studio-jarvis-launch {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    background: var(--st-soft);
-    border: 1px solid var(--st-gold);
-    border-radius: 10px;
-    cursor: pointer;
-    transition: var(--transition-all);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  }
-
-  .studio-jarvis-launch:hover {
-    background-color: #2b302c;
-    box-shadow: 0 4px 14px rgba(212, 183, 135, 0.2);
-    transform: translateY(-1px);
-  }
-
   .studio-user-card {
     display: flex;
     align-items: center;
@@ -489,7 +470,7 @@ button, input, select, textarea {
   user-select: none;
   transition: var(--transition-fast);
   box-shadow: var(--specular-subtle);
-  max-width: 170px;
+  max-width: 220px;
   min-width: 0;
 }
 
@@ -515,7 +496,7 @@ button, input, select, textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 110px;
+  max-width: 160px;
 }
 
 .command-project-caret {
@@ -528,7 +509,7 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .command-sync-dot {
@@ -545,49 +526,10 @@ button, input, select, textarea {
   50% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 12px var(--st-green); }
 }
 
-.command-jarvis-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px 5px 7px;
-  background: var(--st-gold-bg);
-  border: 1px solid rgba(212, 183, 135, 0.38);
-  border-radius: var(--border-radius-full);
-  color: var(--st-gold);
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), var(--specular-subtle);
-  transition: var(--transition-fast);
-}
-
-.command-jarvis-btn:hover {
-  background: rgba(212, 183, 135, 0.16);
-  border-color: var(--st-gold);
-  box-shadow: 0 0 14px var(--st-gold-glow);
-  transform: translateY(-1px);
-}
-
-.command-jarvis-btn:active {
-  transform: translateY(0);
-}
-
-.command-jarvis-label {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-}
-
-@media (max-width: 360px) {
-  .command-jarvis-label {
-    display: none;
-  }
-}
-
 .command-dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  right: 6px;
   width: 280px;
   background: var(--st-panel-elevated);
   backdrop-filter: blur(28px) saturate(190%);
@@ -601,8 +543,8 @@ button, input, select, textarea {
 }
 
 @keyframes dropdownFadeIn {
-  from { opacity: 0; transform: translate(-50%, -6px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .command-dropdown-header {

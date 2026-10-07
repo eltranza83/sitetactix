@@ -19,7 +19,7 @@ npm.cmd run build
 
 ## Production secrets
 
-Receipt reading (`/api/extract-document`) and the Jarvis assistant (`/api/jarvis`) are authenticated Vercel functions in `api/`; `npm run dev` runs both locally. Configure these server-only environment variables in Vercel for Production (and Preview when needed):
+Receipt reading (`/api/extract-document`) is an authenticated Vercel function in `api/`; `npm run dev` runs it locally. (The Jarvis assistant was retired in v1.7.0; it can be restored from the git tag `jarvis-final`.) Configure these server-only environment variables in Vercel for Production (and Preview when needed):
 
 - `GEMINI_API_KEY`
 - `GEMINI_MODEL` (optional; defaults to `gemini-3.1-flash-lite`)

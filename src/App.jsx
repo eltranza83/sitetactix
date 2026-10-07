@@ -1,4 +1,3 @@
-import GlobalAIAssistant from './components/GlobalAIAssistant';
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { Camera, Settings as SettingsIcon, Sparkles, Folder, LogIn, FileText, TrendingUp, MapPin, Check, Trash2, X, ChevronDown, CloudLightning } from 'lucide-react';
 import StagingCard from './components/StagingCard';
@@ -38,83 +37,6 @@ const Settings = lazyWithRetry(() => import('./components/Settings'));
 const InviteScreen = lazyWithRetry(() => import('./components/InviteScreen'));
 const Dashboard = lazyWithRetry(() => import('./components/Dashboard'));
 const BlueprintPinboard = lazyWithRetry(() => import('./components/BlueprintPinboard'));
-
-function IronManIcon({ size = 18 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ display: 'block', flexShrink: 0 }}
-    >
-      <defs>
-        <linearGradient id="im-gold" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#F1D7A7" />
-          <stop offset="50%" stopColor="#C5A059" />
-          <stop offset="100%" stopColor="#B28741" />
-        </linearGradient>
-        <linearGradient id="im-shell" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#3F3A32" />
-          <stop offset="100%" stopColor="#171512" />
-        </linearGradient>
-      </defs>
-
-      {/* Graphite shell keeps Jarvis aligned with the ADEPEC brand system. */}
-      <path
-        d="M26 18 C26 12 36 6 50 6 C64 6 74 12 74 18 L76 34 L82 42 L81 60 L73 66 L67 89 L50 93 L33 89 L27 66 L19 60 L18 42 L24 34 Z"
-        fill="url(#im-shell)"
-      />
-
-      {/* Ear Plates */}
-      <path d="M18 40 L23 35 V57 L18 55 Z" fill="#2A2620" />
-      <path d="M82 40 L77 35 V57 L82 55 Z" fill="#2A2620" />
-
-      {/* Gold Faceplate */}
-      <path
-        d="M30 22 C35 18 43 16 50 16 C57 16 65 18 70 22 L73 37 L68 45 L70 63 L64 70 L59 87 L50 90 L41 87 L36 70 L30 63 L32 45 L27 37 Z"
-        fill="url(#im-gold)"
-      />
-
-      {/* Forehead Brow Inset */}
-      <path
-        d="M35 27 L50 32 L65 27 L63 35 L50 39 L37 35 Z"
-        fill="#78350F"
-        opacity="0.4"
-      />
-
-      {/* Iconic Slanted Glowing Cyan-White Eye Slits */}
-      <polygon
-        points="33,48 45,51 44,55 34,53"
-        fill="#E0F2FE"
-        stroke="#0284C7"
-        strokeWidth="0.8"
-      />
-      <polygon
-        points="67,48 55,51 56,55 66,53"
-        fill="#E0F2FE"
-        stroke="#0284C7"
-        strokeWidth="0.8"
-      />
-
-      {/* Mouth Slit Line */}
-      <path
-        d="M42 74 L50 76 L58 74"
-        stroke="#78350F"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      {/* Chin Inset */}
-      <path
-        d="M45 82 H55"
-        stroke="#78350F"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 function LazyScreenFallback() {
   return (
@@ -364,18 +286,6 @@ export default function App() {
         </nav>
 
         <div className="studio-sidebar-footer">
-          <button
-            type="button"
-            className="studio-jarvis-launch"
-            onClick={() => window.dispatchEvent(new CustomEvent('open-ai-assistant'))}
-          >
-            <IronManIcon size={18} />
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
-              <span style={{ fontSize: '0.80rem', fontWeight: 700, color: 'var(--st-gold)' }}>Ask Jarvis</span>
-              <span style={{ fontSize: '0.65rem', color: 'var(--st-muted)' }}>Site AI Assistant</span>
-            </div>
-          </button>
-
           <div className="studio-user-card">
             <div className="studio-avatar">AH</div>
             <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0 }}>
@@ -421,31 +331,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Center: Interactive Project Capsule */}
-            <div 
-              className="command-project-pill"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowProjectDropdown(!showProjectDropdown);
-              }}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setShowProjectDropdown(!showProjectDropdown);
-                }
-              }}
-              title="Switch Active Project"
-            >
-              <span className="command-project-indicator" />
-              <span className="command-project-name">
-                {activeProject ? activeProject.name : 'Select Project'}
-              </span>
-              <ChevronDown size={12} className="command-project-caret" />
-            </div>
-
-            {/* Right: Sync Status Dot & Jarvis Trigger */}
+            {/* Right: Drive connection dot and the Lot picker */}
             <div className="command-actions-cluster">
               {googleToken && (
                 <div
@@ -453,15 +339,28 @@ export default function App() {
                   title="Google Drive connected & synced"
                 />
               )}
-              <button
-                type="button"
-                className="command-jarvis-btn"
-                onClick={() => window.dispatchEvent(new CustomEvent('open-ai-assistant'))}
-                title="Ask Jarvis AI"
+              <div 
+                className="command-project-pill"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowProjectDropdown(!showProjectDropdown);
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setShowProjectDropdown(!showProjectDropdown);
+                  }
+                }}
+                title="Switch Active Project"
               >
-                <IronManIcon size={16} />
-                <span className="command-jarvis-label">Jarvis</span>
-              </button>
+                <span className="command-project-indicator" />
+                <span className="command-project-name">
+                  {activeProject ? activeProject.name : 'Select Project'}
+                </span>
+                <ChevronDown size={12} className="command-project-caret" />
+              </div>
             </div>
 
             {/* Project Dropdown Menu */}
@@ -851,15 +750,6 @@ export default function App() {
         )}
         </Suspense>
       </main>
-
-      {/* Global Floating AI Field Agent Button */}
-      <DashboardErrorBoundary>
-        <GlobalAIAssistant
-          activeProject={activeProject}
-          selectedFolder={selectedFolder}
-          googleToken={googleToken}
-        />
-      </DashboardErrorBoundary>
 
       {/* 3. Navigation Footer - 5 Mobile-Optimized Tabs */}
       {!editingItemId && (

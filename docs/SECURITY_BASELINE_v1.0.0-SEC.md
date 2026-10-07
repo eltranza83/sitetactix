@@ -70,3 +70,7 @@ Parts of this baseline describe features that have since been removed. They are 
 - Firestore rules now cover only `admins`, `user_access`, `invites`, `projects` and `project_invites`. The `memories`, `user_preferences`, `projects/*/finishes`, `projects/*/purchasing_items` and `purchasing_templates` rules were removed, so those paths fall back to Firestore's default deny.
 - Current AI routes: `/api/jarvis` and `/api/extract-document` (receipt reading and crop-corner finding), both behind `requireScannerAccess`. The local `vite dev` server runs both routes. Since v1.6.2 the browser never sends an AI key; the old browser-key fallback was removed.
 - Inspections, notes, subcontractors and finishes now live in Notion; money, payments and receipts stay in the Google Sheet and Drive.
+
+## Update (v1.7.0, October 2026)
+
+- The Jarvis assistant was retired in favour of Muse: removed `/api/jarvis`, its tools, the voice system and the in-app document viewer. The only AI route is now `/api/extract-document`. Jarvis can be restored from the git tag `jarvis-final`.

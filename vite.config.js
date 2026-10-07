@@ -22,7 +22,7 @@ function apiDevPlugin() {
     name: 'api-dev-middleware',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        const devRoutes = { '/api/jarvis': './api/jarvis.js', '/api/extract-document': './api/extract-document.js' };
+        const devRoutes = { '/api/extract-document': './api/extract-document.js' };
         if (devRoutes[req.url] && req.method === 'POST') {
           try {
             const chunks = [];
