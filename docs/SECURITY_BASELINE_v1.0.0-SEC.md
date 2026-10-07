@@ -74,3 +74,8 @@ Parts of this baseline describe features that have since been removed. They are 
 ## Update (v1.7.0, October 2026)
 
 - The Jarvis assistant was retired in favour of Muse: removed `/api/jarvis`, its tools, the voice system and the in-app document viewer. The only AI route is now `/api/extract-document`. Jarvis can be restored from the git tag `jarvis-final`.
+
+## Update (v1.7.7, October 2026)
+
+- Security headers tightened to what the app uses: microphone turned off (`microphone=()`), the browser can no longer call Gemini directly (`generativelanguage.googleapis.com` removed from `connect-src`; AI goes only through `/api/extract-document`), and Drive pages can no longer be embedded (`drive.google.com` removed from `frame-src`).
+- The Google sign-in client ID always comes from the app build; an old copy saved on the device is ignored and removed.

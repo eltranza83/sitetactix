@@ -73,24 +73,32 @@ describe('CSP & Production Security Headers Smoke Test Suite', () => {
     assert.ok(connectSrc.includes('https://firestore.googleapis.com'), 'Firestore REST API must be in connect-src');
   });
 
-  it('authorizes Document Viewing, blueprint images, and Drive previews in CSP', () => {
+  it('authorizes blueprint and receipt images in CSP, with no embedded Drive pages', () => {
     const imgSrc = parsed['img-src'] || [];
     const frameSrc = parsed['frame-src'] || [];
 
-    // Image/PDF rendering in Document Viewer & Blueprint Pinboard
+    // Image/PDF rendering in the Blueprint Pinboard and receipts
     assert.ok(imgSrc.includes('blob:'), "img-src must allow 'blob:' for dynamically rendered blueprints and receipts");
     assert.ok(imgSrc.includes('data:'), "img-src must allow 'data:' URIs");
     assert.ok(imgSrc.includes('https://lh3.googleusercontent.com'), 'img-src must allow Google profile pictures');
 
-    // Google Drive webViewLink embedded preview iframe
-    assert.ok(frameSrc.includes('https://drive.google.com'), 'frame-src must allow drive.google.com for document previews');
+    // The in-app Drive document viewer was removed with Jarvis (v1.7.0)
+    assert.ok(!frameSrc.includes('https://drive.google.com'), 'frame-src must not allow embedding drive.google.com');
   });
 
-  it('authorizes Gemini AI backend requests in CSP', () => {
+  it('sends AI requests only through the app server', () => {
     const connectSrc = parsed['connect-src'] || [];
 
     assert.ok(connectSrc.includes("'self'"), "connect-src must allow 'self' for /api/extract-document");
-    assert.ok(connectSrc.includes('https://generativelanguage.googleapis.com'), 'connect-src must allow generativelanguage.googleapis.com for direct model queries');
+    assert.ok(!connectSrc.includes('https://generativelanguage.googleapis.com'), 'the browser must never call Gemini directly');
+  });
+
+  it('allows the camera but not the microphone or location', () => {
+    const permissions = headersMap.get('Permissions-Policy') || '';
+
+    assert.ok(permissions.includes('camera=(self)'), 'camera must stay allowed for scanning');
+    assert.ok(permissions.includes('microphone=()'), 'microphone must be off (voice was removed with Jarvis)');
+    assert.ok(permissions.includes('geolocation=()'), 'location must be off');
   });
 });
 

@@ -36,6 +36,7 @@ const {
   setStoredBoolean,
   setStoredJson
 } = await import('../src/services/appStorage.js');
+const { DEFAULT_GOOGLE_CLIENT_ID } = await import('../src/config/appConfig.js');
 
 test.beforeEach(() => {
   localStorage.clear();
@@ -153,4 +154,13 @@ test('Google session clearing removes identity and linked project session values
   assert.equal(localStorage.getItem(APP_STORAGE_KEYS.folderId), null);
   assert.equal(localStorage.getItem(APP_STORAGE_KEYS.activeProject), null);
   assert.equal(localStorage.getItem(APP_STORAGE_KEYS.invited), null);
+});
+
+test('loadStoredAppState always uses the built-in Google sign-in ID and drops an old saved copy', () => {
+  localStorage.setItem(APP_STORAGE_KEYS.legacyGoogleClientId, 'old-client-id.apps.googleusercontent.com');
+
+  const state = loadStoredAppState();
+
+  assert.equal(state.googleClientId, DEFAULT_GOOGLE_CLIENT_ID);
+  assert.equal(localStorage.getItem(APP_STORAGE_KEYS.legacyGoogleClientId), null);
 });

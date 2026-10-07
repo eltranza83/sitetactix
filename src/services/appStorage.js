@@ -1,7 +1,7 @@
-import { DEFAULT_GOOGLE_CLIENT_ID, STORAGE_KEYS, isBuiltInAdmin } from '../config/appConfig.js';
+import { DEFAULT_GOOGLE_CLIENT_ID, isBuiltInAdmin } from '../config/appConfig.js';
 
 export const APP_STORAGE_KEYS = {
-  ...STORAGE_KEYS,
+  legacyGoogleClientId: 'sitetactix_google_client_id',
   legacyGeminiKey: 'jobscan_gemini_key',
   googleToken: 'jobscan_google_token',
   googleTokenIssuedAt: 'jobscan_google_token_time',
@@ -42,13 +42,6 @@ export function setStoredBoolean(key, value) {
   localStorage.setItem(key, value ? 'true' : 'false');
 }
 
-export function ensureStoredString(key, fallback = '') {
-  const existing = localStorage.getItem(key);
-  if (existing !== null) return existing;
-  localStorage.setItem(key, fallback);
-  return fallback;
-}
-
 export function loadInitialInviteState() {
   if (localStorage.getItem(APP_STORAGE_KEYS.invited) === 'true') {
     return true;
@@ -63,7 +56,9 @@ export function loadInitialInviteState() {
 
 export function loadStoredAppState() {
   localStorage.removeItem(APP_STORAGE_KEYS.legacyGeminiKey);
-  const googleClientId = ensureStoredString(APP_STORAGE_KEYS.googleClientId, DEFAULT_GOOGLE_CLIENT_ID);
+  // The Google sign-in ID always comes from the app itself; drop any old copy saved on the phone
+  localStorage.removeItem(APP_STORAGE_KEYS.legacyGoogleClientId);
+  const googleClientId = DEFAULT_GOOGLE_CLIENT_ID;
   const folderId = localStorage.getItem(APP_STORAGE_KEYS.folderId);
   const folderName = localStorage.getItem(APP_STORAGE_KEYS.folderName);
 
