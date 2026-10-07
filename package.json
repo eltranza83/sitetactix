@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.7.3",
-  "releaseName": "Projects link their Sheet",
+  "version": "1.7.4",
+  "releaseName": "Google renews on tap",
   "type": "module",
   "scripts": {
     "dev": "vite",

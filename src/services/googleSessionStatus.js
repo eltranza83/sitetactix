@@ -17,19 +17,18 @@ export function getGoogleTokenAgeMs({ token, issuedAt, now = Date.now() }) {
   return Math.max(0, now - issued);
 }
 
-/** True when the token should be quietly renewed now. */
+/** True when the next tap should renew the pass (from 50 minutes on, or when there is none). */
 export function shouldRenewGoogleToken(ageMs) {
   return ageMs === null || ageMs >= GOOGLE_TOKEN_RENEW_AFTER_MS;
 }
 
 /**
- * 'connected'    - green dot: the sign-in is fresh enough to sync.
- * 'needs_signin' - amber dot: the sign-in expired (or renewing failed); tap to reconnect.
+ * 'connected'    - green dot: the hour-long Google pass is still valid.
+ * 'needs_signin' - amber dot: the pass has run out; tap to reconnect.
  * 'none'         - no dot: never connected to Google on this device.
  */
-export function getGoogleConnectionStatus({ ageMs, hasGoogleUser, renewFailed }) {
+export function getGoogleConnectionStatus({ ageMs, hasGoogleUser }) {
   if (ageMs === null) return hasGoogleUser ? 'needs_signin' : 'none';
   if (ageMs >= GOOGLE_TOKEN_LIFETIME_MS) return 'needs_signin';
-  if (renewFailed && ageMs >= GOOGLE_TOKEN_RENEW_AFTER_MS) return 'needs_signin';
   return 'connected';
 }

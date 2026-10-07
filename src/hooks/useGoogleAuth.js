@@ -74,8 +74,7 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
   const [googleToken, setGoogleToken] = useState(() => loadStoredAppState().googleToken);
   const [googleUser, setGoogleUser] = useState(() => loadStoredAppState().googleUser);
   const [signingIn, setSigningIn] = useState(false);
-  // Drives the top-bar dot: renewal result plus a clock so the dot turns amber once the token is too old
-  const [renewFailed, setRenewFailed] = useState(false);
+  // A clock so the top-bar dot turns amber when the hour-long Google pass actually runs out
   const [clockNow, setClockNow] = useState(() => Date.now());
   const lastRenewAttemptRef = useRef(0);
 
@@ -114,13 +113,11 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
           hint: storedUser?.email || '',
           error_callback: (err) => {
             console.warn('Google token request did not complete:', err?.type || err);
-            setRenewFailed(true);
           },
           callback: async (tokenResponse) => {
             if (tokenResponse.access_token) {
               setGoogleToken(tokenResponse.access_token);
               persistGoogleToken(tokenResponse.access_token);
-              setRenewFailed(false);
               setClockNow(Date.now());
               setError?.(null);
 
@@ -133,7 +130,6 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
               }
             } else if (tokenResponse.error) {
               console.warn('Silent Google token request note:', tokenResponse.error);
-              setRenewFailed(true);
               // CRITICAL: NEVER wipe existing stored token or user session on silent background error
               try {
                 const currentStoredToken = localStorage.getItem(APP_STORAGE_KEYS.googleToken);
@@ -146,6 +142,12 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
             }
           }
         });
+        // Note every request, so a tap that already asked Google (a sign-in button) is not asked twice
+        const requestAccessToken = client.requestAccessToken.bind(client);
+        client.requestAccessToken = (...args) => {
+          window.__lastGoogleTokenRequestAt = Date.now();
+          return requestAccessToken(...args);
+        };
         window.googleTokenClient = client;
         console.log('Google token client pre-initialized successfully.');
       } catch (err) {
@@ -167,10 +169,17 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
     }
   }, [googleClientId, setError]);
 
+  // Google's hour-long pass can only be renewed from a tap: browsers block its sign-in window otherwise.
+  // So when the pass is close to running out, the next tap anywhere in the app renews it.
   useEffect(() => {
     const MIN_GAP_MS = 60 * 1000;
-    const renewIfOld = () => {
-      setClockNow(Date.now());
+    const renewOnTap = (event) => {
+      // Runs after the tapped button: skip if that button already asked Google for a pass
+      if (Date.now() - (window.__lastGoogleTokenRequestAt || 0) < 2000) return;
+      // Leave file pickers and the camera alone; a second window would interrupt them
+      const target = event.target;
+      if (target?.closest?.('input[type="file"], video, .camera-container')) return;
+
       const state = loadStoredAppState();
       const ageMs = getGoogleTokenAgeMs({
         token: state.googleToken,
@@ -183,22 +192,21 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
       try {
         window.googleTokenClient.requestAccessToken({ hint: state.googleUser.email || '', prompt: 'none' });
       } catch (err) {
-        console.warn('Quiet Google renewal could not start:', err);
-        setRenewFailed(true);
+        console.warn('Google renewal could not start:', err);
       }
     };
-
-    // The Google script loads asynchronously; give it a moment on first open
-    const firstCheck = setTimeout(renewIfOld, 1500);
-    const interval = setInterval(renewIfOld, 5 * 60 * 1000);
+    // Keep the dot honest as time passes and when the app comes back to the screen
+    const tick = () => setClockNow(Date.now());
+    const interval = setInterval(tick, 60 * 1000);
     const onVisible = () => {
-      if (document.visibilityState === 'visible') renewIfOld();
+      if (document.visibilityState === 'visible') tick();
     };
+    document.addEventListener('click', renewOnTap);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      clearTimeout(firstCheck);
-      clearInterval(interval);
+      document.removeEventListener('click', renewOnTap);
       document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(interval);
     };
   }, [googleClientId]);
 
@@ -208,8 +216,7 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
       issuedAt: typeof localStorage !== 'undefined' ? localStorage.getItem(APP_STORAGE_KEYS.googleTokenIssuedAt) : null,
       now: clockNow
     }),
-    hasGoogleUser: Boolean(googleUser),
-    renewFailed
+    hasGoogleUser: Boolean(googleUser)
   });
 
   const requestDriveAccessToken = useCallback((options = {}) => {
@@ -238,7 +245,6 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
       const info = await buildSignedInUser(firebaseResult.accessToken, firebaseResult.user);
       setGoogleToken(firebaseResult.accessToken);
       persistGoogleToken(firebaseResult.accessToken);
-      setRenewFailed(false);
       setClockNow(Date.now());
       setGoogleUser(info);
       persistGoogleUser(info);
