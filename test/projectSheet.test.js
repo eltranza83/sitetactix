@@ -55,3 +55,26 @@ describe('linking a project to its Google Sheet automatically', () => {
     assert.doesNotMatch(sheets, /syncIssuesToSheet|'Issues'/);
   });
 });
+
+describe('folder picker shows the spreadsheets in a folder', () => {
+  test('asks Drive for spreadsheets directly inside the folder, and copes with errors', async () => {
+    const { listSpreadsheetsInFolder } = await import('../src/services/googleDrive.js');
+    const originalFetch = globalThis.fetch;
+    let seenUrl = '';
+    try {
+      globalThis.fetch = async (url) => {
+        seenUrl = decodeURIComponent(String(url));
+        return { ok: true, json: async () => ({ files: [{ id: 's1', name: 'Lot 3 Budget' }] }) };
+      };
+      const sheets = await listSpreadsheetsInFolder('token', "lot's folder");
+      assert.deepEqual(sheets, [{ id: 's1', name: 'Lot 3 Budget' }]);
+      assert.match(seenUrl, /mimeType='application\/vnd\.google-apps\.spreadsheet'/);
+      assert.ok(seenUrl.includes("'lot\\'s folder' in parents"), 'folder id is escaped for the Drive query');
+
+      globalThis.fetch = async () => ({ ok: false, json: async () => ({}) });
+      assert.deepEqual(await listSpreadsheetsInFolder('token', 'f1'), []);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});

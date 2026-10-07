@@ -103,6 +103,9 @@ export default function Settings({
         editingProject={projectSettings.editingProject}
         projectName={projectSettings.projectNameInput}
         selectedFolder={projectSettings.tempSelectedFolder}
+        sheetPreview={projectSettings.sheetPreview}
+        selectedSheet={projectSettings.tempSelectedSheet}
+        onSelectSheet={projectSettings.setTempSelectedSheet}
         onProjectNameChange={projectSettings.setProjectNameInput}
         onOpenFolderPicker={() => projectSettings.setShowFolderPickerModal(true)}
         onCancel={projectSettings.handleCancelCreateProject}
@@ -112,6 +115,7 @@ export default function Settings({
       <SettingsFolderPickerModal
         isOpen={projectSettings.showFolderPickerModal}
         folders={projectSettings.folders}
+        sheets={projectSettings.folderSheets}
         loadingFolders={projectSettings.loadingFolders}
         breadcrumbs={projectSettings.breadcrumbs}
         currentParentId={projectSettings.currentParentId}

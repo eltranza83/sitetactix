@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.7.4",
-  "releaseName": "Google renews on tap",
+  "version": "1.7.5",
+  "releaseName": "Sheets shown when picking a folder",
   "type": "module",
   "scripts": {
     "dev": "vite",

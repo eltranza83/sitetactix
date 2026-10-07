@@ -172,6 +172,19 @@ export async function listFolders(accessToken, parentId = 'root') {
 }
 
 /**
+ * Spreadsheets sitting directly inside one folder (shown in the folder picker).
+ */
+export async function listSpreadsheetsInFolder(accessToken, parentId = 'root') {
+  const safeParent = escapeDriveQueryString(parentId);
+  const query = `mimeType='application/vnd.google-apps.spreadsheet' and '${safeParent}' in parents and trashed=false`;
+  const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name)&pageSize=100`;
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) return [];
+  const data = await response.json();
+  return data.files || [];
+}
+
+/**
  * All spreadsheets that could be the project's Sheet, from the first place that has any:
  * the project folder itself, then App Folders, then App Folders / Master Budget Sheet.
  */

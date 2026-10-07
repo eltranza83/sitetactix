@@ -6,6 +6,9 @@ export default function SettingsProjectModal({
   editingProject,
   projectName,
   selectedFolder,
+  sheetPreview = { status: 'idle' },
+  selectedSheet = null,
+  onSelectSheet,
   onProjectNameChange,
   onOpenFolderPicker,
   onCancel,
@@ -118,6 +121,58 @@ export default function SettingsProjectModal({
               {selectedFolder ? 'Change Folder...' : 'Select Target Folder...'}
             </button>
           </div>
+
+          {selectedFolder && (
+            <div className="form-group">
+              <label className="form-label">Google Sheet</label>
+              {sheetPreview.status === 'loading' && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-zinc-500)', padding: '6px 2px' }}>Looking for the spreadsheet in this folder...</div>
+              )}
+              {sheetPreview.status === 'linked' && selectedSheet && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)',
+                  borderRadius: '8px', fontSize: '0.85rem', color: 'var(--color-emerald-500)', fontWeight: 500
+                }}>
+                  <CheckCircle size={16} style={{ flex: 'none' }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Sheet found: <strong>{selectedSheet.name}</strong>
+                  </span>
+                </div>
+              )}
+              {sheetPreview.status === 'choose' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--color-amber-500)' }}>This folder has more than one spreadsheet. Tap the project's budget Sheet:</div>
+                  {sheetPreview.candidates.map(sheet => (
+                    <button
+                      key={sheet.id}
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => onSelectSheet?.(sheet)}
+                      style={{
+                        justifyContent: 'flex-start', padding: '8px 10px', fontSize: '0.8rem', textAlign: 'left',
+                        borderColor: selectedSheet?.id === sheet.id ? 'var(--color-emerald-500)' : undefined,
+                        color: selectedSheet?.id === sheet.id ? 'var(--color-emerald-500)' : undefined
+                      }}
+                    >
+                      {selectedSheet?.id === sheet.id ? '✓ ' : ''}{sheet.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {sheetPreview.status === 'none' && (
+                <div style={{
+                  padding: '10px 12px', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)',
+                  borderRadius: '8px', fontSize: '0.8rem', color: 'var(--color-amber-500)', lineHeight: 1.4
+                }}>
+                  No spreadsheet found in this folder. Receipts can't sync to a Sheet until there is one. Pick a different folder, or add the Sheet to this folder later and the app will link it automatically.
+                </div>
+              )}
+              {sheetPreview.status === 'error' && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-zinc-500)' }}>Couldn't check for a spreadsheet right now. The app will link it automatically later.</div>
+              )}
+            </div>
+          )}
 
         </div>
 

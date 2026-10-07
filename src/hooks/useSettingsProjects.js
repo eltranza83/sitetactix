@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { createProjectFolder, listProjectFolders } from '../services/settingsDrive';
+import { createProjectFolder, listProjectFolders, listFolderSpreadsheets } from '../services/settingsDrive';
+import { listProjectSpreadsheets } from '../services/googleDrive';
 import { getDriveErrorMessage, getFolderErrorMessage, getValidationErrorMessage } from '../services/appErrors';
 import { toCanonicalProjectId } from '../services/projectIds';
 import { saveUserProject, deleteUserProject } from '../services/projectService';
-import { clearSheetLinkIfFolderChanged } from '../services/projectSheet';
+import { clearSheetLinkIfFolderChanged, chooseProjectSpreadsheet, linkSheetToProject } from '../services/projectSheet';
 
 export function useSettingsProjects({
   activeProject,
@@ -17,6 +18,11 @@ export function useSettingsProjects({
   setSuccess
 }) {
   const [folders, setFolders] = useState([]);
+  // Spreadsheets in the folder being browsed (shown greyed out so you can tell you're in the right place)
+  const [folderSheets, setFolderSheets] = useState([]);
+  // The Sheet the project will be linked to, worked out as soon as a folder is picked
+  const [sheetPreview, setSheetPreview] = useState({ status: 'idle' });
+  const [tempSelectedSheet, setTempSelectedSheet] = useState(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [currentParentId, setCurrentParentId] = useState('root');
@@ -33,8 +39,12 @@ export function useSettingsProjects({
     setLoadingFolders(true);
     setError(null);
     try {
-      const folderList = await listProjectFolders(googleToken, parentId);
+      const [folderList, sheetList] = await Promise.all([
+        listProjectFolders(googleToken, parentId),
+        listFolderSpreadsheets(googleToken, parentId).catch(() => [])
+      ]);
       setFolders(folderList);
+      setFolderSheets(sheetList);
     } catch (err) {
       console.error(err);
       setError(getFolderErrorMessage(err, 'load Google Drive folders'));
@@ -49,9 +59,34 @@ export function useSettingsProjects({
     }
   }, [googleToken, currentParentId, showFolderPickerModal]);
 
+  useEffect(() => {
+    if (!showCreateModal || !googleToken || !tempSelectedFolder?.id) {
+      setSheetPreview({ status: 'idle' });
+      return;
+    }
+    let stale = false;
+    setSheetPreview({ status: 'loading' });
+    listProjectSpreadsheets(googleToken, tempSelectedFolder.id)
+      .then(candidates => {
+        if (stale) return;
+        const choice = chooseProjectSpreadsheet(candidates);
+        setSheetPreview(choice);
+        setTempSelectedSheet(prev => {
+          // Keep a project's existing link when it is still in this folder
+          if (prev && (choice.candidates || [choice.sheet]).some(c => c?.id === prev.id)) return prev;
+          return choice.status === 'linked' ? choice.sheet : null;
+        });
+      })
+      .catch(() => {
+        if (!stale) setSheetPreview({ status: 'error' });
+      });
+    return () => { stale = true; };
+  }, [showCreateModal, googleToken, tempSelectedFolder?.id]);
+
   const openCreateProjectModal = () => {
     setProjectNameInput('');
     setTempSelectedFolder(null);
+    setTempSelectedSheet(null);
     setShowCreateModal(true);
   };
 
@@ -59,6 +94,7 @@ export function useSettingsProjects({
     setEditingProject(project);
     setProjectNameInput(project.name);
     setTempSelectedFolder({ id: project.folderId, name: project.folderName });
+    setTempSelectedSheet(project.spreadsheetId ? { id: project.spreadsheetId, name: project.spreadsheetName } : null);
     setShowCreateModal(true);
   };
 
@@ -77,8 +113,9 @@ export function useSettingsProjects({
       const updatedProjects = projects.map(p => {
         if (p.id === editingProject.id) {
           const { appsScriptUrl: _url, appsScriptSecret: _secret, ...safeProject } = p;
+          const base = clearSheetLinkIfFolderChanged(safeProject, tempSelectedFolder.id);
           return {
-            ...clearSheetLinkIfFolderChanged(safeProject, tempSelectedFolder.id),
+            ...(tempSelectedSheet ? linkSheetToProject(base, tempSelectedSheet) : base),
             name: projectNameInput.trim(),
             folderId: tempSelectedFolder.id,
             folderName: tempSelectedFolder.name
@@ -105,6 +142,7 @@ export function useSettingsProjects({
 
       setProjectNameInput('');
       setTempSelectedFolder(null);
+      setTempSelectedSheet(null);
       setEditingProject(null);
       setShowCreateModal(false);
       setSuccess(`Project "${updatedProj.name}" updated successfully!`);
@@ -118,13 +156,14 @@ export function useSettingsProjects({
     }
 
     const canonicalId = toCanonicalProjectId(projectNameInput.trim());
-    const newProj = {
+    const baseProj = {
       id: canonicalId,
       canonicalId,
       name: projectNameInput.trim(),
       folderId: tempSelectedFolder.id,
       folderName: tempSelectedFolder.name
     };
+    const newProj = tempSelectedSheet ? linkSheetToProject(baseProj, tempSelectedSheet) : baseProj;
 
     const updatedProjects = [...projects, newProj];
     setProjects(updatedProjects);
@@ -143,14 +182,18 @@ export function useSettingsProjects({
 
     setProjectNameInput('');
     setTempSelectedFolder(null);
+    setTempSelectedSheet(null);
     setShowCreateModal(false);
-    setSuccess(`Project "${newProj.name}" saved and set as active!`);
+    setSuccess(newProj.spreadsheetName
+      ? `Project "${newProj.name}" saved and linked to "${newProj.spreadsheetName}"!`
+      : `Project "${newProj.name}" saved and set as active!`);
     setTimeout(() => setSuccess(null), 3000);
   };
 
   const handleCancelCreateProject = () => {
     setProjectNameInput('');
     setTempSelectedFolder(null);
+    setTempSelectedSheet(null);
     setEditingProject(null);
     setShowCreateModal(false);
     setError(null);
@@ -231,6 +274,10 @@ export function useSettingsProjects({
     currentParentId,
     editingProject,
     folders,
+    folderSheets,
+    sheetPreview,
+    tempSelectedSheet,
+    setTempSelectedSheet,
     loadingFolders,
     newFolderName,
     projectNameInput,

@@ -1,10 +1,11 @@
 import React from 'react';
-import { Check, ChevronRight, Folder, FolderOpen, FolderPlus, X } from 'lucide-react';
+import { Check, ChevronRight, FileSpreadsheet, Folder, FolderOpen, FolderPlus, X } from 'lucide-react';
 import { STATUS_MESSAGES } from '../services/appErrors';
 
 export default function SettingsFolderPickerModal({
   isOpen,
   folders,
+  sheets = [],
   loadingFolders,
   breadcrumbs,
   currentParentId,
@@ -112,12 +113,13 @@ export default function SettingsFolderPickerModal({
               <div className="spinner" style={{ width: '20px', height: '20px', borderWidth: '2px', margin: '0 auto 8px auto' }}></div>
               {STATUS_MESSAGES.loadingFolders}
             </div>
-          ) : folders.length === 0 ? (
+          ) : folders.length === 0 && sheets.length === 0 ? (
             <div style={{ padding: '30px 10px', textAlign: 'center', color: 'var(--color-zinc-600)', fontSize: '0.85rem' }}>
               No subfolders found inside this directory.
             </div>
           ) : (
-            folders.map(folder => (
+            <>
+            {folders.map(folder => (
               <div
                 key={folder.id}
                 style={{
@@ -155,7 +157,30 @@ export default function SettingsFolderPickerModal({
                   {selectedFolder?.id === folder.id ? <Check size={12} /> : 'Select'}
                 </button>
               </div>
-            ))
+            ))}
+            {sheets.map(sheet => (
+              <div
+                key={sheet.id}
+                title="Spreadsheet in this folder. Select the folder that holds it; the app links the Sheet automatically."
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--color-zinc-950)',
+                  border: '1px dashed var(--color-zinc-800)',
+                  fontSize: '0.8rem',
+                  color: 'var(--color-zinc-500)',
+                  minWidth: 0
+                }}
+              >
+                <FileSpreadsheet size={16} style={{ color: 'var(--color-emerald-600, #059669)', flex: 'none', opacity: 0.8 }} />
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sheet.name}</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.68rem', flex: 'none' }}>spreadsheet</span>
+              </div>
+            ))}
+            </>
           )}
         </div>
 

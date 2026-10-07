@@ -8,9 +8,9 @@ export const STORAGE_KEYS = {
 
 const ENV = import.meta.env || {};
 
-export const APP_VERSION = ENV.VITE_APP_VERSION || '1.7.4';
+export const APP_VERSION = ENV.VITE_APP_VERSION || '1.7.5';
 export const APP_BUILD_LABEL = ENV.VITE_APP_BUILD_LABEL || `v${APP_VERSION}`;
-export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Google renews on tap';
+export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Sheets shown when picking a folder';
 
 export const DEFAULT_FIREBASE_CONFIG = {
   apiKey: ENV.VITE_FIREBASE_API_KEY || 'AIzaSyDjYPPkW8ffQMOCByCo9gMlVxQ8PsMpAoU',
