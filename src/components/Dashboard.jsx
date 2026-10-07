@@ -197,7 +197,7 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
     setError(null);
 
     try {
-      const cachedSpreadsheetId = getCachedDashboardSpreadsheetId(localStorage, activeProject?.id);
+      const cachedSpreadsheetId = activeProject?.spreadsheetId || getCachedDashboardSpreadsheetId(localStorage, activeProject?.id);
       const { spreadsheetId, data: parsedData } = await loadProjectDashboardFromFolder({
         accessToken: googleToken,
         projectFolderId: selectedFolder.id,

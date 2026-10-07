@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { loadIssuesVault, saveIssuesVault, uploadIssuePhoto, uploadIssueProofPhoto, mergeIssues, mergeActivityHistories } from '../services/issuesDrive';
-import { syncIssuesToSheet } from '../services/sheetsDataService';
 import { getDriveErrorMessage } from '../services/appErrors';
 
 const OFFLINE_QUEUE_KEY = 'jobscan_offline_issues_queue';
@@ -171,12 +170,6 @@ export function useIssues({ googleToken, activeProject }) {
         { issues: mergedList, contacts: updatedContacts }
       );
       setIssuesDataFileId(savedFileId);
-
-      // 4. Overwrite/Sync Google Sheet mirror (only active, non-deleted issues)
-      if (activeProject?.spreadsheetId) {
-        const activeIssues = mergedList.filter(i => !i.deletedAt);
-        await syncIssuesToSheet(googleToken, activeProject.spreadsheetId, activeIssues);
-      }
 
       // 5. Success! Clear local queue, update states and cache
       saveOfflineQueue([]);

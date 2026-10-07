@@ -187,7 +187,7 @@ export function findTargetPhaseRow(rows, tradePhase) {
 /**
  * Synchronizes uploaded invoice PDFs directly to the Google Spreadsheet using the active Google access token.
  */
-export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId) {
+export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId, linkedSpreadsheetId = null) {
   if (!accessToken) {
     throw new Error('Google authentication token is required for direct spreadsheet sync.');
   }
@@ -200,7 +200,10 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId)
   await ensureAppSubfolder(accessToken, projectFolderId, 'Processed Invoices');
 
   // 2. Resolve Google Spreadsheet in the project folder
-  const spreadsheet = await findSpreadsheetInFolder(accessToken, projectFolderId);
+  // Use the project's linked Sheet; search the folder only when none is linked yet
+  const spreadsheet = linkedSpreadsheetId
+    ? { id: linkedSpreadsheetId }
+    : await findSpreadsheetInFolder(accessToken, projectFolderId);
   if (!spreadsheet) {
     throw new Error('Could not find Google Spreadsheet in the selected project folder.');
   }

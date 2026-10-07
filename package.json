@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.7.2",
-  "releaseName": "Unused styles removed",
+  "version": "1.7.3",
+  "releaseName": "Projects link their Sheet",
   "type": "module",
   "scripts": {
     "dev": "vite",

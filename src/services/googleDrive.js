@@ -171,8 +171,12 @@ export async function listFolders(accessToken, parentId = 'root') {
   return data.files || [];
 }
 
-export async function findSpreadsheetInFolder(accessToken, folderId, preferredName = 'JobScan_Expense_Log') {
-  if (!accessToken || !folderId) return null;
+/**
+ * All spreadsheets that could be the project's Sheet, from the first place that has any:
+ * the project folder itself, then App Folders, then App Folders / Master Budget Sheet.
+ */
+export async function listProjectSpreadsheets(accessToken, folderId) {
+  if (!accessToken || !folderId) return [];
 
   async function searchSpreadsheetsInParent(parentId) {
     try {
@@ -198,7 +202,7 @@ export async function findSpreadsheetInFolder(accessToken, folderId, preferredNa
   const directFiles = await searchSpreadsheetsInParent(folderId);
   const nonFinishDirect = directFiles.filter(f => !f.name.toLowerCase().includes('finish'));
   if (nonFinishDirect.length > 0) {
-    return nonFinishDirect.find(f => f.name === preferredName) || nonFinishDirect[0];
+    return nonFinishDirect;
   }
 
   // 2. Check inside App Folders / Master Budget Sheet or App Folders
@@ -216,7 +220,7 @@ export async function findSpreadsheetInFolder(accessToken, folderId, preferredNa
         const appFiles = await searchSpreadsheetsInParent(appFolder.id);
         const nonFinishApp = appFiles.filter(f => !f.name.toLowerCase().includes('finish'));
         if (nonFinishApp.length > 0) {
-          return nonFinishApp.find(f => f.name === preferredName) || nonFinishApp[0];
+          return nonFinishApp;
         }
 
         // Check inside Master Budget Sheet subfolder
@@ -231,7 +235,7 @@ export async function findSpreadsheetInFolder(accessToken, folderId, preferredNa
           if (budgetFolder) {
             const budgetFiles = await searchSpreadsheetsInParent(budgetFolder.id);
             if (budgetFiles.length > 0) {
-              return budgetFiles.find(f => f.name === preferredName) || budgetFiles[0];
+              return budgetFiles;
             }
           }
         }
@@ -239,7 +243,13 @@ export async function findSpreadsheetInFolder(accessToken, folderId, preferredNa
     }
   } catch {}
 
-  return directFiles[0] || null;
+  return directFiles;
+}
+
+/** One spreadsheet for the project folder (the standard-named one if present), or null. */
+export async function findSpreadsheetInFolder(accessToken, folderId, preferredName = 'JobScan_Expense_Log') {
+  const files = await listProjectSpreadsheets(accessToken, folderId);
+  return files.find(f => f.name === preferredName) || files[0] || null;
 }
 
 /**

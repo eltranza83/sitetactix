@@ -3,6 +3,7 @@ import { createProjectFolder, listProjectFolders } from '../services/settingsDri
 import { getDriveErrorMessage, getFolderErrorMessage, getValidationErrorMessage } from '../services/appErrors';
 import { toCanonicalProjectId } from '../services/projectIds';
 import { saveUserProject, deleteUserProject } from '../services/projectService';
+import { clearSheetLinkIfFolderChanged } from '../services/projectSheet';
 
 export function useSettingsProjects({
   activeProject,
@@ -77,7 +78,7 @@ export function useSettingsProjects({
         if (p.id === editingProject.id) {
           const { appsScriptUrl: _url, appsScriptSecret: _secret, ...safeProject } = p;
           return {
-            ...safeProject,
+            ...clearSheetLinkIfFolderChanged(safeProject, tempSelectedFolder.id),
             name: projectNameInput.trim(),
             folderId: tempSelectedFolder.id,
             folderName: tempSelectedFolder.name

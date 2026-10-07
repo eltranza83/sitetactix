@@ -47,6 +47,11 @@ function writePdfLoadingState(newWindow) {
   `);
 }
 
+// The linked Sheet only applies when syncing the active project's own folder
+function linkedSheetFor(project, folderId) {
+  return project?.folderId === folderId ? (project?.spreadsheetId || null) : null;
+}
+
 export function useInvoiceSync({
   activeProject,
   googleToken,
@@ -86,7 +91,7 @@ export function useInvoiceSync({
     setTriggeringSync(true);
     setError(null);
     try {
-      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
+      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId, linkedSheetFor(activeProject, targetFolderId));
       const hasFailures = (result.failed || []).length > 0;
       setHasUnprocessedUploads(hasFailures);
       setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasFailures);
@@ -182,7 +187,7 @@ export function useInvoiceSync({
         throw new Error('Connect Google Drive to sync with your spreadsheet.');
       }
 
-      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
+      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId, linkedSheetFor(activeProject, targetFolderId));
       const targetFileId = driveUploadResult.driveFileId || itemToSync.driveFileId;
       const targetFailure = (result.failed || []).find(f => f.fileId === targetFileId);
 
@@ -365,7 +370,7 @@ export function useInvoiceSync({
         throw new Error('Connect Google Drive to sync with your spreadsheet.');
       }
 
-      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId);
+      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId, linkedSheetFor(activeProject, targetFolderId));
 
       // Partition ONLY drafts that actually uploaded to Drive
       const { successfulDrafts, failedDrafts } = partitionDraftsBySyncResult(uploadedDrafts, result.failed);

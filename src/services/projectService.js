@@ -13,6 +13,8 @@ export function normalizeProjectRecord(data, id = null) {
   const canonicalId = data.canonicalId || toCanonicalProjectId(name) || cleanProjectId(id || name);
   const folderId = data.folderId || '';
   const folderName = data.folderName || '';
+  const spreadsheetId = data.spreadsheetId || '';
+  const spreadsheetName = data.spreadsheetName || '';
   const ownerEmail = (data.ownerEmail || '').trim().toLowerCase();
   const ownerUid = (data.ownerUid || '').trim();
   const members = Array.isArray(data.members)
@@ -28,6 +30,8 @@ export function normalizeProjectRecord(data, id = null) {
     name,
     folderId,
     folderName,
+    spreadsheetId,
+    spreadsheetName,
     ownerEmail,
     ownerUid,
     members,

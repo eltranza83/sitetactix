@@ -87,7 +87,10 @@ export default function App() {
     setActiveProject,
     updateProjects: handleUpdateProjects,
     selectActiveProject: handleSelectActiveProject,
-    resetProjectSelection
+    resetProjectSelection,
+    sheetChoice,
+    chooseSheetForProject,
+    dismissSheetChoice
   } = useProjects({
     googleToken,
     googleUser,
@@ -806,6 +809,60 @@ export default function App() {
       )}
 
       {/* Custom Delete Draft Confirmation Modal */}
+      {/* Pick the project's Google Sheet when its folder holds more than one */}
+      {sheetChoice && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1300,
+          padding: '20px',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div className="settings-card" style={{
+            width: '100%',
+            maxWidth: '360px',
+            backgroundColor: 'var(--color-zinc-950)',
+            border: '1px solid var(--color-zinc-800)',
+            borderRadius: '12px',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+            borderTop: '4px solid var(--st-gold)'
+          }}>
+            <h4 style={{ fontWeight: 700, fontSize: '1rem', margin: 0, color: 'var(--st-text)' }}>
+              Which Google Sheet is {sheetChoice.projectName}'s budget?
+            </h4>
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-zinc-400)', margin: 0, lineHeight: 1.4 }}>
+              This project's folder has more than one spreadsheet. Tap the one the app should sync receipts into. You only do this once.
+            </p>
+            {sheetChoice.candidates.map(sheet => (
+              <button
+                key={sheet.id}
+                type="button"
+                className="btn btn-secondary"
+                style={{ justifyContent: 'flex-start', padding: '12px', textAlign: 'left' }}
+                onClick={() => chooseSheetForProject(sheet)}
+              >
+                {sheet.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={dismissSheetChoice}
+              style={{ background: 'none', border: 'none', color: 'var(--color-zinc-500)', fontSize: '0.75rem', cursor: 'pointer', padding: '4px' }}
+            >
+              Decide later
+            </button>
+          </div>
+        </div>
+      )}
+
       {draftToDelete && (
         <div style={{
           position: 'fixed',

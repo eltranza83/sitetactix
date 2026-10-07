@@ -249,12 +249,13 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
       return null;
     }
 
-    const cachedSpreadsheetId = getCachedDashboardSpreadsheetId(localStorage, activeProject.id);
+    const cachedSpreadsheetId = activeProject.spreadsheetId || getCachedDashboardSpreadsheetId(localStorage, activeProject.id);
     const { spreadsheetId, data } = await loadProjectDashboardFromFolder({
       accessToken: googleToken,
       projectFolderId,
+      // A linked Sheet is always used; otherwise a refresh searches the folder again
       cachedSpreadsheetId: forceRefresh || isPlaceholderProjectInfo(cachedDashboard?.projectInfo)
-        ? null
+        ? (activeProject.spreadsheetId || null)
         : cachedSpreadsheetId
     });
 
