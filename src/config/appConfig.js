@@ -8,9 +8,9 @@ export const STORAGE_KEYS = {
 
 const ENV = import.meta.env || {};
 
-export const APP_VERSION = ENV.VITE_APP_VERSION || '1.6.2';
+export const APP_VERSION = ENV.VITE_APP_VERSION || '1.6.3';
 export const APP_BUILD_LABEL = ENV.VITE_APP_BUILD_LABEL || `v${APP_VERSION}`;
-export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Code cleanup and scan rules';
+export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Choose Photo or File';
 
 export const DEFAULT_FIREBASE_CONFIG = {
   apiKey: ENV.VITE_FIREBASE_API_KEY || 'AIzaSyDjYPPkW8ffQMOCByCo9gMlVxQ8PsMpAoU',
