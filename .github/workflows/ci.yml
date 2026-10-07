@@ -24,8 +24,14 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Security Audit Gate (High / Critical)
+      # Blocks on high/critical issues in the libraries that ship in the app
+      - name: Security Audit Gate (App Libraries, High / Critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      # Developer-only tools (e.g. firebase-tools) never ship to phones; report only
+      - name: Security Audit Report (Developer Tools)
         run: npm audit --audit-level=high
+        continue-on-error: true
 
       - name: Setup Java 21 for Firestore Emulator
         uses: actions/setup-java@v4
