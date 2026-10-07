@@ -688,7 +688,7 @@ export async function generateDocumentPDF(metadata, imageUrls) {
     // Timestamp & Provenance
     pdf.setTextColor(113, 113, 122);
     pdf.setFont('helvetica', 'italic');
-    pdf.text(`Logged via J.A.R.V.I.S. (SiteTactix) • Date: ${metadata.date || new Date().toISOString().split('T')[0]} • Status: Self-Attested Entry`, margin + 8, voucherY + 48);
+    pdf.text(`Logged in SiteTactix • Date: ${metadata.date || new Date().toISOString().split('T')[0]} • Status: Self-Attested Entry`, margin + 8, voucherY + 48);
   }
 
   // 4. Attach Second Image (e.g. Receipt) on Page 2 if exists

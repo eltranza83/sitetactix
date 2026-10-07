@@ -57,7 +57,7 @@ test('a manual (no-receipt) check draft builds a PDF voucher, filename and histo
   assert.equal(logs[0].link, 'https://drive.google.com/file/d/123');
 });
 
-test('a Jarvis voice draft (no receipt) also builds its PDF and history log', async () => {
+test('a no-receipt draft builds its voucher PDF and history log', async () => {
   const metadata = {
     type: 'manual_expense',
     vendor: 'Stripes',
@@ -72,7 +72,7 @@ test('a Jarvis voice draft (no receipt) also builds its PDF and history log', as
     checkNumber: '',
     documentType: 'manual_expense',
     receiptStatus: 'no_receipt',
-    provenance: 'jarvis_voice_stage',
+    provenance: 'manual_user_entry',
     splits: null
   };
 

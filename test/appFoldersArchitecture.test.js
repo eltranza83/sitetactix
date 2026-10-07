@@ -159,7 +159,6 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     drive.ensureAppSubfolder(lot3.id, 'X-Ray Photos');
     drive.ensureAppSubfolder(lot3.id, 'Vendors / Stores');
     drive.ensureAppSubfolder(lot3.id, 'Master Budget Sheet');
-    drive.ensureAppSubfolder(lot3.id, 'Purchasing List Doc');
 
     const rootChildren = drive.getRootChildren(lot3.id);
     const rootFolderNames = rootChildren.folders.map(f => f.name);
@@ -177,7 +176,6 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.equal(rootFolderNames.includes('X-Ray Photos'), false);
     assert.equal(rootFolderNames.includes('Vendors / Stores'), false);
     assert.equal(rootFolderNames.includes('Master Budget Sheet'), false);
-    assert.equal(rootFolderNames.includes('Purchasing List Doc'), false);
   });
 
   it('3. Re-use & Idempotency: Multiple calls to ensureAppSubfolder reuse existing folders without duplication', () => {
@@ -265,21 +263,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.equal(movedInvoice.parentId, archiveId, 'Invoice must now reside in Processed Invoices inside App Folders');
   });
 
-  it('7. Purchasing List Doc: Resolves under App Folders / Purchasing List Doc', () => {
-    const drive = new MockDriveFileSystem();
-    const lot3 = drive.createFolder('Lot 3');
-
-    const purchasingFolderId = drive.ensureAppSubfolder(lot3.id, 'Purchasing List Doc');
-    const purchasingDoc = drive.createFile('Purchasing Checklist — Lot 3', purchasingFolderId, 'application/vnd.google-apps.document');
-
-    const appFolder = drive.findFolder('App Folders', lot3.id);
-    const purchasingFolder = drive.folders.get(purchasingFolderId);
-
-    assert.equal(purchasingFolder.parentId, appFolder.id);
-    assert.equal(purchasingDoc.parentId, purchasingFolderId);
-  });
-
-  it('8. Dynamic Vendor Routing: Brand-new vendor (e.g. Walmart) creates Vendors / Stores and Walmart folder automatically with 0 manual steps', () => {
+  it('7. Dynamic Vendor Routing: Brand-new vendor (e.g. Walmart) creates Vendors / Stores and Walmart folder automatically with 0 manual steps', () => {
     const drive = new MockDriveFileSystem();
     const lot3 = drive.createFolder('Lot 3');
 
@@ -322,7 +306,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.equal(vendorChildren.length, 1, 'Zero duplicate Walmart folders created');
   });
 
-  it('9. Unknown Vendors Exception Queue: Missing or low-confidence vendor routes to App Folders / Unknown Vendors', () => {
+  it('8. Unknown Vendors Exception Queue: Missing or low-confidence vendor routes to App Folders / Unknown Vendors', () => {
     const drive = new MockDriveFileSystem();
     const lot3 = drive.createFolder('Lot 3');
 
@@ -352,7 +336,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     }
   });
 
-  it('10. Metadata Preservation & Exception Queue Inspection: Metadata and raw vendor snippets remain fully preserved in file descriptions', () => {
+  it('9. Metadata Preservation & Exception Queue Inspection: Metadata and raw vendor snippets remain fully preserved in file descriptions', () => {
     const drive = new MockDriveFileSystem();
     const lot3 = drive.createFolder('Lot 3');
 
@@ -382,7 +366,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.equal(parsed.rawOcrSnippet, 'R...guez Tile Supply Inc');
   });
 
-  it('11. Vendor Name Classification Matrix: Validates conservative isConfidentVendor logic against noisy thermal headers', () => {
+  it('10. Vendor Name Classification Matrix: Validates conservative isConfidentVendor logic against noisy thermal headers', () => {
     // Valid unusual vendors (must pass)
     assert.equal(isConfidentVendor('Home Depot'), true);
     assert.equal(isConfidentVendor('84 Lumber'), true);
@@ -411,47 +395,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.equal(isConfidentVendor('?'), false);
   });
 
-  it('12. J.A.R.V.I.S. Exception Review Query: Discovers and reports receipts waiting in Unknown Vendors', () => {
-    const drive = new MockDriveFileSystem();
-    const lot3 = drive.createFolder('Lot 3');
-
-    // 1. Setup App Folders with 2 unidentified receipts
-    const unknownVendorsId = drive.ensureAppSubfolder(lot3.id, 'Unknown Vendors');
-    drive.createFile('Lot 3 - Tiles.pdf', unknownVendorsId, 'application/pdf', JSON.stringify({
-      amount: 842.50,
-      date: '2026-08-14',
-      description: 'Floor tiles and thinset mortar',
-      rawVendorText: 'R...guez Tile'
-    }));
-    drive.createFile('Lot 3 - Tools.pdf', unknownVendorsId, 'application/pdf', JSON.stringify({
-      amount: 120.00,
-      date: '2026-08-18',
-      description: 'Masonry trowels',
-      rawVendorText: 'Hardware Store'
-    }));
-
-    // 2. J.A.R.V.I.S. Drive tool crawls project tree
-    const appFolder = drive.findFolder('App Folders', lot3.id);
-    const unknownFolder = drive.findFolder('Unknown Vendors', appFolder.id);
-    assert.ok(unknownFolder);
-
-    const pendingExceptions = Array.from(drive.files.values()).filter(f => f.parentId === unknownFolder.id);
-    assert.equal(pendingExceptions.length, 2);
-
-    const item1Meta = JSON.parse(pendingExceptions[0].content);
-    const item2Meta = JSON.parse(pendingExceptions[1].content);
-
-    // 3. Verify J.A.R.V.I.S. has full visibility into count, amounts, dates, and raw vendor snippets
-    assert.equal(item1Meta.amount, 842.50);
-    assert.equal(item1Meta.date, '2026-08-14');
-    assert.equal(item1Meta.rawVendorText, 'R...guez Tile');
-
-    assert.equal(item2Meta.amount, 120.00);
-    assert.equal(item2Meta.date, '2026-08-18');
-    assert.equal(item2Meta.rawVendorText, 'Hardware Store');
-  });
-
-  it('13. Vendor Exact Match: L. Herrera Landscaping & Sprinklers matches existing folder exactly', () => {
+  it('11. Vendor Exact Match: L. Herrera Landscaping & Sprinklers matches existing folder exactly', () => {
     const drive = new MockDriveFileSystem();
     const lot3 = drive.createFolder('Lot 3');
     const vendorsStoresId = drive.ensureAppSubfolder(lot3.id, 'Vendors / Stores');
@@ -465,7 +409,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.equal(subfolders.length, 1);
   });
 
-  it('14. Single Canonical Match: L.Herrera Landscaping & Sprinklers matches L. Herrera without creating a duplicate', () => {
+  it('12. Single Canonical Match: L.Herrera Landscaping & Sprinklers matches L. Herrera without creating a duplicate', () => {
     const drive = new MockDriveFileSystem();
     const lot3 = drive.createFolder('Lot 3');
     const vendorsStoresId = drive.ensureAppSubfolder(lot3.id, 'Vendors / Stores');
@@ -480,7 +424,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.equal(subfolders.length, 1);
   });
 
-  it('15. Multiple Canonical Matches: When both L. Herrera and L.Herrera already exist, resolver returns null and routes to Unknown Vendors (NO automatic consolidation)', () => {
+  it('13. Multiple Canonical Matches: When both L. Herrera and L.Herrera already exist, resolver returns null and routes to Unknown Vendors (NO automatic consolidation)', () => {
     const drive = new MockDriveFileSystem();
     const lot3 = drive.createFolder('Lot 3');
     const vendorsStoresId = drive.ensureAppSubfolder(lot3.id, 'Vendors / Stores');
@@ -514,7 +458,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.ok(drive.folders.has(folderB.id), 'Existing folder B was NOT deleted or renamed');
   });
 
-  it('16. Builder Payer Self-Identity Safeguard: ADEPEC GROUP is rejected as a vendor and routes to Unknown Vendors', () => {
+  it('14. Builder Payer Self-Identity Safeguard: ADEPEC GROUP is rejected as a vendor and routes to Unknown Vendors', () => {
     assert.equal(isConfidentVendor('ADEPEC GROUP'), false);
     assert.equal(isConfidentVendor('ADEPEC Homes'), false);
     assert.equal(isConfidentVendor('Adepec Group LLC'), false);
@@ -546,7 +490,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     }
   });
 
-  it('17. Canonical Lot Normalization: Lot 3, L. 3, L.3, L-3, lot3 resolve to the same canonical lot ID', () => {
+  it('15. Canonical Lot Normalization: Lot 3, L. 3, L.3, L-3, lot3 resolve to the same canonical lot ID', () => {
     assert.equal(toCanonicalLotId('Lot 3'), 'lot_3');
     assert.equal(toCanonicalLotId('L. 3'), 'lot_3');
     assert.equal(toCanonicalLotId('L.3'), 'lot_3');
@@ -556,7 +500,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.equal(toCanonicalLotId('L. 3A'), 'lot_3a');
   });
 
-  it('18. Strict Lot Boundaries: Lot 3 can NEVER match Lot 30 or Lot 3A', () => {
+  it('16. Strict Lot Boundaries: Lot 3 can NEVER match Lot 30 or Lot 3A', () => {
     const lot3Id = toCanonicalLotId('Lot 3');
     const lot30Id = toCanonicalLotId('Lot 30');
     const lot33Id = toCanonicalLotId('Lot 33');
@@ -567,7 +511,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.notEqual(lot3Id, lot3AId, 'Lot 3 != Lot 3A');
   });
 
-  it('19. Unresolved Lot Split Resolver: Never silently falls back to selectedFolder.id when lot is unresolved', () => {
+  it('17. Unresolved Lot Split Resolver: Never silently falls back to selectedFolder.id when lot is unresolved', () => {
     const projects = [
       { id: 'proj_1', folderId: 'folder_lot_3', name: 'Lot 3' },
       { id: 'proj_2', folderId: 'folder_lot_4', name: 'Lot 4' }
@@ -586,7 +530,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.ok(unresolvedSplit.error.includes('Could not resolve project lot "Lot 99"'));
   });
 
-  it('20. Semantic Non-Merging Safeguard: Distinct entities remain separate folders', () => {
+  it('18. Semantic Non-Merging Safeguard: Distinct entities remain separate folders', () => {
     // & vs and must NOT collapse
     assert.notEqual(toCanonicalVendorKey('Smith & Sons'), toCanonicalVendorKey('Smith and Sons'));
 

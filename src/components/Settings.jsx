@@ -10,11 +10,7 @@ import { useSettingsProjects } from '../hooks/useSettingsProjects';
 import { APP_BUILD_LABEL, APP_RELEASE_NAME } from '../config/appConfig';
 
 export default function Settings({
-  googleClientId: _googleClientId,
-  setGoogleClientId: _setGoogleClientId,
   googleToken,
-  setGoogleToken: _setGoogleToken,
-  selectedFolder: _selectedFolder,
   setSelectedFolder,
   googleUser,
   onSignOut,

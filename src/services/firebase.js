@@ -6,30 +6,27 @@ import {
   signOut 
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore/lite';
-import { DEFAULT_FIREBASE_CONFIG, STORAGE_KEYS, getStoredConfigValue } from '../config/appConfig.js';
+import { DEFAULT_FIREBASE_CONFIG } from '../config/appConfig.js';
 
 let cachedAuthInstance = null;
 
 /**
- * Dynamically gets or initializes the Firestore database instance
- * using settings configured by the administrator, falling back to 
- * pre-configured default credentials for zero-setup execution.
+ * Gets or initializes the Firebase app with the built-in project settings.
  */
 function getFirebaseAppInstance() {
-  const apiKey = getStoredConfigValue(STORAGE_KEYS.firebaseApiKey, DEFAULT_FIREBASE_CONFIG.apiKey);
-  const projectId = getStoredConfigValue(STORAGE_KEYS.firebaseProjectId, DEFAULT_FIREBASE_CONFIG.projectId);
-  
+  const { apiKey, projectId, appId } = DEFAULT_FIREBASE_CONFIG;
+
   if (!apiKey || !projectId) {
-    return null; 
+    return null;
   }
 
   const firebaseConfig = {
     apiKey,
-    authDomain: getStoredConfigValue('jobscan_firebase_auth_domain', `${projectId}.firebaseapp.com`),
+    authDomain: `${projectId}.firebaseapp.com`,
     projectId,
-    storageBucket: getStoredConfigValue('jobscan_firebase_storage_bucket', `${projectId}.appspot.com`),
-    messagingSenderId: getStoredConfigValue('jobscan_firebase_messaging_sender_id', ''),
-    appId: getStoredConfigValue(STORAGE_KEYS.firebaseAppId, DEFAULT_FIREBASE_CONFIG.appId)
+    storageBucket: `${projectId}.appspot.com`,
+    messagingSenderId: '',
+    appId
   };
 
   try {

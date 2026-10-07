@@ -70,7 +70,7 @@ async function buildSignedInUser(accessToken, firebaseUser = null) {
 }
 
 export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
-  const [googleClientId, setGoogleClientId] = useState(() => loadStoredAppState().googleClientId);
+  const [googleClientId] = useState(() => loadStoredAppState().googleClientId);
   const [googleToken, setGoogleToken] = useState(() => loadStoredAppState().googleToken);
   const [googleUser, setGoogleUser] = useState(() => loadStoredAppState().googleUser);
   const [signingIn, setSigningIn] = useState(false);
@@ -312,10 +312,7 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
   }, [signIn]);
 
   return {
-    googleClientId,
-    setGoogleClientId,
     googleToken,
-    setGoogleToken,
     googleUser,
     signingIn,
     signIn,

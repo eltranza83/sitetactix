@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.7.5",
-  "releaseName": "Sheets shown when picking a folder",
+  "version": "1.7.6",
+  "releaseName": "Leftovers removed",
   "type": "module",
   "scripts": {
     "dev": "vite",

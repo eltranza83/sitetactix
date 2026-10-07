@@ -1,16 +1,12 @@
 export const STORAGE_KEYS = {
-  firebaseApiKey: 'sitetactix_firebase_api_key',
-  firebaseProjectId: 'sitetactix_firebase_project_id',
-  firebaseAppId: 'sitetactix_firebase_app_id',
   googleClientId: 'sitetactix_google_client_id',
-  geminiApiKey: 'sitetactix_gemini_api_key',
 };
 
 const ENV = import.meta.env || {};
 
-export const APP_VERSION = ENV.VITE_APP_VERSION || '1.7.5';
+export const APP_VERSION = ENV.VITE_APP_VERSION || '1.7.6';
 export const APP_BUILD_LABEL = ENV.VITE_APP_BUILD_LABEL || `v${APP_VERSION}`;
-export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Sheets shown when picking a folder';
+export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Leftovers removed';
 
 export const DEFAULT_FIREBASE_CONFIG = {
   apiKey: ENV.VITE_FIREBASE_API_KEY || 'AIzaSyDjYPPkW8ffQMOCByCo9gMlVxQ8PsMpAoU',
@@ -31,13 +27,4 @@ export function isBuiltInAdmin(email) {
   if (!email) return false;
   const clean = String(email).trim().toLowerCase();
   return DEFAULT_ADMIN_EMAILS.includes(clean);
-}
-
-export function getStoredConfigValue(storageKey, fallback) {
-  if (typeof localStorage === 'undefined') return fallback;
-  const currentVal = localStorage.getItem(storageKey);
-  if (currentVal) return currentVal;
-  // Fallback to legacy key if exists
-  const legacyKey = storageKey.replace('sitetactix_', 'jobscan_');
-  return localStorage.getItem(legacyKey) || fallback;
 }

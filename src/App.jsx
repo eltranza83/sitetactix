@@ -60,10 +60,7 @@ export default function App() {
     resetInvite
   } = useInviteGate();
   const {
-    googleClientId,
-    setGoogleClientId,
     googleToken,
-    setGoogleToken,
     googleUser,
     signingIn,
     signIn: handleGoogleSignIn,
@@ -745,11 +742,7 @@ export default function App() {
           />
         ) : (
           <Settings 
-            googleClientId={googleClientId}
-            setGoogleClientId={setGoogleClientId}
             googleToken={googleToken}
-            setGoogleToken={setGoogleToken}
-            selectedFolder={selectedFolder}
             setSelectedFolder={setSelectedFolder}
             googleUser={googleUser}
             onSignOut={handleSignOut}
