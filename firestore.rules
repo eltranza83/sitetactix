@@ -63,20 +63,6 @@ service cloud.firestore {
         );
     }
 
-    match /memories/{memoryId} {
-      allow get, list: if hasAccess() && resource.data.uid == request.auth.uid;
-      allow create: if hasAccess() && request.resource.data.uid == request.auth.uid;
-      allow update: if hasAccess() && resource.data.uid == request.auth.uid && request.resource.data.uid == resource.data.uid;
-      allow delete: if hasAccess() && resource.data.uid == request.auth.uid;
-    }
-
-    match /user_preferences/{prefId} {
-      allow get, list: if hasAccess() && resource.data.uid == request.auth.uid;
-      allow create: if hasAccess() && request.resource.data.uid == request.auth.uid;
-      allow update: if hasAccess() && resource.data.uid == request.auth.uid && request.resource.data.uid == resource.data.uid;
-      allow delete: if hasAccess() && resource.data.uid == request.auth.uid;
-    }
-
     function isProjectAuthorized(projectData) {
       return request.auth.uid == projectData.ownerUid
         || (projectData.memberUids != null && request.auth.uid in projectData.memberUids);
@@ -97,16 +83,6 @@ service cloud.firestore {
       allow delete: if hasAccess() && resource.data.ownerUid == request.auth.uid;
     }
 
-    match /projects/{projectId}/purchasing_items/{itemId} {
-      allow read, write: if hasAccess()
-        && isProjectAuthorized(get(/databases/$(database)/documents/projects/$(projectId)).data);
-    }
-
-    match /projects/{projectId}/finishes/{finishId} {
-      allow read, write: if hasAccess()
-        && isProjectAuthorized(get(/databases/$(database)/documents/projects/$(projectId)).data);
-    }
-
     match /project_invites/{inviteId} {
       allow get, list: if hasAccess() && (
         resource.data.invitedEmail == request.auth.token.email
@@ -118,9 +94,5 @@ service cloud.firestore {
       allow update, delete: if hasAccess() && resource.data.invitedByUid == request.auth.uid;
     }
 
-    match /purchasing_templates/{templateId}/items/{itemId} {
-      allow read: if hasAccess();
-      allow write: if isAdmin();
-    }
   }
 }

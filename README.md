@@ -19,7 +19,7 @@ npm.cmd run build
 
 ## Production secrets
 
-Document extraction and AI endpoints use authenticated Vercel functions in `api/`. Configure these server-only environment variables in Vercel for Production (and Preview when needed):
+Receipt reading (`/api/extract-document`) and the Jarvis assistant (`/api/jarvis`) are authenticated Vercel functions in `api/`; `npm run dev` runs both locally. Configure these server-only environment variables in Vercel for Production (and Preview when needed):
 
 - `GEMINI_API_KEY`
 - `GEMINI_MODEL` (optional; defaults to `gemini-3.1-flash-lite`)

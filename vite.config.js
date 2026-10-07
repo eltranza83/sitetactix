@@ -2,6 +2,8 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 
@@ -20,15 +22,17 @@ function apiDevPlugin() {
     name: 'api-dev-middleware',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url === '/api/jarvis' && req.method === 'POST') {
+        const devRoutes = { '/api/jarvis': './api/jarvis.js', '/api/extract-document': './api/extract-document.js' };
+        if (devRoutes[req.url] && req.method === 'POST') {
           try {
             const chunks = [];
             for await (const chunk of req) {
               chunks.push(chunk);
             }
             const bodyBuffer = Buffer.concat(chunks);
-            const routePath = './api/jarvis.js';
-            const { POST } = await import(routePath);
+            const routePath = devRoutes[req.url];
+            // Resolve from the project folder (the config itself runs from a temp folder)
+            const { POST } = await import(pathToFileURL(resolve(process.cwd(), routePath)).href);
             const webRequest = new Request(`http://localhost:5173${req.url}`, {
               method: 'POST',
               headers: req.headers,
