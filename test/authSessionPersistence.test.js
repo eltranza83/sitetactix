@@ -27,7 +27,6 @@ const {
   clearGoogleIdentity,
   clearGoogleSession,
   getStoredJson,
-  isGoogleTokenExpired,
   loadInitialInviteState,
   loadStoredAppState,
   persistActiveProject,

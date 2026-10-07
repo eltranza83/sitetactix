@@ -3,7 +3,6 @@ import {
   fetchDriveFileBlob,
   findFileInFolder,
   getFileContent,
-  getDriveFileMediaUrl,
   listPhotosInPhase,
   updateFileContent,
   uploadFileToDrive,
@@ -13,10 +12,6 @@ import {
 const X_RAY_FOLDER_NAME = 'X-Ray Photos';
 const BLUEPRINT_CONFIG_FILE = 'blueprint_data.json';
 const BLUEPRINT_CONFIG_MIME_TYPE = 'application/json';
-
-export function getBlueprintPhotoMediaUrl(fileId) {
-  return getDriveFileMediaUrl(fileId);
-}
 
 function buildJsonBlob(data) {
   return new Blob([JSON.stringify(data, null, 2)], { type: BLUEPRINT_CONFIG_MIME_TYPE });

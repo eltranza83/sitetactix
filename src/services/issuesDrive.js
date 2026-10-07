@@ -105,20 +105,6 @@ export async function uploadIssueProofPhoto(accessToken, projectFolderId, file) 
   };
 }
 
-export async function uploadIssueFloorPlanSnapshot(accessToken, projectFolderId, issueId, fileBlob) {
-  const xRayFolderId = await ensureXRayFolder(accessToken, projectFolderId);
-  const photosFolderId = await ensureIssuePhotosFolder(accessToken, xRayFolderId);
-  const safeIssueId = String(issueId || 'issue').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const fileName = `FloorPlan_Pin_${safeIssueId}_${Date.now()}.jpg`;
-
-  const uploadResult = await uploadFileToDrive(accessToken, photosFolderId, fileName, 'image/jpeg', fileBlob);
-
-  return {
-    id: uploadResult.id,
-    url: uploadResult.webViewLink
-  };
-}
-
 /**
  * Deduplicates and sorts activity history events (append-only by convention).
  */

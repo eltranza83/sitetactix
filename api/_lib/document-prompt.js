@@ -111,4 +111,7 @@ High-Precision OCR Rules:
 8. DATE: Return the transaction date printed on the document as YYYY-MM-DD (US receipts print month first, so 02/01/2026 is 2026-02-01). If no date is readable, return an empty string. Never guess or use today's date.
 9. LINE ITEMS & REORDERS: Extract itemized line items if present. For each line item, extract optional sku, brand, unit (e.g. box, sq ft, each), quantity, and unitPrice ONLY when explicitly printed on the receipt. Never guess or fabricate these fields.
 10. LINE ITEM TRADES: For every line item also return its own tradeCategory and tradePhase from the classification lists above, based on what that item is and what it is used for. A receipt with plumbing, electrical and tile items gives each item its own category and phase. If you are unsure about an item, use the receipt's own tradeCategory and tradePhase.
+11. COST CLASSIFICATION (costCategory): use "labor" ONLY when the document pays a person or subcontractor for their work (a check to a sub, or a sub's invoice for installation or service). Everything else is "material": supplies, tools, fuel and gas, fees, permits, utilities, postage, rentals, food and drinks for the crew.
+12. PAYMENT METHOD: for a check, put the check number in checkNumber. For any other receipt that shows how it was paid, put the method in checkNumber as "Credit Card", "Debit Card" or "Cash". If it does not say, return null.
+13. VENDOR NAME: write the vendor in normal capitalization, the way a person would type it (Stripes, Home Depot, Floor and Decor), not in all capitals.
 `;

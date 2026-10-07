@@ -116,7 +116,6 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
   });
   const [showSettings, setShowSettings] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [apiKey] = useState(() => localStorage.getItem('jobscan_gemini_api_key') || localStorage.getItem('jobscan_gemini_key') || '');
   const [driveTree, setDriveTree] = useState(() => loadProjectDriveTree(projectId));
   const [activePreviewFile, setActivePreviewFile] = useState(null);
   useEffect(() => {
@@ -530,7 +529,6 @@ export default function GlobalAIAssistant({ activeProject, selectedFolder, googl
         spreadsheetId: sheetId,
         driveTree: currentLiveTree,
         messages,
-        apiKey,
         onOpenDocument: (file) => setActivePreviewFile(file),
         uid: getFirebaseAuthInstance()?.currentUser?.uid || null
       });

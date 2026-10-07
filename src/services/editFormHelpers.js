@@ -113,16 +113,6 @@ export function checkLineItemsDiscrepancy(lineItemsTotal, receiptTotal, threshol
   };
 }
 
-export const ROUTING_TEST_SPLITS = Object.entries(TRADE_SECTIONS_CONFIG)
-  .flatMap(([tradeCategory, config]) => (
-    config.phases.map((tradePhase) => ({
-      tradeCategory,
-      tradePhase,
-      costCategory: 'material',
-      description: `Routing test - ${tradePhase}`
-    }))
-  ));
-
 export const ALLOCATION_COLORS = [
   { text: '#F1D7A7', border: '#F1D7A7', bg: 'rgba(241, 215, 167, 0.12)', darkBg: 'rgba(241, 215, 167, 0.04)' },
   { text: '#38bdf8', border: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)', darkBg: 'rgba(56, 189, 248, 0.04)' },

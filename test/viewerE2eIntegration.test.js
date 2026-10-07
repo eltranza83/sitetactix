@@ -11,7 +11,6 @@ import {
   logViewerTelemetry,
   getViewerTelemetryHistory,
   clearViewerTelemetry,
-  registerViewerStrategy,
   RENDER_MODES
 } from '../src/services/documentViewerService.js';
 

@@ -87,8 +87,7 @@ export async function POST(request) {
   try {
     await requireScannerAccess(request);
 
-    const clientHeaderKey = request.headers.get('x-gemini-api-key') || '';
-    const apiKey = resolveServerGeminiKey(clientHeaderKey);
+    const apiKey = resolveServerGeminiKey();
     if (!apiKey) {
       throw new HttpError(503, 'AI processing is not configured on the server. Please configure GEMINI_API_KEY.');
     }

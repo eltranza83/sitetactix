@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.6.1",
-  "releaseName": "Cleanups",
+  "version": "1.6.2",
+  "releaseName": "Code cleanup and scan rules",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +16,6 @@
     "@grpc/grpc-js": "^1.14.5"
   },
   "dependencies": {
-    "chrono-node": "^2.10.1",
     "firebase": "^12.15.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.21.0",

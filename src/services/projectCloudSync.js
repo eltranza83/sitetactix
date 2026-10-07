@@ -12,12 +12,6 @@ export function createProjectsConfigBlob(projects) {
   return new Blob([JSON.stringify(sanitizeProjects(projects), null, 2)], { type: 'application/json' });
 }
 
-export function resolveActiveProject(projects, activeProjectId) {
-  if (!Array.isArray(projects) || projects.length === 0) return null;
-  if (!activeProjectId) return projects[0];
-  return projects.find(project => project.id === activeProjectId) || projects[0];
-}
-
 export async function loadProjectsConfigFromDrive(accessToken, localProjects = []) {
   console.log('Searching for cloud projects configuration...');
   const configFile = await findFileInFolder(accessToken, 'root', PROJECTS_CONFIG_FILE);

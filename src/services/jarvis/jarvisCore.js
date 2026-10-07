@@ -82,7 +82,6 @@ export async function askNewJarvis(query, options = {}) {
     driveTree = null,
     projectFolderId = null,
     messages = [],
-    apiKey = null,
     onOpenDocument = null,
     uid = null,
     fetchImpl = fetch,
@@ -172,8 +171,7 @@ export async function askNewJarvis(query, options = {}) {
       projectName,
       projectId,
       today: todayFormatted,
-      timeZone: userTimeZone,
-      apiKey
+      timeZone: userTimeZone
     };
 
     let apiRes = null;

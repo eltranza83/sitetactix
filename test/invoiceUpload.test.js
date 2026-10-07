@@ -7,7 +7,6 @@ import {
   resolveSplitProjectFolder
 } from '../src/services/invoiceUpload.js';
 import {
-  ROUTING_TEST_SPLITS,
   TRADE_SECTIONS_CONFIG
 } from '../src/services/editFormHelpers.js';
 
@@ -104,14 +103,4 @@ test('resolveSplitProjectFolder matches project names case-insensitively', () =>
   const unresolved = resolveSplitProjectFolder(projects, selectedFolder, { lotNumber: 'Lot 99' });
   assert.equal(unresolved.folderId, null, 'Must NOT fall back to default-folder');
   assert.equal(unresolved.unresolved, true);
-});
-
-test('routing test splits cover every configured trade phase once', () => {
-  const expected = Object.entries(TRADE_SECTIONS_CONFIG).flatMap(([tradeCategory, config]) => (
-    config.phases.map((tradePhase) => `${tradeCategory}::${tradePhase}`)
-  ));
-  const actual = ROUTING_TEST_SPLITS.map((split) => `${split.tradeCategory}::${split.tradePhase}`);
-
-  assert.equal(actual.length, 26);
-  assert.deepEqual(actual, expected);
 });

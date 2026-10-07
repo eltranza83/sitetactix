@@ -32,9 +32,9 @@ export async function POST(request) {
     await requireScannerAccess(request, fetch, { rateLimit: 30 });
 
     const body = await readAndValidateJsonBody(request);
-    const { contents, projectName, today, timeZone, apiKey: clientApiKey } = body;
+    const { contents, projectName, today, timeZone } = body;
 
-    const apiKey = resolveServerGeminiKey(clientApiKey);
+    const apiKey = resolveServerGeminiKey();
     if (!apiKey) {
       throw new HttpError(503, 'AI Service is not configured on the server. Please configure GEMINI_API_KEY.');
     }

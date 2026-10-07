@@ -429,7 +429,7 @@ export async function generateDocumentPDF(metadata, imageUrls) {
     { label: 'TRADE CATEGORY:', value: metadata.tradeCategory || 'N/A', wrap: true },
     { label: 'PROJECT PHASE BLOCK:', value: metadata.tradePhase || 'N/A', wrap: true }
   ];
-  if (hasCheck) gridRows.push({ label: 'CHECK NUMBER:', value: String(metadata.checkNumber) });
+  if (hasCheck) gridRows.push({ label: 'CHECK # / PAYMENT:', value: String(metadata.checkNumber) });
 
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10);

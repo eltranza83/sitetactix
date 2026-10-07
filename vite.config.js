@@ -80,7 +80,7 @@ export default defineConfig(({ mode }) => {
   build: {
     modulePreload: {
       resolveDependencies: (filename, deps) => {
-        return deps.filter(dep => !dep.includes('vendor-jspdf') && !dep.includes('vendor-html2canvas'));
+        return deps.filter(dep => !dep.includes('vendor-jspdf'));
       }
     },
     rolldownOptions: {
@@ -98,14 +98,8 @@ export default defineConfig(({ mode }) => {
           if (id.includes('node_modules/@firebase') || id.includes('node_modules/firebase')) {
             return 'vendor-firebase-core';
           }
-          if (id.includes('node_modules/@google/generative-ai')) {
-            return 'vendor-gemini';
-          }
           if (id.includes('node_modules/jspdf')) {
             return 'vendor-jspdf';
-          }
-          if (id.includes('node_modules/html2canvas')) {
-            return 'vendor-html2canvas';
           }
         }
       }

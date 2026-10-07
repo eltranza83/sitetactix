@@ -4,7 +4,6 @@ import EditFormAttachments from './EditFormAttachments';
 import EditFormCamera from './EditFormCamera';
 import {
   ALLOCATION_COLORS,
-  ROUTING_TEST_SPLITS,
   TRADE_SECTIONS_CONFIG,
   compressImage,
   isValidPhase,
@@ -105,11 +104,8 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
   const [manualDescriptions, setManualDescriptions] = useState({});
   // Track manual split amounts typed by user so line-item reallocations don't override them
   const [manualAmounts, setManualAmounts] = useState({});
-  const isRoutingTestLoaded = splits.some(split => String(split.id || '').startsWith('routing_test_'));
 
   useEffect(() => {
-    if (isRoutingTestLoaded) return;
-
     if (stagedItem.metadata.lineItems && splits.length > 0) {
       setItemAllocations(prev => {
         const next = { ...prev };
@@ -122,12 +118,10 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         return next;
       });
     }
-  }, [splits, stagedItem.metadata.lineItems, manualAllocations, isRoutingTestLoaded]);
+  }, [splits, stagedItem.metadata.lineItems, manualAllocations]);
 
   // Run initial allocation calculation if itemAllocations is populated
   useEffect(() => {
-    if (isRoutingTestLoaded) return;
-
     if (stagedItem.metadata.lineItems && splits.length > 0 && Object.keys(itemAllocations).length > 0) {
       // Calculate sums and descriptions based on current allocations
       setSplits(currentSplits => {
@@ -170,7 +164,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         return currentSplits;
       });
     }
-  }, [itemAllocations, stagedItem.metadata.lineItems, manualDescriptions, manualAmounts, isRoutingTestLoaded, formData.amount]);
+  }, [itemAllocations, stagedItem.metadata.lineItems, manualDescriptions, manualAmounts, formData.amount]);
 
   const handleAllocateItem = (itemIdx, splitId) => {
     setManualAllocations(prev => ({ ...prev, [itemIdx]: true }));
@@ -265,39 +259,6 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         tradePhase: formData.tradePhase || 'Plumbing Rough-In'
       }
     ]);
-  };
-
-  const handleLoadRoutingTestSplits = () => {
-    const defaultLot = formData.lotNumber || projects[0]?.name || '';
-    const nextSplits = ROUTING_TEST_SPLITS.map((split, index) => {
-      const amount = (index + 1 + 0.01 * (index + 1)).toFixed(2);
-      return {
-        id: `routing_test_${index + 1}`,
-        amount,
-        costCategory: split.costCategory,
-        lotNumber: defaultLot,
-        description: split.description,
-        tradeCategory: split.tradeCategory,
-        tradePhase: split.tradePhase
-      };
-    });
-    const total = nextSplits.reduce((sum, split) => sum + Number(split.amount), 0);
-
-    setIsSplit(true);
-    setSplits(nextSplits);
-    setManualAllocations({});
-    setManualDescriptions({});
-    setFormData(prev => ({
-      ...prev,
-      type: 'invoice',
-      vendor: prev.vendor || 'ADEPEC Routing Test Supply',
-      description: 'Full category routing test',
-      lotNumber: defaultLot,
-      amount: total.toFixed(2),
-      costCategory: 'material',
-      tradeCategory: nextSplits[0]?.tradeCategory || prev.tradeCategory,
-      tradePhase: nextSplits[0]?.tradePhase || prev.tradePhase
-    }));
   };
 
   const handleRemoveSplit = (id) => {
@@ -1028,15 +989,6 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <button
-                    type="button"
-                    onClick={handleLoadRoutingTestSplits}
-                    className="btn btn-secondary"
-                    style={{ width: 'auto', padding: '3px 8px', fontSize: '0.68rem', borderColor: 'var(--color-sky-500)', color: 'var(--color-sky-400)' }}
-                    title="Replace this split list with one test row for every configured sheet phase"
-                  >
-                    Load Routing Test
-                  </button>
                   <button 
                     type="button"
                     onClick={handleAddSplit}

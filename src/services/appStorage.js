@@ -95,15 +95,6 @@ export function persistGoogleToken(token) {
   }
 }
 
-export function isGoogleTokenExpired() {
-  const token = localStorage.getItem(APP_STORAGE_KEYS.googleToken);
-  if (!token) return true;
-  const issuedAt = parseInt(localStorage.getItem(APP_STORAGE_KEYS.googleTokenIssuedAt) || '0', 10);
-  if (!issuedAt) return false;
-  const ageMs = Date.now() - issuedAt;
-  return ageMs > 50 * 60 * 1000;
-}
-
 export function persistGoogleUser(user) {
   setStoredJson(APP_STORAGE_KEYS.googleUser, user);
 }

@@ -3,13 +3,13 @@ import { HttpError } from './firebase-auth.js';
 /**
  * Resolve the Gemini API key strictly for server-side usage.
  * In production, strictly enforces process.env.GEMINI_API_KEY.
- * In development, allows client-supplied or VITE_ keys for local testing.
+ * In development, also accepts VITE_GEMINI_API_KEY from the local .env file. Keys sent by a browser are never used.
  */
-export function resolveServerGeminiKey(clientKey = '') {
+export function resolveServerGeminiKey() {
   if (process.env.NODE_ENV === 'production') {
     return process.env.GEMINI_API_KEY || '';
   }
-  return process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || clientKey || '';
+  return process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
 }
 
 /**

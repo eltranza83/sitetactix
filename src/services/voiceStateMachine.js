@@ -24,68 +24,6 @@ export const VOICE_MODES = {
   CONTINUOUS_HANDS_FREE: 'CONTINUOUS_HANDS_FREE'
 };
 
-export const EXIT_PHRASES = [
-  'thank you',
-  'thanks',
-  "that's all",
-  'thats all',
-  "that's it",
-  'thats it',
-  "that's it for now",
-  'thats it for now',
-  "that's all for now",
-  'thats all for now',
-  'that will be all',
-  "that'll be all",
-  'goodnight',
-  'good night',
-  'goodbye',
-  'bye',
-  'talk to you later',
-  'talk later',
-  'catch you later',
-  'see you later',
-  'have a good night',
-  'have a good one',
-  'have a good day',
-  'go to sleep',
-  'stand down',
-  'stop listening',
-  'close conversation',
-  'close app',
-  'back to app',
-  'exit',
-  // Spanish exit phrases
-  'buenas noches',
-  'hasta luego',
-  'hasta mañana',
-  'hasta manana',
-  'hasta pronto',
-  'nos vemos',
-  'adiós',
-  'adios',
-  'chao',
-  'chau',
-  'eso es todo',
-  'es todo',
-  'ya es todo',
-  'eso es todo por hoy',
-  'eso es todo por ahora',
-  'a dormir',
-  'descansa',
-  'duérmete',
-  'duermete',
-  'apágate',
-  'apagate',
-  'retírate',
-  'retirate',
-  'detente',
-  'deténte',
-  'cerrar',
-  'cierra',
-  'salir'
-];
-
 export const WAKE_WORDS = [
   'hey jarvis',
   'jarvis',
@@ -198,17 +136,6 @@ export function getExitReplyText(text = '', isSpanishMode = false) {
   if (clean.includes('goodbye') || clean.includes('bye')) return 'Goodbye Sir. Standing down.';
   if (clean.includes('that') && (clean.includes('it') || clean.includes('all'))) return "Understood. That's all for now. Standing down.";
   return 'Understood. Standing down.';
-}
-
-/**
- * Check if text contains wake word
- */
-export function containsWakeWord(text = '') {
-  const clean = String(text).toLowerCase().trim();
-  return WAKE_WORDS.some(ww => {
-    const regex = new RegExp(`(^|\\b)${ww}(\\b|$)`, 'i');
-    return regex.test(clean);
-  });
 }
 
 /**
@@ -525,12 +452,4 @@ export class VoiceStateMachine {
   }
 }
 
-// Global Singleton Instance for easy reuse across app
-let defaultVoiceStateMachineInstance = null;
 
-export function getVoiceStateMachine(config = {}) {
-  if (!defaultVoiceStateMachineInstance) {
-    defaultVoiceStateMachineInstance = new VoiceStateMachine(config);
-  }
-  return defaultVoiceStateMachineInstance;
-}

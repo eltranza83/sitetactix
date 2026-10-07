@@ -6,7 +6,6 @@ import {
   VOICE_MODES,
   isExitIntent,
   getExitReplyText,
-  containsWakeWord,
   stripWakeWord
 } from '../src/services/voiceStateMachine.js';
 
@@ -165,10 +164,6 @@ describe('J.A.R.V.I.S. Continuous Voice State Machine Test Suite', () => {
   });
 
   test('7. Wake-Word Detection and Parsing', () => {
-    assert.equal(containsWakeWord('Hey Jarvis what is the permit number?'), true);
-    assert.equal(containsWakeWord('Jarvis check the budget'), true);
-    assert.equal(containsWakeWord('Where is the receipt?'), false);
-
     assert.equal(stripWakeWord('Hey Jarvis, show me the framing photos'), 'show me the framing photos');
     assert.equal(stripWakeWord('Jarvis what is row 4?'), 'what is row 4?');
   });

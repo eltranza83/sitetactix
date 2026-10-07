@@ -305,31 +305,6 @@ export const DownloadFallbackStrategy = {
 };
 
 /**
- * Dynamic Strategy Registry
- */
-const customStrategies = [];
-
-export function registerViewerStrategy(strategy) {
-  if (!strategy || !strategy.id || typeof strategy.resolveUrl !== 'function') {
-    throw new Error('Invalid strategy interface: must implement id, renderMode, isSupported, resolveUrl');
-  }
-  customStrategies.push(strategy);
-}
-
-export function getRegisteredStrategies() {
-  return [
-    DirectImageStrategy,
-    GoogleDrivePreviewStrategy,
-    OneDrivePreviewStrategy,
-    DropboxPreviewStrategy,
-    BlobEmbedStrategy,
-    ...customStrategies,
-    ExternalProviderStrategy,
-    DownloadFallbackStrategy
-  ];
-}
-
-/**
  * Resolves the ordered fallback strategy chain for a file on the current device
  */
 export function getStrategyChainForFile(fileMeta, capabilities = detectBrowserCapabilities()) {
@@ -371,13 +346,6 @@ export function getStrategyChainForFile(fileMeta, capabilities = detectBrowserCa
     }
   }
 
-  // Include any custom dynamically registered strategies
-  for (const custom of customStrategies) {
-    if (!chain.some(s => s.id === custom.id)) {
-      chain.push(custom);
-    }
-  }
-
   // Always provide universal fallbacks at the end
   chain.push(ExternalProviderStrategy);
   chain.push(DownloadFallbackStrategy);
@@ -386,18 +354,6 @@ export function getStrategyChainForFile(fileMeta, capabilities = detectBrowserCa
   return chain.filter(s => s.isSupported(capabilities, fileMeta || {}));
 }
 
-
-/**
- * Strategy Preference Cache
- */
-export function getCachedStrategyId(platformKey, category) {
-  try {
-    if (typeof localStorage === 'undefined') return null;
-    return localStorage.getItem(`${STRATEGY_CACHE_KEY_PREFIX}${platformKey}_${category}`);
-  } catch {
-    return null;
-  }
-}
 
 export function cacheSuccessfulStrategy(platformKey, category, strategyId) {
   try {

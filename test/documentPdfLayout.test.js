@@ -184,3 +184,17 @@ describe('drafts that start out already split', () => {
     assert.deepEqual(getItemIndexesForSplit(undefined, { 0: 'a' }, 'a'), []);
   });
 });
+
+describe('scan rules for cost type, payment and vendor names', () => {
+  test('labor only for paying a person for work; fuel and fees are material', async () => {
+    const { DOCUMENT_EXTRACTION_PROMPT } = await import('../api/_lib/document-prompt.js');
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /"labor" ONLY when the document pays a person or subcontractor/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /fuel and gas/);
+  });
+
+  test('payment method goes in the check/payment field; vendor in normal capitalization', async () => {
+    const { DOCUMENT_EXTRACTION_PROMPT } = await import('../api/_lib/document-prompt.js');
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /"Credit Card", "Debit Card" or "Cash"/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /not in all capitals/);
+  });
+});

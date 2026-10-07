@@ -2,15 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  getHistoryFileId,
-  shouldFlagUnprocessedUpload
+  getHistoryFileId
 } from '../src/services/invoiceSyncState.js';
-
-test('shouldFlagUnprocessedUpload tracks Drive uploads for server-side sync', () => {
-  assert.equal(shouldFlagUnprocessedUpload({ hasDriveUpload: true }), true);
-  assert.equal(shouldFlagUnprocessedUpload({ hasDriveUpload: false }), false);
-  assert.equal(shouldFlagUnprocessedUpload(null), false);
-});
 
 test('getHistoryFileId removes split suffix for shared PDFs', () => {
   assert.equal(getHistoryFileId({ id: 'file-123_split_0' }), 'file-123');

@@ -3,7 +3,6 @@
  */
 
 const GOOGLE_DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
-const GOOGLE_SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
 function escapeDriveQueryString(value) {
   return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -65,20 +64,6 @@ export async function fetchDriveFileBlob(accessToken, fileId) {
 export async function fetchDriveFileAsObjectUrl(accessToken, fileId) {
   const blob = await fetchDriveFileBlob(accessToken, fileId);
   return URL.createObjectURL(blob);
-}
-
-export async function fetchDriveFileBase64(accessToken, fileId) {
-  const blob = await fetchDriveFileBlob(accessToken, fileId);
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result || '';
-      const base64Data = result.includes(',') ? result.split(',')[1] : result;
-      resolve({ base64: base64Data, mimeType: blob.type || 'application/pdf' });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
 }
 
 /**
@@ -284,95 +269,6 @@ export async function createFolder(accessToken, folderName, parentId = null) {
     error.status = response.status;
     error.response = response;
     throw error;
-  }
-
-  return await response.json();
-}
-
-/**
- * Finds the tracking Google Sheet (JobScan_Expense_Log) in the folder, or creates one if it doesn't exist.
- */
-export async function findOrCreateTrackingSheet(accessToken, folderId) {
-  // Query to find any spreadsheet in the project folder
-  const query = `'${folderId}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`;
-  const searchUrl = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name)`;
-
-  const searchResponse = await fetch(searchUrl, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!searchResponse.ok) {
-    throw new Error('Failed to search for tracking sheet');
-  }
-
-  const searchData = await searchResponse.json();
-  
-  if (searchData.files && searchData.files.length > 0) {
-    // Prefer the one named 'JobScan_Expense_Log' if there are multiple, otherwise return the first one
-    const preferred = searchData.files.find(f => f.name === 'JobScan_Expense_Log');
-    return preferred ? preferred.id : searchData.files[0].id;
-  }
-
-  // If not found, create a new Google Sheet
-  const createResponse = await fetch(`${GOOGLE_DRIVE_API_BASE}/files`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      name: 'JobScan_Expense_Log',
-      mimeType: 'application/vnd.google-apps.spreadsheet',
-      parents: [folderId],
-    }),
-  });
-
-  if (!createResponse.ok) {
-    throw new Error('Failed to create tracking sheet');
-  }
-
-  const newSheet = await createResponse.json();
-  const sheetId = newSheet.id;
-
-  // Initialize the sheet with headers
-  const headers = [
-    'Date Logged',
-    'Date of Transaction',
-    'Job Description',
-    'Vendor / Subcontractor',
-    'Cost Category',
-    'Amount',
-    'Check Number',
-    'PDF Link'
-  ];
-
-  await appendRowToSheet(accessToken, sheetId, headers);
-  return sheetId;
-}
-
-/**
- * Appends a row of data to the Google Sheet.
- */
-export async function appendRowToSheet(accessToken, sheetId, rowData) {
-  const range = 'Sheet1!A1'; // Google Sheets API will find the table end starting from A1
-  const url = `${GOOGLE_SHEETS_API_BASE}/${sheetId}/values/${range}:append?valueInputOption=USER_ENTERED`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      values: [rowData],
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Failed to append row to spreadsheet: ${errText}`);
   }
 
   return await response.json();
@@ -708,29 +604,6 @@ export async function updateFileContent(accessToken, fileId, fileBlob, mimeType)
 }
 
 /**
- * Updates a file's permission on Google Drive to be publicly readable by anyone with the link.
- */
-export async function makeFilePubliclyReadable(accessToken, fileId) {
-  const url = `${GOOGLE_DRIVE_API_BASE}/files/${fileId}/permissions`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      role: 'reader',
-      type: 'anyone'
-    })
-  });
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Failed to make file publicly readable: ${errText}`);
-  }
-  return true;
-}
-
-/**
  * Moves a file from one parent folder to another in Google Drive.
  */
 export async function moveFileInDrive(accessToken, fileId, removeParentId, addParentId) {
@@ -967,52 +840,3 @@ export async function fetchProjectDriveTree(accessToken, rootFolderId, fetchImpl
   }
 }
 
-/**
- * Moves a file or folder to the trash in Google Drive.
- */
-export async function trashDriveFileOrFolder(accessToken, fileOrFolderId) {
-  if (!accessToken || !fileOrFolderId) return false;
-
-  // Permanent Safety Guard: Check if item is a Google Sheet or financial ledger
-  try {
-    const metaRes = await fetch(`${GOOGLE_DRIVE_API_BASE}/files/${fileOrFolderId}?fields=id,name,mimeType`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (metaRes.ok) {
-      const meta = await metaRes.json();
-      const name = (meta.name || '').toLowerCase();
-      const mime = meta.mimeType || '';
-      if (
-        mime === 'application/vnd.google-apps.spreadsheet' ||
-        mime.includes('spreadsheet') ||
-        mime.includes('excel') ||
-        name.endsWith('.xlsx') ||
-        name.endsWith('.csv') ||
-        name.includes('expense') ||
-        name.includes('payment') ||
-        name.includes('budget') ||
-        name.includes('ledger')
-      ) {
-        console.warn(`PROTECTED FILE: Cannot trash or modify spreadsheet "${meta.name}".`);
-        throw new Error(`Action blocked: Project spreadsheets and financial sheets ("${meta.name}") are permanently protected in read-only mode.`);
-      }
-    }
-  } catch (checkErr) {
-    if (checkErr.message?.includes('Action blocked')) throw checkErr;
-  }
-
-  const url = `${GOOGLE_DRIVE_API_BASE}/files/${fileOrFolderId}`;
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ trashed: true })
-  });
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Failed to delete Drive item: ${err}`);
-  }
-  return true;
-}
