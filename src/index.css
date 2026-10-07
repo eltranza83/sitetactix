@@ -150,11 +150,6 @@ button, input, select, textarea {
 .studio-sidebar {
   display: none;
 }
-
-.desktop-breadcrumb {
-  display: none;
-}
-
 .app-main {
   display: flex;
   flex-direction: column;
@@ -784,47 +779,6 @@ button, input, select, textarea {
 }
 
 /* Login Screen */
-.login-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  flex: 1;
-  padding: 40px 20px;
-  gap: 24px;
-}
-
-.login-illustration {
-  width: 140px;
-  height: 140px;
-  background: radial-gradient(circle, rgba(241, 215, 167, 0.15) 0%, rgba(24, 24, 27, 0) 70%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1px dashed rgba(241, 215, 167, 0.3);
-  animation: pulse 3s infinite ease-in-out;
-}
-
-.login-illustration svg {
-  width: 64px;
-  height: 64px;
-  color: var(--color-amber-500);
-}
-
-.login-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--color-zinc-50);
-}
-
-.login-subtitle {
-  color: var(--color-zinc-400);
-  font-size: 0.95rem;
-  max-width: 320px;
-}
-
 /* Form Styles */
 .form-group {
   display: flex;
@@ -843,7 +797,7 @@ button, input, select, textarea {
   align-items: center;
 }
 
-.form-input, .form-select, .form-textarea {
+.form-input {
   width: 100%;
   box-sizing: border-box;
   background-color: var(--st-soft);
@@ -857,23 +811,21 @@ button, input, select, textarea {
   outline: none;
 }
 
-.form-input:focus, .form-select:focus, .form-textarea:focus {
+.form-input:focus {
   border-color: var(--st-gold);
   box-shadow: 0 0 0 2px rgba(212, 183, 135, 0.25);
 }
 
 /* Fix native dropdown popups so options never render white-on-white */
 select,
-select.form-input,
-.form-select {
+select.form-input {
   color-scheme: dark;
   background-color: #141719;
   color: var(--st-text);
 }
 
 select option,
-.form-input option,
-.form-select option {
+.form-input option {
   background-color: #141719 !important;
   color: #f4f4ef !important;
   padding: 8px 12px;
@@ -892,7 +844,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
 
-.form-input::placeholder, .form-textarea::placeholder {
+.form-input::placeholder {
   color: var(--st-muted);
 }
 
@@ -918,15 +870,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-color: var(--st-line-strong);
   box-shadow: var(--shadow-lg);
 }
-
-.staging-title-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--st-line);
-  padding-bottom: 12px;
-}
-
 .staging-title-tag {
   display: inline-flex;
   align-items: center;
@@ -941,24 +884,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-radius: var(--border-radius-full);
   text-transform: uppercase;
 }
-
-.staging-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  font-size: 0.9rem;
-}
-
-.staging-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.staging-item.full-width {
-  grid-column: span 2;
-}
-
 .staging-label {
   color: var(--color-zinc-500);
   font-size: 0.75rem;
@@ -984,28 +909,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .staging-val.material {
   color: var(--color-amber-500);
 }
-
-.staging-thumbnails {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.staging-thumb {
-  width: 70px;
-  height: 70px;
-  border-radius: 8px;
-  object-fit: cover;
-  border: 1px solid var(--color-zinc-800);
-  background-color: var(--color-zinc-900);
-}
-
-.staging-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
 /* Edit Form Overlay */
 .edit-overlay-container {
   display: flex;
@@ -1078,18 +981,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-color: var(--color-zinc-700);
   background-color: rgba(255, 255, 255, 0.01);
 }
-
-.scan-icon {
-  width: 48px;
-  height: 48px;
-  color: var(--color-zinc-500);
-  transition: var(--transition-all);
-}
-
-.scan-area:hover .scan-icon {
-  color: var(--color-zinc-400);
-}
-
 .scan-title {
   font-weight: 600;
   font-size: 1.1rem;
@@ -1255,15 +1146,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* Spinner & Skeleton Loading States */
-.spinner-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  gap: 16px;
-}
-
 .spinner {
   width: 36px;
   height: 36px;
@@ -1271,52 +1153,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-top-color: var(--st-gold);
   border-radius: 50%;
   animation: spin 0.85s infinite linear;
-}
-
-@keyframes skeletonShimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--st-soft) 25%,
-    var(--st-panel-elevated) 50%,
-    var(--st-soft) 75%
-  );
-  background-size: 200% 100%;
-  animation: skeletonShimmer 1.8s infinite ease-in-out;
-  border-radius: var(--border-radius-sm);
-  display: block;
-}
-
-.skeleton-text {
-  height: 14px;
-  margin-bottom: 6px;
-  border-radius: 4px;
-  width: 100%;
-}
-
-.skeleton-title {
-  height: 20px;
-  margin-bottom: 10px;
-  border-radius: 6px;
-  width: 60%;
-}
-
-.skeleton-card {
-  background-color: var(--st-panel);
-  border: 1px solid var(--st-line);
-  border-radius: var(--border-radius);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .alert-box {
@@ -1383,49 +1219,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border: 1.5px solid var(--color-zinc-950);
   line-height: 1;
 }
-
-.staging-timer-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: var(--color-zinc-900);
-  border: 1px solid var(--color-zinc-800);
-  border-radius: 6px;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-}
-
-.timer-control-btn {
-  background-color: var(--color-zinc-800);
-  color: var(--color-zinc-300);
-  border: 1px solid var(--color-zinc-700);
-  padding: 4px 8px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: var(--transition-all);
-}
-
-.timer-control-btn:hover {
-  background-color: var(--color-zinc-700);
-  color: var(--color-amber-500);
-  border-color: var(--color-amber-500);
-}
-
-.timer-control-btn:active {
-  transform: scale(0.95);
-}
-
-.timer-expired-pulse {
-  animation: flashRed 1.5s infinite ease-in-out;
-}
-
-@keyframes flashRed {
-  0%, 100% { color: var(--color-rose-500); opacity: 1; }
-  50% { color: var(--color-rose-600); opacity: 0.5; }
-}
-
 /* Inline Draft Card Edit Styles */
 .staging-inline-input {
   width: 100%;
@@ -1490,12 +1283,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
   }
 }
-
-.project-dropdown-item:hover {
-  background-color: var(--color-zinc-900) !important;
-  color: #fff !important;
-}
-
 .project-profile-row {
   cursor: pointer;
   transition: var(--transition-all);
@@ -1814,31 +1601,3 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-family: 'Outfit', sans-serif !important;
   letter-spacing: -0.01em;
 }
-
-.card-glass-gold {
-  background: linear-gradient(145deg, rgba(24, 24, 28, 0.95) 0%, rgba(12, 12, 14, 0.98) 100%) !important;
-  border: 1px solid rgba(241, 215, 167, 0.28) !important;
-  border-top: 2px solid rgba(241, 215, 167, 0.75) !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(241, 215, 167, 0.12) !important;
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
-}
-
-.gold-badge-glow {
-  box-shadow: 0 0 12px rgba(241, 215, 167, 0.25);
-}
-
-.btn-gold-action {
-  background: linear-gradient(135deg, rgba(241, 215, 167, 0.18) 0%, rgba(241, 215, 167, 0.1) 100%) !important;
-  border: 1px solid rgba(241, 215, 167, 0.4) !important;
-  color: var(--color-champagne-light) !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.btn-gold-action:hover {
-  background: rgba(241, 215, 167, 0.25) !important;
-  border-color: rgba(241, 215, 167, 0.6) !important;
-  box-shadow: 0 0 10px rgba(241, 215, 167, 0.2) !important;
-}
-
-
