@@ -784,7 +784,7 @@ export default function Scanner({ onDataExtracted, onError }) {
               Take Photo (Use Camera)
             </button>
 
-            {/* Choose Local Photo or File (photos and PDFs) */}
+            {/* Choose Photo or File (photos and PDFs) */}
             <div style={{ position: 'relative', width: '100%' }}>
               <button 
                 type="button" 
@@ -792,7 +792,7 @@ export default function Scanner({ onDataExtracted, onError }) {
                 style={{ padding: '14px', width: '100%' }}
               >
                 <ImageIcon size={18} />
-                Choose Local Photo or File
+                Choose Photo or File
               </button>
               <input 
                 type="file" 

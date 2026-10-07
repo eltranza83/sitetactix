@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.6.4",
-  "releaseName": "Choose Local Photo or File",
+  "version": "1.6.5",
+  "releaseName": "Choose Photo or File",
   "type": "module",
   "scripts": {
     "dev": "vite",
