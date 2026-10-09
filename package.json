@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.7.8",
-  "releaseName": "Library updates",
+  "version": "1.7.9",
+  "releaseName": "Logo fixed",
   "type": "module",
   "scripts": {
     "dev": "vite",
