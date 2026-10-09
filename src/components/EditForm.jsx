@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Save, Trash2, Calendar, User, DollarSign, Tag, CheckSquare, MapPin } from 'lucide-react';
 import EditFormAttachments from './EditFormAttachments';
 import EditFormCamera from './EditFormCamera';
+import EditFormPayeePicker from './EditFormPayeePicker';
+import { knownSubPayeeName } from '../services/payeeMatching';
 import {
   ALLOCATION_COLORS,
   TRADE_SECTIONS_CONFIG,
@@ -16,8 +18,9 @@ import {
   normalizeScanDate
 } from '../services/editFormHelpers';
 
-export default function EditForm({ stagedItem, onSave, onCancel, history = [], stagedItems = [], projects = [] }) {
+export default function EditForm({ stagedItem, onSave, onCancel, history = [], stagedItems = [], projects = [], knownSubs = [] }) {
   const [formData, setFormData] = useState({
+    payeeMatch: stagedItem.metadata.payeeMatch || null,
     type: stagedItem.metadata.type || 'invoice',
     description: stagedItem.metadata.description || '',
     lotNumber: stagedItem.metadata.lotNumber || '',
@@ -312,8 +315,29 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      // Typing a different payee drops the known-sub match
+      ...(name === 'vendor' && prev.payeeMatch && value.trim() !== knownSubPayeeName(prev.payeeMatch) ? { payeeMatch: null } : {})
     }));
+  };
+
+  // Pick a known sub from the Sheet's Contracts, or (null) keep the name as scanned/typed
+  const handlePickKnownSub = (knownSub) => {
+    setFormData(prev => {
+      if (!knownSub) {
+        return { ...prev, vendor: prev.payeeMatch?.original || prev.vendor, payeeMatch: null };
+      }
+      return {
+        ...prev,
+        vendor: knownSubPayeeName(knownSub),
+        payeeMatch: {
+          auto: false,
+          original: prev.payeeMatch?.original || prev.vendor,
+          sub: knownSub.sub || '',
+          company: knownSub.company || ''
+        }
+      };
+    });
   };
 
   const handleToggleCategory = (category) => {
@@ -735,6 +759,12 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                   onChange={handleChange}
                   placeholder="Lowe's, vendor name..."
                 />
+                <EditFormPayeePicker
+                  vendor={formData.vendor}
+                  payeeMatch={formData.payeeMatch}
+                  knownSubs={knownSubs}
+                  onPick={handlePickKnownSub}
+                />
               </div>
 
               <div className="form-group">
@@ -825,6 +855,12 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                 value={formData.vendor}
                 onChange={handleChange}
                 placeholder="Vendor name..."
+              />
+              <EditFormPayeePicker
+                vendor={formData.vendor}
+                payeeMatch={formData.payeeMatch}
+                knownSubs={knownSubs}
+                onPick={handlePickKnownSub}
               />
             </div>
 

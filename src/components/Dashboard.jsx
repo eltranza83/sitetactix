@@ -400,11 +400,12 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
               </span>
             )}
           </div>
-          {data?.projectInfo?.address && (
+          {(data?.projectInfo?.address || data?.projectInfo?.cityStateZip) && (
             <p style={{ fontSize: '0.78rem', color: 'var(--st-muted)', marginTop: '2px' }}>
-              {data.projectInfo.address.toLowerCase().startsWith('n/a')
-                ? data.projectInfo.cityStateZip || ''
-                : `${data.projectInfo.address}${data.projectInfo.cityStateZip ? `, ${data.projectInfo.cityStateZip}` : ''}`}
+              {[data.projectInfo.address, data.projectInfo.cityStateZip]
+                .map(part => String(part || '').trim())
+                .filter(part => part && !part.toLowerCase().startsWith('n/a'))
+                .join(', ')}
             </p>
           )}
         </div>

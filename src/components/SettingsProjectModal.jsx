@@ -9,12 +9,30 @@ export default function SettingsProjectModal({
   sheetPreview = { status: 'idle' },
   selectedSheet = null,
   onSelectSheet,
+  projectDetails = {},
+  onProjectDetailChange,
+  sheetInfo = { status: 'idle' },
+  templateAvailable = false,
+  useTemplate = false,
+  onUseTemplateChange,
+  saving = false,
   onProjectNameChange,
   onOpenFolderPicker,
   onCancel,
   onSave
 }) {
   if (!isOpen) return null;
+
+  const makingFromTemplate = !editingProject && templateAvailable && useTemplate;
+  // The house details live in the new-layout Sheet's Project Info tab
+  const showDetails = makingFromTemplate || sheetInfo.status === 'v2';
+  const detailFields = [
+    { field: 'address', label: 'Street Address', placeholder: 'e.g. 1204 Northwood Trail' },
+    { field: 'cityStateZip', label: 'City, State, Zip', placeholder: 'e.g. McAllen, TX 78504' },
+    { field: 'scope', label: 'Development Scope', placeholder: 'e.g. Single Family Residence Plan' },
+    { field: 'budgetBuild', label: 'Budget for Build (Hard Costs)', placeholder: 'e.g. 240000', numeric: true },
+    { field: 'lotCost', label: 'Lot Cost (Land)', placeholder: 'e.g. 70500', numeric: true }
+  ];
 
   return (
     <div style={{
@@ -34,6 +52,8 @@ export default function SettingsProjectModal({
       <div className="settings-card" style={{
         width: '100%',
         maxWidth: '380px',
+        maxHeight: '100%',
+        overflowY: 'auto',
         backgroundColor: 'var(--color-zinc-950)',
         border: '1px solid var(--color-zinc-800)',
         borderRadius: '12px',
@@ -122,7 +142,56 @@ export default function SettingsProjectModal({
             </button>
           </div>
 
-          {selectedFolder && (
+          {!editingProject && selectedFolder && templateAvailable && (
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.8rem', color: 'var(--color-zinc-300)', lineHeight: 1.4, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={useTemplate}
+                onChange={(e) => onUseTemplateChange?.(e.target.checked)}
+                style={{ marginTop: '2px' }}
+              />
+              <span>Make a new Sheet for this house from the template (saved in this folder)</span>
+            </label>
+          )}
+
+          {!editingProject && !templateAvailable && (
+            <div style={{ fontSize: '0.76rem', color: 'var(--color-zinc-500)', lineHeight: 1.4 }}>
+              No Sheet template is set up yet, so the project links the Sheet already in its folder.
+            </div>
+          )}
+
+          {selectedFolder && makingFromTemplate && (
+            <div style={{
+              padding: '10px 12px', backgroundColor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)',
+              borderRadius: '8px', fontSize: '0.8rem', color: 'var(--color-emerald-500)', lineHeight: 1.4
+            }}>
+              A new Sheet named "{(projectName || '').trim() || 'New Project'} – SiteTactix" will be made in this folder and linked.
+            </div>
+          )}
+
+          {showDetails && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {detailFields.map(({ field, label, placeholder, numeric }) => (
+                <div className="form-group" key={field}>
+                  <label className="form-label" htmlFor={`project-${field}`}>{label}</label>
+                  <input
+                    type="text"
+                    inputMode={numeric ? 'decimal' : undefined}
+                    id={`project-${field}`}
+                    className="form-input"
+                    value={projectDetails[field] || ''}
+                    onChange={(e) => onProjectDetailChange?.(field, e.target.value)}
+                    placeholder={placeholder}
+                  />
+                </div>
+              ))}
+              <div style={{ fontSize: '0.72rem', color: 'var(--color-zinc-500)' }}>
+                Saved to the Sheet's Project Info tab.
+              </div>
+            </div>
+          )}
+
+          {selectedFolder && !makingFromTemplate && (
             <div className="form-group">
               <label className="form-label">Google Sheet</label>
               {sheetPreview.status === 'loading' && (
@@ -190,9 +259,9 @@ export default function SettingsProjectModal({
             className="btn btn-primary"
             style={{ flex: 1 }}
             onClick={onSave}
-            disabled={!projectName.trim() || !selectedFolder}
+            disabled={saving || !projectName.trim() || !selectedFolder}
           >
-            {editingProject ? 'Update Project' : 'Save Project'}
+            {saving ? 'Saving...' : (editingProject ? 'Update Project' : 'Save Project')}
           </button>
         </div>
       </div>

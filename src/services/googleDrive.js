@@ -297,6 +297,30 @@ export async function createFolder(accessToken, folderName, parentId = null) {
   return await response.json();
 }
 
+/**
+ * Copies a Drive file (e.g. the Sheet template) into a folder under a new name.
+ */
+export async function copyDriveFile(accessToken, fileId, { name, parentId }) {
+  if (!fileId) throw new Error('Could not copy the file. No file was given.');
+  assertDriveFolderParent(parentId, 'copy the file');
+  const url = `${GOOGLE_DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}/copy?fields=id,name,webViewLink&supportsAllDrives=true`;
+  const response = await authenticatedDriveFetch(accessToken, url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, parents: [parentId] })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    const error = new Error(`Failed to copy the Sheet template: ${errText || response.status}`);
+    error.status = response.status;
+    error.response = response;
+    throw error;
+  }
+
+  return await response.json();
+}
+
 const inFlightFolderPromises = new Map();
 
 export const APP_FOLDERS_CONTAINER_NAME = 'App Folders';

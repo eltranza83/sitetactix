@@ -20,6 +20,13 @@ export function buildInvoiceFileName(metadata) {
   return rawName.replace(/[/\\:*?"<>|]/g, '_');
 }
 
+/** The Receipt ID written to the Sheet: the draft's id, plus the split number for a split receipt. */
+export function buildReceiptId(draftId, splitIndex = null) {
+  const base = String(draftId || '').trim();
+  if (!base) return '';
+  return splitIndex === null || splitIndex === undefined ? base : `${base}_split_${splitIndex}`;
+}
+
 export function buildHistoryLogs(metadata, { idPrefix, link }) {
   const dateLogged = new Date().toLocaleDateString();
 
@@ -167,12 +174,13 @@ export async function syncInvoiceDocument({
   let mainUploadResult = null;
 
   if (metadata.splits && metadata.splits.length > 0) {
-    for (const split of metadata.splits) {
+    for (const [splitIndex, split] of metadata.splits.entries()) {
       const splitAmount = parseFloat(split.amount) || 0;
       if (splitAmount <= 0) continue;
 
       const splitMetadata = {
         ...metadata,
+        ...(item.id ? { receiptId: buildReceiptId(item.id, splitIndex) } : {}),
         amount: splitAmount,
         description: split.description || metadata.description,
         lotNumber: split.lotNumber || metadata.lotNumber,
@@ -214,7 +222,7 @@ export async function syncInvoiceDocument({
       buildInvoiceFileName(metadata),
       'application/pdf',
       pdfBlob,
-      JSON.stringify(metadata)
+      JSON.stringify(item.id ? { ...metadata, receiptId: buildReceiptId(item.id) } : metadata)
     );
   }
 

@@ -1,8 +1,11 @@
 const ENV = import.meta.env || {};
 
-export const APP_VERSION = ENV.VITE_APP_VERSION || '1.7.8';
+export const APP_VERSION = ENV.VITE_APP_VERSION || '1.8.0';
 export const APP_BUILD_LABEL = ENV.VITE_APP_BUILD_LABEL || `v${APP_VERSION}`;
-export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Library updates';
+export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'New spreadsheet support';
+
+// Google Sheet copied for each new project (the new per-house layout). Empty = link an existing Sheet instead.
+export const TEMPLATE_SHEET_ID = String(ENV.VITE_TEMPLATE_SHEET_ID || '').trim();
 
 export const DEFAULT_FIREBASE_CONFIG = {
   apiKey: ENV.VITE_FIREBASE_API_KEY || 'AIzaSyDjYPPkW8ffQMOCByCo9gMlVxQ8PsMpAoU',

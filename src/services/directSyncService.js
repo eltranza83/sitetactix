@@ -9,6 +9,14 @@ import {
   tagDriveFileAppProperties
 } from './googleDrive.js';
 import { normalizeKey } from './sheetsDataService.js';
+import {
+  SHEET_LAYOUT_V2,
+  appendTransactionRows,
+  buildTransactionRow,
+  detectSheetLayout,
+  fetchExistingReceiptIds,
+  getReceiptId
+} from './sheetV2.js';
 
 const GOOGLE_SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
@@ -231,6 +239,17 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
   }
   const metaData = await metaRes.json();
   const sheetsList = metaData.sheets || [];
+  // New-layout Sheets get one Transactions row per receipt; old Sheets keep the category-tab writes
+  const isV2 = detectSheetLayout(sheetsList.map(s => s.properties?.title)) === SHEET_LAYOUT_V2;
+  let existingReceiptIds = null;
+  if (isV2) {
+    try {
+      existingReceiptIds = await fetchExistingReceiptIds(accessToken, spreadsheetId);
+    } catch (idsErr) {
+      await handleFatalGoogleError(idsErr);
+      throw idsErr;
+    }
+  }
 
   let processedCount = 0;
   const failed = [];
@@ -286,129 +305,150 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
           continue;
         }
 
-        // Resolve matching sheet tab
-        const cleanTargetCat = normalizeKey(tradeCat);
-        let matchedSheetProp = null;
-
-        for (const sheetObj of sheetsList) {
-          const title = sheetObj.properties?.title || '';
-          if (normalizeKey(title) === cleanTargetCat) {
-            matchedSheetProp = sheetObj.properties;
-            break;
+        if (isV2) {
+          // Receipt ID makes the write safe to repeat: a receipt already in Transactions is never added twice
+          const receiptId = getReceiptId(file, metadata);
+          if (!existingReceiptIds.has(receiptId)) {
+            const appendRes = await appendTransactionRows(accessToken, spreadsheetId, [
+              buildTransactionRow(metadata, { receiptId, fileUrl })
+            ]);
+            if (!appendRes.ok) {
+              await handleFatalGoogleError(appendRes);
+              const errText = await appendRes.text().catch(() => '');
+              failed.push({
+                fileId: file.id,
+                fileName: file.name,
+                reason: `Failed to add invoice row to Transactions: ${errText || appendRes.statusText}`
+              });
+              continue;
+            }
+            existingReceiptIds.add(receiptId);
           }
-        }
+        } else {
+          // Resolve matching sheet tab
+          const cleanTargetCat = normalizeKey(tradeCat);
+          let matchedSheetProp = null;
 
-        if (!matchedSheetProp) {
-          failed.push({
-            fileId: file.id,
-            fileName: file.name,
-            reason: `Sheet tab for category "${tradeCat}" was not found in spreadsheet.`
+          for (const sheetObj of sheetsList) {
+            const title = sheetObj.properties?.title || '';
+            if (normalizeKey(title) === cleanTargetCat) {
+              matchedSheetProp = sheetObj.properties;
+              break;
+            }
+          }
+
+          if (!matchedSheetProp) {
+            failed.push({
+              fileId: file.id,
+              fileName: file.name,
+              reason: `Sheet tab for category "${tradeCat}" was not found in spreadsheet.`
+            });
+            continue;
+          }
+
+          const sheetTitle = matchedSheetProp.title;
+
+          // Fetch tab values to find target phase row
+          const rangeUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/'${encodeURIComponent(sheetTitle)}'!A1:Z100`;
+          const rangeRes = await fetch(rangeUrl, {
+            headers: { Authorization: `Bearer ${accessToken}` }
           });
-          continue;
-        }
 
-        const sheetTitle = matchedSheetProp.title;
+          if (!rangeRes.ok) {
+            await handleFatalGoogleError(rangeRes);
+            const errText = await rangeRes.text().catch(() => '');
+            failed.push({
+              fileId: file.id,
+              fileName: file.name,
+              reason: `Failed to read sheet tab "${sheetTitle}": ${errText || rangeRes.statusText}`
+            });
+            continue;
+          }
 
-        // Fetch tab values to find target phase row
-        const rangeUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/'${encodeURIComponent(sheetTitle)}'!A1:Z100`;
-        const rangeRes = await fetch(rangeUrl, {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
+          const rangeData = await rangeRes.json();
+          const rows = rangeData.values || [];
 
-        if (!rangeRes.ok) {
-          await handleFatalGoogleError(rangeRes);
-          const errText = await rangeRes.text().catch(() => '');
-          failed.push({
-            fileId: file.id,
-            fileName: file.name,
-            reason: `Failed to read sheet tab "${sheetTitle}": ${errText || rangeRes.statusText}`
-          });
-          continue;
-        }
+          const isLabor = costCat.includes('labor');
+          const displayVal = rawCost > 0 ? rawCost : `"PDF"`;
+          const materialValue = !isLabor ? `=HYPERLINK("${fileUrl}", ${displayVal})` : '';
+          const laborValue = isLabor ? `=HYPERLINK("${fileUrl}", ${displayVal})` : '';
 
-        const rangeData = await rangeRes.json();
-        const rows = rangeData.values || [];
+          const rowValues = [
+            taskDesc,
+            vendor,
+            materialValue,
+            laborValue,
+            paymentDate,
+            checkNumber
+          ];
 
-        const isLabor = costCat.includes('labor');
-        const displayVal = rawCost > 0 ? rawCost : `"PDF"`;
-        const materialValue = !isLabor ? `=HYPERLINK("${fileUrl}", ${displayVal})` : '';
-        const laborValue = isLabor ? `=HYPERLINK("${fileUrl}", ${displayVal})` : '';
+          const phaseTarget = findTargetPhaseRow(rows, tradePh);
+          if (!phaseTarget) {
+            failed.push({
+              fileId: file.id,
+              fileName: file.name,
+              reason: `Phase header "${tradePh}" not found in sheet "${sheetTitle}".`
+            });
+            continue;
+          }
 
-        const rowValues = [
-          taskDesc,
-          vendor,
-          materialValue,
-          laborValue,
-          paymentDate,
-          checkNumber
-        ];
+          // If bounded phase block was full, insert a new row to expand the block safely
+          if (phaseTarget.needsRowInsertion && phaseTarget.insertAtIndex !== null) {
+            const batchUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`;
+            const insertRes = await fetch(batchUrl, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                requests: [{
+                  insertDimension: {
+                    range: {
+                      sheetId: matchedSheetProp.sheetId,
+                      dimension: 'ROWS',
+                      startIndex: phaseTarget.insertAtIndex,
+                      endIndex: phaseTarget.insertAtIndex + 1
+                    },
+                    inheritFromBefore: true
+                  }
+                }]
+              })
+            });
 
-        const phaseTarget = findTargetPhaseRow(rows, tradePh);
-        if (!phaseTarget) {
-          failed.push({
-            fileId: file.id,
-            fileName: file.name,
-            reason: `Phase header "${tradePh}" not found in sheet "${sheetTitle}".`
-          });
-          continue;
-        }
+            if (!insertRes.ok) {
+              await handleFatalGoogleError(insertRes);
+              const errText = await insertRes.text().catch(() => '');
+              failed.push({
+                fileId: file.id,
+                fileName: file.name,
+                reason: `Failed to insert row in sheet "${sheetTitle}": ${errText || insertRes.statusText}`
+              });
+              continue;
+            }
+          }
 
-        // If bounded phase block was full, insert a new row to expand the block safely
-        if (phaseTarget.needsRowInsertion && phaseTarget.insertAtIndex !== null) {
-          const batchUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`;
-          const insertRes = await fetch(batchUrl, {
-            method: 'POST',
+          // Always write via explicit PUT to A{row}:F{row} (Zero generic :append)
+          const updateUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/'${encodeURIComponent(sheetTitle)}'!A${phaseTarget.targetRowNumber}:F${phaseTarget.targetRowNumber}?valueInputOption=USER_ENTERED`;
+          const updateRes = await fetch(updateUrl, {
+            method: 'PUT',
             headers: {
               Authorization: `Bearer ${accessToken}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-              requests: [{
-                insertDimension: {
-                  range: {
-                    sheetId: matchedSheetProp.sheetId,
-                    dimension: 'ROWS',
-                    startIndex: phaseTarget.insertAtIndex,
-                    endIndex: phaseTarget.insertAtIndex + 1
-                  },
-                  inheritFromBefore: true
-                }
-              }]
-            })
+            body: JSON.stringify({ values: [rowValues] })
           });
 
-          if (!insertRes.ok) {
-            await handleFatalGoogleError(insertRes);
-            const errText = await insertRes.text().catch(() => '');
+          if (!updateRes.ok) {
+            await handleFatalGoogleError(updateRes);
+            const errText = await updateRes.text().catch(() => '');
             failed.push({
               fileId: file.id,
               fileName: file.name,
-              reason: `Failed to insert row in sheet "${sheetTitle}": ${errText || insertRes.statusText}`
+              reason: `Failed to write invoice row to "${sheetTitle}": ${errText || updateRes.statusText}`
             });
             continue;
           }
-        }
-
-        // Always write via explicit PUT to A{row}:F{row} (Zero generic :append)
-        const updateUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/'${encodeURIComponent(sheetTitle)}'!A${phaseTarget.targetRowNumber}:F${phaseTarget.targetRowNumber}?valueInputOption=USER_ENTERED`;
-        const updateRes = await fetch(updateUrl, {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ values: [rowValues] })
-        });
-
-        if (!updateRes.ok) {
-          await handleFatalGoogleError(updateRes);
-          const errText = await updateRes.text().catch(() => '');
-          failed.push({
-            fileId: file.id,
-            fileName: file.name,
-            reason: `Failed to write invoice row to "${sheetTitle}": ${errText || updateRes.statusText}`
-          });
-          continue;
         }
 
         // Tag file immediately after category row write succeeds to prevent duplicate ledger entries
@@ -436,7 +476,7 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
 
         // STEP 2: Append to Master Log Tab ("New_Invoices") if present (errors logged as warnings, never stop the run)
         let newInvoicesSheetTitle = null;
-        for (const sheetObj of sheetsList) {
+        for (const sheetObj of (isV2 ? [] : sheetsList)) {
           const title = sheetObj.properties?.title || '';
           const cleanTitle = normalizeKey(title);
           if (cleanTitle === 'newinvoices' || cleanTitle === 'masterlog' || cleanTitle === 'invoicelog') {

@@ -11,6 +11,8 @@ import {
   updateDraftField
 } from '../services/stagedDocumentOperations';
 import { normalizeScanDate, buildAutoSplits, compressImage } from '../services/editFormHelpers';
+import { applyPayeeMatch, loadCachedKnownSubs, persistKnownSubs } from '../services/payeeMatching';
+import { fetchKnownSubs } from '../services/sheetV2';
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -21,7 +23,23 @@ function fileToBase64(file) {
   });
 }
 
-export function useStagedDocuments({ activeProject, setError, setSuccess }) {
+// Known subs from the linked Sheet's Contracts tab (new layout only); the last good list is kept for offline scans
+async function loadKnownSubsForProject(activeProject, googleToken) {
+  const spreadsheetId = activeProject?.spreadsheetId;
+  if (!spreadsheetId) return [];
+  const cached = loadCachedKnownSubs(localStorage, spreadsheetId);
+  if (!googleToken) return cached;
+  try {
+    const fresh = await fetchKnownSubs(googleToken, spreadsheetId);
+    persistKnownSubs(localStorage, spreadsheetId, fresh);
+    return fresh;
+  } catch (err) {
+    console.warn('[useStagedDocuments] Could not read Contracts for payee matching:', err);
+    return cached;
+  }
+}
+
+export function useStagedDocuments({ activeProject, googleToken = null, setError, setSuccess }) {
   const [stagedItems, setStagedItems] = useState(() => loadStoredAppState().stagedItems);
   const [animateBadge, setAnimateBadge] = useState(false);
   const [prevStagedCount, setPrevStagedCount] = useState(0);
@@ -80,8 +98,10 @@ export function useStagedDocuments({ activeProject, setError, setSuccess }) {
         mainImageBase64 = await fileToBase64(storedImage);
       }
 
+      // A payee that is a known sub is written the same way every time (the Contracts Company, else the Sub)
+      const knownSubs = await loadKnownSubsForProject(activeProject, googleToken);
       const draftMetadata = {
-        ...scanItem.metadata,
+        ...applyPayeeMatch(scanItem.metadata || {}, knownSubs),
         date: normalizeScanDate(scanItem.metadata?.date) || scanItem.metadata?.date || '',
         lotNumber: activeProject ? activeProject.name : ''
       };

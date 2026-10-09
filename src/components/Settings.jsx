@@ -102,6 +102,13 @@ export default function Settings({
         sheetPreview={projectSettings.sheetPreview}
         selectedSheet={projectSettings.tempSelectedSheet}
         onSelectSheet={projectSettings.setTempSelectedSheet}
+        projectDetails={projectSettings.projectDetails}
+        onProjectDetailChange={projectSettings.updateProjectDetail}
+        sheetInfo={projectSettings.sheetInfo}
+        templateAvailable={projectSettings.templateAvailable}
+        useTemplate={projectSettings.useTemplate}
+        onUseTemplateChange={projectSettings.setUseTemplate}
+        saving={projectSettings.savingProject}
         onProjectNameChange={projectSettings.setProjectNameInput}
         onOpenFolderPicker={() => projectSettings.setShowFolderPickerModal(true)}
         onCancel={projectSettings.handleCancelCreateProject}
