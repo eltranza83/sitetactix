@@ -2,6 +2,8 @@
  * Service to fetch and parse Google Sheets data for project dashboards and contractor summaries.
  */
 
+import { SHEET_LAYOUT_LEGACY, SHEET_LAYOUT_V2, fetchSheetLayout, fetchV2DashboardData } from './sheetV2.js';
+
 const GOOGLE_SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
 export function normalizeKey(value) {
@@ -448,6 +450,18 @@ export function parseCategorySheet(sheetName, rows, phaseStatuses = {}, summaryS
  * Main entry point to batch-fetch and parse all subcontractor and summary sheets.
  */
 export async function fetchProjectDashboardData(accessToken, spreadsheetId) {
+  // New-layout Sheets are read from Project Info / Transactions / Contracts and worked out in code
+  let layout = SHEET_LAYOUT_LEGACY;
+  try {
+    layout = await fetchSheetLayout(accessToken, spreadsheetId);
+  } catch (err) {
+    if (err?.status === 401 || err?.status === 403) throw err;
+    console.warn('[sheetsDataService] Could not read the Sheet tabs, reading it as the old layout:', err);
+  }
+  if (layout === SHEET_LAYOUT_V2) {
+    return await fetchV2DashboardData(accessToken, spreadsheetId);
+  }
+
   const ranges = [
     'Summary_Dashboard!A1:E',
     'Site_Prep_&_Structure!A1:K',

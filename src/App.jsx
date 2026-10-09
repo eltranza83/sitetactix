@@ -6,6 +6,7 @@ import { useInvoiceSync } from './hooks/useInvoiceSync';
 import { useInviteGate } from './hooks/useInviteGate';
 import { useProjects } from './hooks/useProjects';
 import { useStagedDocuments } from './hooks/useStagedDocuments';
+import { loadCachedKnownSubs } from './services/payeeMatching';
 import ToastNotification from './components/ToastNotification';
 import DashboardErrorBoundary from './components/DashboardErrorBoundary';
 
@@ -112,6 +113,7 @@ export default function App() {
     removeStagedItems
   } = useStagedDocuments({
     activeProject,
+    googleToken,
     setError,
     setSuccess
   });
@@ -428,6 +430,7 @@ export default function App() {
             history={history}
             stagedItems={stagedItems}
             projects={projects}
+            knownSubs={loadCachedKnownSubs(localStorage, activeProject?.spreadsheetId)}
           />
         ) : activeTab === 'invoices' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

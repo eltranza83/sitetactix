@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.7.9",
-  "releaseName": "Logo fixed",
+  "version": "1.8.0",
+  "releaseName": "New spreadsheet support",
   "type": "module",
   "scripts": {
     "dev": "vite",

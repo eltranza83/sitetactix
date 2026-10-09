@@ -1,10 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createProjectFolder, listProjectFolders, listFolderSpreadsheets } from '../services/settingsDrive';
 import { listProjectSpreadsheets } from '../services/googleDrive';
 import { getDriveErrorMessage, getFolderErrorMessage, getValidationErrorMessage } from '../services/appErrors';
 import { toCanonicalProjectId } from '../services/projectIds';
 import { saveUserProject, deleteUserProject } from '../services/projectService';
-import { clearSheetLinkIfFolderChanged, chooseProjectSpreadsheet, linkSheetToProject } from '../services/projectSheet';
+import {
+  EMPTY_PROJECT_DETAILS,
+  buildProjectInfoFromForm,
+  clearSheetLinkIfFolderChanged,
+  chooseProjectSpreadsheet,
+  createProjectSheetFromTemplate,
+  linkSheetToProject,
+  projectDetailsFromSheet,
+  projectInfoChanged
+} from '../services/projectSheet';
+import { readProjectInfoIfV2, writeProjectInfo } from '../services/sheetV2';
+import { TEMPLATE_SHEET_ID } from '../config/appConfig';
 
 export function useSettingsProjects({
   activeProject,
@@ -34,6 +45,15 @@ export function useSettingsProjects({
   const [tempSelectedFolder, setTempSelectedFolder] = useState(null);
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [editingProject, setEditingProject] = useState(null);
+  // Street address, city/state/zip, scope, budget and lot cost (the Sheet's Project Info tab)
+  const [projectDetails, setProjectDetails] = useState(EMPTY_PROJECT_DETAILS);
+  const detailsTouchedRef = useRef(false);
+  // Whether the linked Sheet is the new layout, and its Project Info as last read
+  const [sheetInfo, setSheetInfo] = useState({ status: 'idle', values: null });
+  // Make a new Sheet from the template for a new project
+  const [useTemplate, setUseTemplate] = useState(false);
+  const [savingProject, setSavingProject] = useState(false);
+  const templateAvailable = Boolean(TEMPLATE_SHEET_ID);
 
   const fetchFolders = async (parentId = 'root') => {
     setLoadingFolders(true);
@@ -83,10 +103,56 @@ export function useSettingsProjects({
     return () => { stale = true; };
   }, [showCreateModal, googleToken, tempSelectedFolder?.id]);
 
+  // A new project gets a Sheet made from the template when its folder has no spreadsheet yet
+  useEffect(() => {
+    if (!showCreateModal || editingProject) return;
+    setUseTemplate(templateAvailable && sheetPreview.status === 'none');
+  }, [showCreateModal, editingProject, templateAvailable, sheetPreview.status]);
+
+  // Read Project Info from the chosen Sheet when it is the new layout (fills the form on edit)
+  useEffect(() => {
+    const sheetId = tempSelectedSheet?.id;
+    if (!showCreateModal || !googleToken || !sheetId) {
+      setSheetInfo({ status: 'idle', values: null });
+      return;
+    }
+    let stale = false;
+    setSheetInfo({ status: 'loading', values: null });
+    readProjectInfoIfV2(googleToken, sheetId)
+      .then(values => {
+        if (stale) return;
+        if (!values) {
+          setSheetInfo({ status: 'legacy', values: null });
+          return;
+        }
+        setSheetInfo({ status: 'v2', values });
+        if (!detailsTouchedRef.current) {
+          setProjectDetails(projectDetailsFromSheet(values));
+        }
+      })
+      .catch(() => {
+        if (!stale) setSheetInfo({ status: 'error', values: null });
+      });
+    return () => { stale = true; };
+  }, [showCreateModal, googleToken, tempSelectedSheet?.id]);
+
+  const resetProjectDetails = () => {
+    setProjectDetails(EMPTY_PROJECT_DETAILS);
+    detailsTouchedRef.current = false;
+    setSheetInfo({ status: 'idle', values: null });
+    setUseTemplate(false);
+  };
+
+  const updateProjectDetail = (field, value) => {
+    detailsTouchedRef.current = true;
+    setProjectDetails(prev => ({ ...prev, [field]: value }));
+  };
+
   const openCreateProjectModal = () => {
     setProjectNameInput('');
     setTempSelectedFolder(null);
     setTempSelectedSheet(null);
+    resetProjectDetails();
     setShowCreateModal(true);
   };
 
@@ -95,11 +161,27 @@ export function useSettingsProjects({
     setProjectNameInput(project.name);
     setTempSelectedFolder({ id: project.folderId, name: project.folderName });
     setTempSelectedSheet(project.spreadsheetId ? { id: project.spreadsheetId, name: project.spreadsheetName } : null);
+    resetProjectDetails();
     setShowCreateModal(true);
   };
 
-  const handleSaveProject = (e) => {
+  // Writes the form's Project Info to a new-layout Sheet when something changed. Returns an error message or null.
+  const saveProjectInfoToSheet = async (sheetId, projectName) => {
+    if (!googleToken || !sheetId || sheetInfo.status !== 'v2') return null;
+    const info = buildProjectInfoFromForm(projectName, projectDetails);
+    if (!projectInfoChanged(sheetInfo.values, info)) return null;
+    try {
+      await writeProjectInfo(googleToken, sheetId, info);
+      return null;
+    } catch (err) {
+      console.error(err);
+      return getDriveErrorMessage(err, "update the Sheet's Project Info");
+    }
+  };
+
+  const handleSaveProject = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (savingProject) return;
     if (!projectNameInput.trim()) {
       setError(getValidationErrorMessage('Please enter a Project Name'));
       return;
@@ -110,6 +192,9 @@ export function useSettingsProjects({
     }
 
     if (editingProject) {
+      setSavingProject(true);
+      const sheetWriteError = await saveProjectInfoToSheet(tempSelectedSheet?.id, projectNameInput.trim());
+      setSavingProject(false);
       const updatedProjects = projects.map(p => {
         if (p.id === editingProject.id) {
           const { appsScriptUrl: _url, appsScriptSecret: _secret, ...safeProject } = p;
@@ -144,9 +229,14 @@ export function useSettingsProjects({
       setTempSelectedFolder(null);
       setTempSelectedSheet(null);
       setEditingProject(null);
+      resetProjectDetails();
       setShowCreateModal(false);
-      setSuccess(`Project "${updatedProj.name}" updated successfully!`);
-      setTimeout(() => setSuccess(null), 3000);
+      if (sheetWriteError) {
+        setError(`Project "${updatedProj.name}" updated, but the Sheet was not: ${sheetWriteError}`);
+      } else {
+        setSuccess(`Project "${updatedProj.name}" updated successfully!`);
+        setTimeout(() => setSuccess(null), 3000);
+      }
       return;
     }
 
@@ -163,7 +253,40 @@ export function useSettingsProjects({
       folderId: tempSelectedFolder.id,
       folderName: tempSelectedFolder.name
     };
-    const newProj = tempSelectedSheet ? linkSheetToProject(baseProj, tempSelectedSheet) : baseProj;
+    // The project's Sheet: a fresh copy of the template, or the existing Sheet found in the folder
+    let projectSheet = tempSelectedSheet;
+    let sheetWriteError = null;
+    if (useTemplate && templateAvailable) {
+      if (!googleToken) {
+        setError('Connect Google first so the app can make the project Sheet from the template.');
+        return;
+      }
+      setSavingProject(true);
+      try {
+        const created = await createProjectSheetFromTemplate({
+          accessToken: googleToken,
+          templateId: TEMPLATE_SHEET_ID,
+          folderId: tempSelectedFolder.id,
+          projectName: baseProj.name,
+          info: buildProjectInfoFromForm(baseProj.name, projectDetails)
+        });
+        projectSheet = created.sheet;
+        if (!created.infoWritten) {
+          sheetWriteError = getDriveErrorMessage(created.infoError, "fill in the Sheet's Project Info");
+        }
+      } catch (err) {
+        console.error(err);
+        setSavingProject(false);
+        setError(getDriveErrorMessage(err, 'make the project Sheet from the template'));
+        return;
+      }
+      setSavingProject(false);
+    } else if (projectSheet) {
+      setSavingProject(true);
+      sheetWriteError = await saveProjectInfoToSheet(projectSheet.id, baseProj.name);
+      setSavingProject(false);
+    }
+    const newProj = projectSheet ? linkSheetToProject(baseProj, projectSheet) : baseProj;
 
     const updatedProjects = [...projects, newProj];
     setProjects(updatedProjects);
@@ -183,7 +306,12 @@ export function useSettingsProjects({
     setProjectNameInput('');
     setTempSelectedFolder(null);
     setTempSelectedSheet(null);
+    resetProjectDetails();
     setShowCreateModal(false);
+    if (sheetWriteError) {
+      setError(`Project "${newProj.name}" saved, but the Sheet's Project Info was not filled in: ${sheetWriteError}`);
+      return;
+    }
     setSuccess(newProj.spreadsheetName
       ? `Project "${newProj.name}" saved and linked to "${newProj.spreadsheetName}"!`
       : `Project "${newProj.name}" saved and set as active!`);
@@ -194,6 +322,7 @@ export function useSettingsProjects({
     setProjectNameInput('');
     setTempSelectedFolder(null);
     setTempSelectedSheet(null);
+    resetProjectDetails();
     setEditingProject(null);
     setShowCreateModal(false);
     setError(null);
@@ -286,6 +415,13 @@ export function useSettingsProjects({
     showFolderPickerModal,
     showProjectsAccordion,
     tempSelectedFolder,
+    projectDetails,
+    updateProjectDetail,
+    sheetInfo,
+    templateAvailable,
+    useTemplate,
+    setUseTemplate,
+    savingProject,
     confirmDeleteProject,
     handleCancelCreateProject,
     handleCreateFolder,

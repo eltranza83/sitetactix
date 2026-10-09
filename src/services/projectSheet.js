@@ -2,6 +2,9 @@
  * Linking each project to its own Google Sheet, so sync and the Dashboard always use the same file.
  */
 
+import { copyDriveFile } from './googleDrive.js';
+import { writeProjectInfo } from './sheetV2.js';
+
 export const PREFERRED_SHEET_NAME = 'JobScan_Expense_Log';
 
 /**
@@ -33,4 +36,75 @@ export function linkSheetToProject(project, sheet) {
 export function clearSheetLinkIfFolderChanged(project, newFolderId) {
   if (project.folderId === newFolderId) return project;
   return { ...project, spreadsheetId: '', spreadsheetName: '' };
+}
+
+/** The setup values shown in the project form besides the name (Project Info rows 3-7). */
+export const EMPTY_PROJECT_DETAILS = {
+  address: '',
+  cityStateZip: '',
+  scope: '',
+  budgetBuild: '',
+  lotCost: ''
+};
+
+/** Name of the Sheet copied from the template for a new project. */
+export function templateCopyName(projectName) {
+  return `${String(projectName || '').trim() || 'New Project'} – SiteTactix`;
+}
+
+/** Form values (strings) from Project Info values read from the Sheet. */
+export function projectDetailsFromSheet(info) {
+  if (!info) return { ...EMPTY_PROJECT_DETAILS };
+  const amount = (value) => (Number(value) ? String(value) : '');
+  return {
+    address: String(info.address || ''),
+    cityStateZip: String(info.cityStateZip || ''),
+    scope: String(info.scope || ''),
+    budgetBuild: amount(info.budgetBuild),
+    lotCost: amount(info.lotCost)
+  };
+}
+
+/** The six Project Info values to write, from the project name and the form details. */
+export function buildProjectInfoFromForm(projectName, details = {}) {
+  return {
+    name: String(projectName || '').trim(),
+    address: String(details.address || '').trim(),
+    cityStateZip: String(details.cityStateZip || '').trim(),
+    scope: String(details.scope || '').trim(),
+    budgetBuild: String(details.budgetBuild ?? '').trim(),
+    lotCost: String(details.lotCost ?? '').trim()
+  };
+}
+
+/** True when any Project Info value differs (amounts compared as numbers, text without outer spaces). */
+export function projectInfoChanged(before, after) {
+  if (!before) return true;
+  const numeric = new Set(['budgetBuild', 'lotCost']);
+  return ['name', 'address', 'cityStateZip', 'scope', 'budgetBuild', 'lotCost'].some(field => {
+    if (numeric.has(field)) {
+      const left = parseFloat(String(before[field] ?? '').replace(/[^0-9.-]/g, '')) || 0;
+      const right = parseFloat(String(after?.[field] ?? '').replace(/[^0-9.-]/g, '')) || 0;
+      return left !== right;
+    }
+    return String(before[field] ?? '').trim() !== String(after?.[field] ?? '').trim();
+  });
+}
+
+/**
+ * Makes the project's Sheet from the template: copies it into the lot folder and fills in Project Info.
+ * Returns { sheet: { id, name }, infoWritten, infoError }. A failed Project Info write still keeps the copy.
+ */
+export async function createProjectSheetFromTemplate({ accessToken, templateId, folderId, projectName, info }) {
+  const copy = await copyDriveFile(accessToken, templateId, {
+    name: templateCopyName(projectName),
+    parentId: folderId
+  });
+  const sheet = { id: copy.id, name: copy.name || templateCopyName(projectName) };
+  try {
+    await writeProjectInfo(accessToken, copy.id, info);
+    return { sheet, infoWritten: true, infoError: null };
+  } catch (err) {
+    return { sheet, infoWritten: false, infoError: err };
+  }
 }

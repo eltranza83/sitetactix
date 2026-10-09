@@ -32,7 +32,11 @@ export function auditSpreadsheetHealth(parsedData) {
     const grossBudget = parseFloat(String(projectInfo.budgetGross || 0).replace(/[^0-9.-]/g, '')) || 0;
     const totalSpent = parseFloat(String(projectInfo.totalSpent || 0).replace(/[^0-9.-]/g, '')) || 0;
 
-    if (grossBudget === 0 && totalSpent === 0 && categories && categories.length > 0) {
+    if (projectInfo.layout === 'v2') {
+      if (grossBudget === 0) {
+        warnings.push("Budget for Build and Lot Cost are blank in the Sheet's Project Info tab. Fill them in (or edit the project in Settings) to see budget numbers.");
+      }
+    } else if (grossBudget === 0 && totalSpent === 0 && categories && categories.length > 0) {
       warnings.push("Gross Budget and Total Spent are both $0.00. Please check if top summary labels ('GROSS BUDGET', 'TOTAL SPENT') in your Google Sheet were edited or renamed.");
     }
 

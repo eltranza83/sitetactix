@@ -2,6 +2,9 @@ import React from 'react';
 import { Wallet } from 'lucide-react';
 
 export default function DashboardKpiCards({ projectInfo = {} }) {
+  // New-layout Sheets have no deposits: show what is left of the budget instead
+  const isV2 = projectInfo?.layout === 'v2';
+
   const safeFormat = (val) => {
     const num = typeof val === 'number' ? val : parseFloat(String(val || 0).replace(/[^0-9.-]/g, '')) || 0;
     const hasCents = Math.abs(num % 1) > 0.009;
@@ -47,12 +50,12 @@ export default function DashboardKpiCards({ projectInfo = {} }) {
         minWidth: 0,
         textAlign: 'center'
       }}>
-        <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--st-gold)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.08em' }}>Draws Paid</span>
+        <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--st-gold)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.08em' }}>{isV2 ? 'Spent' : 'Draws Paid'}</span>
         <span style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(0.85rem, 3.6vw, 1.15rem)', fontWeight: 700, color: 'var(--st-gold)', letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {safeFormat(projectInfo?.totalSpent || 0)}
         </span>
         <span style={{ fontSize: '0.62rem', color: 'var(--st-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          Dep: {safeFormat(projectInfo?.deposits || 0)}
+          {isV2 ? `Owed to subs: ${safeFormat(projectInfo?.stillOwed || 0)}` : `Dep: ${safeFormat(projectInfo?.deposits || 0)}`}
         </span>
       </div>
 
@@ -71,13 +74,13 @@ export default function DashboardKpiCards({ projectInfo = {} }) {
         textAlign: 'center'
       }}>
         <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--st-green)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.08em' }}>
-          <Wallet size={11} /> Net Capital
+          <Wallet size={11} /> {isV2 ? 'Budget Left' : 'Net Capital'}
         </span>
         <span style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(0.85rem, 3.6vw, 1.15rem)', fontWeight: 700, color: 'var(--st-green)', letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {safeFormat(projectInfo?.capitalBalance || 0)}
+          {safeFormat(isV2 ? (projectInfo?.budgetRemaining || 0) : (projectInfo?.capitalBalance || 0))}
         </span>
         <span style={{ fontSize: '0.62rem', color: 'var(--st-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          Liquidity
+          {isV2 ? `After subs: ${safeFormat(projectInfo?.budgetAfterSubs || 0)}` : 'Liquidity'}
         </span>
       </div>
     </div>
