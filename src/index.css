@@ -386,6 +386,11 @@ button, input, select, textarea {
   -webkit-backdrop-filter: blur(12px);
   border-bottom: none;
   box-shadow: none;
+  transition: transform 0.25s ease;
+}
+
+.app-header--hidden {
+  transform: translateY(-110%);
 }
 
 .executive-command-island {

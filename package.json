@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.8.5",
-  "releaseName": "Number boxes ignore autofill",
+  "version": "1.8.6",
+  "releaseName": "Top bar hides while scrolling",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -52,6 +52,20 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('invoices');
   const [invoicesSubTab, setInvoicesSubTab] = useState('scan'); // 'scan', 'staged', or 'history'
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  // Top bar slides away while scrolling down and comes back when scrolling up
+  const [headerHidden, setHeaderHidden] = useState(false);
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y < 80) setHeaderHidden(false);
+      else if (y - lastY > 6) setHeaderHidden(true);
+      else if (lastY - y > 6) setHeaderHidden(false);
+      if (Math.abs(y - lastY) > 6) lastY = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const {
@@ -311,7 +325,7 @@ export default function App() {
           onClose={() => { setSuccess(null); setError(null); }}
         />
         {/* 1. Header */}
-        <header className="app-header">
+        <header className={`app-header${headerHidden && !showProjectDropdown ? ' app-header--hidden' : ''}`}>
           <div className="executive-command-island">
             {/* Left: Refined ADEPEC Brand Monogram */}
             <div className="command-island-brand">
