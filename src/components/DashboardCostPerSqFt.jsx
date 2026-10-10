@@ -1,6 +1,8 @@
-import React from 'react';
-import { Ruler } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown, Ruler } from 'lucide-react';
 import { formatPerSqFt } from '../services/sheetV2';
+
+const OPEN_KEY = 'sitetactix_cost_per_sqft_open';
 
 const cellStyle = {
   backgroundColor: 'rgba(0, 0, 0, 0.25)',
@@ -33,11 +35,33 @@ const valueStyle = {
   whiteSpace: 'nowrap'
 };
 
-/** New-layout Sheets only: build cost and all-in cost per living and per total square foot (2×2). */
+function readOpen() {
+  try {
+    return localStorage.getItem(OPEN_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * New-layout Sheets only: build cost and all-in cost per living and per total square foot (2×2).
+ * Collapsed by default to one line; the open/closed choice is remembered on this device.
+ */
 export default function DashboardCostPerSqFt({ projectInfo = {} }) {
+  const [open, setOpen] = useState(readOpen);
   if (projectInfo?.layout !== 'v2') return null;
   const cost = projectInfo.costPerSqFt || {};
   const missingSqft = !(Number(projectInfo.sqftLiving) > 0) || !(Number(projectInfo.sqftTotal) > 0);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    try {
+      localStorage.setItem(OPEN_KEY, next ? 'true' : 'false');
+    } catch {
+      // Remembering the choice is optional
+    }
+  };
 
   const cells = [
     { label: 'Build / living', value: cost.buildPerLiving },
@@ -45,6 +69,7 @@ export default function DashboardCostPerSqFt({ projectInfo = {} }) {
     { label: 'All-in / living', value: cost.allInPerLiving },
     { label: 'All-in / total', value: cost.allInPerTotal }
   ];
+  const collapsedSummary = missingSqft ? 'Tap to see' : `All-in ${formatPerSqFt(cost.allInPerLiving)} / living sq ft`;
 
   return (
     <div style={{
@@ -59,22 +84,37 @@ export default function DashboardCostPerSqFt({ projectInfo = {} }) {
       flexDirection: 'column',
       gap: '8px'
     }}>
-      <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--st-gold)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <Ruler size={11} /> Cost per sq ft
-      </span>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '6px' }}>
-        {cells.map(cell => (
-          <div key={cell.label} style={cellStyle}>
-            <span style={labelStyle}>{cell.label}</span>
-            <span style={valueStyle}>{formatPerSqFt(cell.value)}</span>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%', minHeight: '32px', padding: 0, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--st-gold)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Ruler size={11} /> Cost per sq ft
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: 'var(--st-muted)' }}>
+          {!open && collapsedSummary}
+          <ChevronDown size={14} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+        </span>
+      </button>
+      {open && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '6px' }}>
+            {cells.map(cell => (
+              <div key={cell.label} style={cellStyle}>
+                <span style={labelStyle}>{cell.label}</span>
+                <span style={valueStyle}>{formatPerSqFt(cell.value)}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <span style={{ fontSize: '0.6rem', color: 'var(--st-muted)', lineHeight: 1.35 }}>
-        {missingSqft
-          ? 'Add square footage in Settings → Edit project'
-          : 'Build = spent + still owed to subs. All-in adds the lot.'}
-      </span>
+          <span style={{ fontSize: '0.6rem', color: 'var(--st-muted)', lineHeight: 1.35 }}>
+            {missingSqft
+              ? 'Add square footage in Settings → Edit project'
+              : 'Build = spent + still owed to subs. All-in adds the lot.'}
+          </span>
+        </>
+      )}
     </div>
   );
 }

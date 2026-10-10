@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.8.6",
-  "releaseName": "Top bar hides while scrolling",
+  "version": "1.8.7",
+  "releaseName": "Cost per sq ft folds away",
   "type": "module",
   "scripts": {
     "dev": "vite",
