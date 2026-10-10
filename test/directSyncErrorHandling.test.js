@@ -113,13 +113,6 @@ describe('Direct Sync Robustness & Failure Isolation Suite', () => {
               json: async () => ({ files: [{ id: 'uploads_folder_123', name: 'Invoice Uploads' }] })
             };
           }
-          if (urlStr.includes("name='Processed Invoices'")) {
-            return {
-              ok: true,
-              status: 200,
-              json: async () => ({ files: [{ id: 'processed_folder_123', name: 'Processed Invoices' }] })
-            };
-          }
           if (urlStr.includes("mimeType='application/vnd.google-apps.spreadsheet'")) {
             return {
               ok: true,

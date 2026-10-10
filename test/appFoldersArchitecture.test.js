@@ -155,7 +155,6 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
 
     // Operational folders via ensureAppSubfolder
     drive.ensureAppSubfolder(lot3.id, 'Invoice Uploads');
-    drive.ensureAppSubfolder(lot3.id, 'Processed Invoices');
     drive.ensureAppSubfolder(lot3.id, 'X-Ray Photos');
     drive.ensureAppSubfolder(lot3.id, 'Vendors / Stores');
     drive.ensureAppSubfolder(lot3.id, 'Master Budget Sheet');
@@ -172,7 +171,6 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
 
     // Verify none of the operational folders leaked to the root
     assert.equal(rootFolderNames.includes('Invoice Uploads'), false);
-    assert.equal(rootFolderNames.includes('Processed Invoices'), false);
     assert.equal(rootFolderNames.includes('X-Ray Photos'), false);
     assert.equal(rootFolderNames.includes('Vendors / Stores'), false);
     assert.equal(rootFolderNames.includes('Master Budget Sheet'), false);
@@ -236,7 +234,7 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
     assert.equal(framingFolder.parentId, projectPhotos.id);
   });
 
-  it('6. Full Pipeline Simulation: Invoice Uploads -> Processing -> Processed Invoices + Budget Discovery', () => {
+  it('6. Full Pipeline Simulation: Invoice Uploads -> Processing -> Vendor Folder + Budget Discovery', () => {
     const drive = new MockDriveFileSystem();
     const lot3 = drive.createFolder('Lot 3');
 
@@ -251,16 +249,16 @@ describe('Canonical Google Drive App Folders Architecture Suite', () => {
 
     // 3. User uploads invoice into App Folders / Invoice Uploads
     const uploadsId = drive.ensureAppSubfolder(lot3.id, 'Invoice Uploads');
-    const archiveId = drive.ensureAppSubfolder(lot3.id, 'Processed Invoices');
     const uploadedInvoice = drive.createFile('Lot 3 - Lumber - Material.pdf', uploadsId, 'application/pdf', 'INVOICE_BYTES');
 
     assert.equal(uploadedInvoice.parentId, uploadsId);
 
-    // 4. Process invoice: Move file from Invoice Uploads to Processed Invoices
-    drive.moveFile(uploadedInvoice.id, uploadsId, archiveId);
+    // 4. Process invoice: Move file from Invoice Uploads to its vendor folder
+    const vendorFolderId = drive.ensureVendorFolder(lot3.id, 'Home Depot');
+    drive.moveFile(uploadedInvoice.id, uploadsId, vendorFolderId);
 
     const movedInvoice = drive.files.get(uploadedInvoice.id);
-    assert.equal(movedInvoice.parentId, archiveId, 'Invoice must now reside in Processed Invoices inside App Folders');
+    assert.equal(movedInvoice.parentId, vendorFolderId, 'Invoice must now reside in Vendors / Stores / Home Depot');
   });
 
   it('7. Dynamic Vendor Routing: Brand-new vendor (e.g. Walmart) creates Vendors / Stores and Walmart folder automatically with 0 manual steps', () => {

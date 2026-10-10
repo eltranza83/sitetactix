@@ -204,9 +204,9 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
     throw new Error('No project folder selected.');
   }
 
-  // 1. Resolve Uploads and Archive folders inside canonical 'App Folders' container
+  // 1. Resolve the Uploads folder inside canonical 'App Folders' container
+  // (synced files move to Vendors / Stores / [Vendor Name], see step 3 below)
   const uploadsFolderId = await ensureAppSubfolder(accessToken, projectFolderId, 'Invoice Uploads');
-  await ensureAppSubfolder(accessToken, projectFolderId, 'Processed Invoices');
 
   // 2. Resolve Google Spreadsheet in the project folder
   // Use the project's linked Sheet; search the folder only when none is linked yet
