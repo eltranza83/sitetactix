@@ -28,13 +28,8 @@ describe('Jarvis retired (v1.7.0); restore from the git tag "jarvis-final" if ev
     }
   });
 
-  test('the scan route and buyer handover PDF are still there', () => {
-    for (const p of [
-      '../api/extract-document.js',
-      '../src/services/buyerHandoverPdfGenerator.js'
-    ]) {
-      assert.equal(exists(p), true, `${p} must exist`);
-    }
+  test('the scan route is still there', () => {
+    assert.equal(exists('../api/extract-document.js'), true);
   });
 
   test('no Jarvis button in the app shell, and the dev server only runs the scan route', () => {

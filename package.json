@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.8.8",
-  "releaseName": "No more empty Processed Invoices folder",
+  "version": "1.8.9",
+  "releaseName": "Unused buyer PDF code removed",
   "type": "module",
   "scripts": {
     "dev": "vite",

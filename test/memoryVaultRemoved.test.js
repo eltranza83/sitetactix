@@ -25,10 +25,6 @@ describe('v1.5.0 Field Brain and Memory Vault removed', () => {
     }
   });
 
-  test('the buyer PDF generator is kept for the future Notion link', () => {
-    assert.equal(exists('../src/services/buyerHandoverPdfGenerator.js'), true);
-  });
-
   test('Settings engine switch says "New" without (beta)', () => {
     const src = read('../src/components/Settings.jsx');
     assert.doesNotMatch(src, /New \(beta\)/);
