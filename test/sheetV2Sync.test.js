@@ -69,6 +69,8 @@ function installMock({ tabs = V2_TABS, files = [], existingIds = [] } = {}) {
       if (decoded.includes('Transactions!J2:J')) return json({ values: existingIds.map(id => [id]) });
       return json({ values: [] });
     }
+    // Phase-section growth check after the sync (tabs here have no QUOTES markers, so nothing grows)
+    if (raw.includes('sheets.googleapis.com/v4/spreadsheets/sheet_1/values:batchGet')) return json({ valueRanges: [] });
     throw new Error(`Unexpected request ${method} ${decoded}`);
   };
   return log;

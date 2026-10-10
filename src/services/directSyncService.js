@@ -17,6 +17,7 @@ import {
   fetchExistingReceiptIds,
   getReceiptId
 } from './sheetV2.js';
+import { growPhaseSections } from './phaseGrowth.js';
 
 const GOOGLE_SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
@@ -254,6 +255,8 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
   let processedCount = 0;
   const failed = [];
   const warnings = [];
+  // Category tabs that got new Transactions rows (their phase sections may need more room)
+  const categoriesWithNewRows = new Set();
 
   for (const file of processableFiles) {
     try {
@@ -309,9 +312,8 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
           // Receipt ID makes the write safe to repeat: a receipt already in Transactions is never added twice
           const receiptId = getReceiptId(file, metadata);
           if (!existingReceiptIds.has(receiptId)) {
-            const appendRes = await appendTransactionRows(accessToken, spreadsheetId, [
-              buildTransactionRow(metadata, { receiptId, fileUrl })
-            ]);
+            const transactionRow = buildTransactionRow(metadata, { receiptId, fileUrl });
+            const appendRes = await appendTransactionRows(accessToken, spreadsheetId, [transactionRow]);
             if (!appendRes.ok) {
               await handleFatalGoogleError(appendRes);
               const errText = await appendRes.text().catch(() => '');
@@ -323,6 +325,7 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
               continue;
             }
             existingReceiptIds.add(receiptId);
+            categoriesWithNewRows.add(transactionRow[3]);
           }
         } else {
           // Resolve matching sheet tab
@@ -571,5 +574,19 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
     }
   }
 
-  return { ok: true, processedCount, failed, warnings };
+  // Give phase sections on the category tabs room for their receipts (never fails the sync)
+  let phaseGrowth = null;
+  let growthNote = null;
+  if (isV2 && categoriesWithNewRows.size > 0) {
+    phaseGrowth = await growPhaseSections(accessToken, spreadsheetId, {
+      tabs: sheetsList.map(s => s.properties || {}),
+      categoryNames: [...categoriesWithNewRows]
+    });
+    if (phaseGrowth.errors.length > 0) {
+      console.warn('[directSync] Phase sections could not grow:', phaseGrowth.errors);
+      growthNote = 'Some phase sections in the Sheet could not add rows. If a phase shows a ⚠ warning, insert rows above its QUOTES row.';
+    }
+  }
+
+  return { ok: true, processedCount, failed, warnings, phaseGrowth, growthNote };
 }

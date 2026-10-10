@@ -47,6 +47,11 @@ function writePdfLoadingState(newWindow) {
   `);
 }
 
+// Short note when the Sheet's phase sections could not add rows after a sync (the sync itself still succeeded)
+function growthNoteFor(result) {
+  return result?.growthNote ? ` Note: ${result.growthNote}` : '';
+}
+
 // The linked Sheet only applies when syncing the active project's own folder
 function linkedSheetFor(project, folderId) {
   return project?.folderId === folderId ? (project?.spreadsheetId || null) : null;
@@ -98,14 +103,14 @@ export function useInvoiceSync({
 
       if (hasFailures) {
         if (result.processedCount > 0) {
-          setSuccess(`Synced ${result.processedCount} invoice(s). Note: ${result.failed.length} file(s) left in Uploads: ${result.failed[0].reason}`);
+          setSuccess(`Synced ${result.processedCount} invoice(s). Note: ${result.failed.length} file(s) left in Uploads: ${result.failed[0].reason}${growthNoteFor(result)}`);
         } else {
           setError(`Could not sync: ${result.failed[0].fileName} - ${result.failed[0].reason}`);
         }
       } else {
         setSuccess(
           result.processedCount > 0
-            ? `Synced ${result.processedCount} invoice(s) directly to your spreadsheet!`
+            ? `Synced ${result.processedCount} invoice(s) directly to your spreadsheet!${growthNoteFor(result)}`
             : 'Spreadsheet is up to date!'
         );
       }
@@ -214,9 +219,9 @@ export function useInvoiceSync({
       setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasOtherFailures);
 
       if (hasOtherFailures) {
-        setSuccess(`Synced directly to spreadsheet & Drive! (Note: ${result.failed.length} other file(s) in Uploads require attention)`);
+        setSuccess(`Synced directly to spreadsheet & Drive! (Note: ${result.failed.length} other file(s) in Uploads require attention)${growthNoteFor(result)}`);
       } else {
-        setSuccess('Synced directly to spreadsheet & Drive!');
+        setSuccess(`Synced directly to spreadsheet & Drive!${growthNoteFor(result)}`);
       }
       setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
@@ -404,13 +409,13 @@ export function useInvoiceSync({
       if (hasFailures) {
         if (result.processedCount > 0) {
           const docWord = result.processedCount === 1 ? 'document' : 'documents';
-          setSuccess(`Synced ${result.processedCount} ${docWord}. ${result.failed.length} file(s) require attention.${warningNote}${phaseNote}`);
+          setSuccess(`Synced ${result.processedCount} ${docWord}. ${result.failed.length} file(s) require attention.${warningNote}${phaseNote}${growthNoteFor(result)}`);
         } else {
           setError(`Spreadsheet sync failed for ${result.failed.length} document(s). Drafts remain safely on device to retry.`);
         }
       } else {
         const docWord = successfulIds.length === 1 ? 'document' : 'documents';
-        setSuccess(`Synced ${successfulIds.length} ${docWord}.${phaseNote}`);
+        setSuccess(`Synced ${successfulIds.length} ${docWord}.${phaseNote}${growthNoteFor(result)}`);
       }
       setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
