@@ -31,7 +31,9 @@ export default function SettingsProjectModal({
     { field: 'cityStateZip', label: 'City, State, Zip', placeholder: 'e.g. McAllen, TX 78504' },
     { field: 'scope', label: 'Development Scope', placeholder: 'e.g. Single Family Residence Plan' },
     { field: 'budgetBuild', label: 'Budget for Build (Hard Costs)', placeholder: 'e.g. 240000', numeric: true },
-    { field: 'lotCost', label: 'Lot Cost (Land)', placeholder: 'e.g. 70500', numeric: true }
+    { field: 'lotCost', label: 'Lot Cost (Land)', placeholder: 'e.g. 70500', numeric: true },
+    { field: 'sqftTotal', label: 'Total sq ft (under roof, incl. garage/porches)', placeholder: 'e.g. 2600', numeric: true },
+    { field: 'sqftLiving', label: 'Living sq ft (air-conditioned)', placeholder: 'e.g. 2000', numeric: true }
   ];
 
   return (

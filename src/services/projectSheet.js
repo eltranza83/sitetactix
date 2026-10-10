@@ -38,13 +38,15 @@ export function clearSheetLinkIfFolderChanged(project, newFolderId) {
   return { ...project, spreadsheetId: '', spreadsheetName: '' };
 }
 
-/** The setup values shown in the project form besides the name (Project Info rows 3-7). */
+/** The setup values shown in the project form besides the name (Project Info rows 3-9). */
 export const EMPTY_PROJECT_DETAILS = {
   address: '',
   cityStateZip: '',
   scope: '',
   budgetBuild: '',
-  lotCost: ''
+  lotCost: '',
+  sqftTotal: '',
+  sqftLiving: ''
 };
 
 /** Name of the Sheet copied from the template for a new project. */
@@ -61,11 +63,13 @@ export function projectDetailsFromSheet(info) {
     cityStateZip: String(info.cityStateZip || ''),
     scope: String(info.scope || ''),
     budgetBuild: amount(info.budgetBuild),
-    lotCost: amount(info.lotCost)
+    lotCost: amount(info.lotCost),
+    sqftTotal: amount(info.sqftTotal),
+    sqftLiving: amount(info.sqftLiving)
   };
 }
 
-/** The six Project Info values to write, from the project name and the form details. */
+/** The Project Info values to write, from the project name and the form details. */
 export function buildProjectInfoFromForm(projectName, details = {}) {
   return {
     name: String(projectName || '').trim(),
@@ -73,15 +77,17 @@ export function buildProjectInfoFromForm(projectName, details = {}) {
     cityStateZip: String(details.cityStateZip || '').trim(),
     scope: String(details.scope || '').trim(),
     budgetBuild: String(details.budgetBuild ?? '').trim(),
-    lotCost: String(details.lotCost ?? '').trim()
+    lotCost: String(details.lotCost ?? '').trim(),
+    sqftTotal: String(details.sqftTotal ?? '').trim(),
+    sqftLiving: String(details.sqftLiving ?? '').trim()
   };
 }
 
 /** True when any Project Info value differs (amounts compared as numbers, text without outer spaces). */
 export function projectInfoChanged(before, after) {
   if (!before) return true;
-  const numeric = new Set(['budgetBuild', 'lotCost']);
-  return ['name', 'address', 'cityStateZip', 'scope', 'budgetBuild', 'lotCost'].some(field => {
+  const numeric = new Set(['budgetBuild', 'lotCost', 'sqftTotal', 'sqftLiving']);
+  return ['name', 'address', 'cityStateZip', 'scope', 'budgetBuild', 'lotCost', 'sqftTotal', 'sqftLiving'].some(field => {
     if (numeric.has(field)) {
       const left = parseFloat(String(before[field] ?? '').replace(/[^0-9.-]/g, '')) || 0;
       const right = parseFloat(String(after?.[field] ?? '').replace(/[^0-9.-]/g, '')) || 0;

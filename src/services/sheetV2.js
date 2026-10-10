@@ -33,16 +33,20 @@ export const V2_CATEGORIES = [
   { key: 'Project_Overhead_&_Bills', name: 'Project Overhead & Bills', phases: ['Monthly Utility Bills', 'Dumpsters & Cleaning', 'Extra Costs & Misc'] }
 ];
 
-/** Project Info rows 2-7: label in column A (exact), value in column B. */
+/** Project Info rows 2-9: label in column A (exact), value in column B. Rows 8-9 were added in v2.2. */
 export const PROJECT_INFO_FIELDS = [
   { field: 'name', label: 'Project Name' },
   { field: 'address', label: 'Street Address' },
   { field: 'cityStateZip', label: 'City, State, Zip' },
   { field: 'scope', label: 'Development Scope' },
   { field: 'budgetBuild', label: 'Budget for Build (Hard Costs)', numeric: true },
-  { field: 'lotCost', label: 'Lot Cost (Land)', numeric: true }
+  { field: 'lotCost', label: 'Lot Cost (Land)', numeric: true },
+  { field: 'sqftTotal', label: 'Total Sq Ft', numeric: true },
+  { field: 'sqftLiving', label: 'Living Sq Ft', numeric: true }
 ];
-export const PROJECT_INFO_RANGE = `'${V2_TABS.projectInfo}'!B2:B7`;
+const PROJECT_INFO_SHEET = `'${V2_TABS.projectInfo}'`;
+export const PROJECT_INFO_RANGE = `${PROJECT_INFO_SHEET}!B2:B9`;
+const PROJECT_INFO_SQFT_LABEL_RANGE = `${PROJECT_INFO_SHEET}!A8:A9`;
 export const TRANSACTIONS_APPEND_RANGE = `${V2_TABS.transactions}!A:J`;
 
 function normKey(value) {
@@ -181,7 +185,7 @@ export function parseProjectInfo(rows) {
   return info;
 }
 
-/** The six Project Info values for `Project Info!B2:B7`, in row order. */
+/** The eight Project Info values for `Project Info!B2:B9`, in row order. */
 export function buildProjectInfoValues(info = {}) {
   return PROJECT_INFO_FIELDS.map(({ field, numeric }) => {
     const raw = info[field];
@@ -391,6 +395,14 @@ export function computeV2Dashboard({ projectInfoRows = [], transactionRows = [],
       stillOwed,
       budgetAfterSubs: roundCents(budgetRemaining - stillOwed),
       projectedBuildCost: roundCents(totalSpent + stillOwed),
+      sqftTotal: info.sqftTotal,
+      sqftLiving: info.sqftLiving,
+      costPerSqFt: computeCostPerSqFt({
+        projectedBuildCost: roundCents(totalSpent + stillOwed),
+        lotCost: budgetLand,
+        sqftLiving: info.sqftLiving,
+        sqftTotal: info.sqftTotal
+      }),
       hasFormulaError: false,
       formulaErrors: []
     },
@@ -509,14 +521,63 @@ export async function appendTransactionRows(accessToken, spreadsheetId, rows) {
   });
 }
 
-/** Writes the six setup values to `Project Info!B2:B7`. */
+/**
+ * The cells to write for Project Info, given what is in A8:A9 now (`labelCells` = [A8, A9]; null when unknown,
+ * which writes rows 2-7 only).
+ * Rows 2-7 always; for rows 8-9 (square footage) the value is written when column A is empty or already holds
+ * the label, and an empty A8/A9 gets its label so older Sheet copies are upgraded. Other content is never touched.
+ */
+export function planProjectInfoWrite(info = {}, labelCells = null) {
+  const values = buildProjectInfoValues(info);
+  const data = [{ range: `${PROJECT_INFO_SHEET}!B2:B7`, values: values.slice(0, 6) }];
+  [6, 7].forEach(index => {
+    const row = index + 2;
+    const { label } = PROJECT_INFO_FIELDS[index];
+    if (!Array.isArray(labelCells)) return;
+    const current = cellText(labelCells[index - 6]);
+    if (current && normKey(current) !== normKey(label)) return;
+    if (!current) data.push({ range: `${PROJECT_INFO_SHEET}!A${row}`, values: [[label]] });
+    data.push({ range: `${PROJECT_INFO_SHEET}!B${row}`, values: [values[index]] });
+  });
+  return data;
+}
+
+/** Writes the setup values to `Project Info!B2:B9` (adding the square-footage labels to older copies). */
 export async function writeProjectInfo(accessToken, spreadsheetId, info) {
-  const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(PROJECT_INFO_RANGE)}?valueInputOption=USER_ENTERED`;
+  let labelCells = null;
+  try {
+    const readUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(PROJECT_INFO_SQFT_LABEL_RANGE)}`;
+    const current = await sheetsRequest(accessToken, readUrl, {}, 'read Project Info');
+    const rows = current.values || [];
+    labelCells = [rows[0]?.[0] ?? '', rows[1]?.[0] ?? ''];
+  } catch (err) {
+    if (err?.status === 401 || err?.status === 403) throw err;
+    // Rows 8-9 unknown: write rows 2-7 only rather than risk overwriting something
+  }
+  const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values:batchUpdate`;
   return sheetsRequest(accessToken, url, {
-    method: 'PUT',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ range: PROJECT_INFO_RANGE, majorDimension: 'ROWS', values: buildProjectInfoValues(info) })
+    body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: planProjectInfoWrite(info, labelCells) })
   }, 'write Project Info');
+}
+
+/** Whole dollars per square foot, or "—" when that square footage is missing. */
+export function formatPerSqFt(value) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+  return `$${Math.round(Number(value)).toLocaleString('en-US')}`;
+}
+
+/** Dollars per square foot for the Dashboard (null when that square footage is blank or 0). */
+export function computeCostPerSqFt({ projectedBuildCost = 0, lotCost = 0, sqftLiving = 0, sqftTotal = 0 } = {}) {
+  const per = (amount, sqft) => (Number(sqft) > 0 ? roundCents(amount / Number(sqft)) : null);
+  const allIn = projectedBuildCost + lotCost;
+  return {
+    buildPerLiving: per(projectedBuildCost, sqftLiving),
+    buildPerTotal: per(projectedBuildCost, sqftTotal),
+    allInPerLiving: per(allIn, sqftLiving),
+    allInPerTotal: per(allIn, sqftTotal)
+  };
 }
 
 /** Project Info of a linked Sheet, or null when the Sheet is not the new layout. */

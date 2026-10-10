@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.8.3",
-  "releaseName": "Clearer names and receipt links",
+  "version": "1.8.4",
+  "releaseName": "Cost per square foot",
   "type": "module",
   "scripts": {
     "dev": "vite",

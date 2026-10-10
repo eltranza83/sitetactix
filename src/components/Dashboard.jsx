@@ -13,6 +13,7 @@ import {
 } from '../services/dashboardDrive';
 import DashboardContractorSearch from './DashboardContractorSearch';
 import DashboardKpiCards from './DashboardKpiCards';
+import DashboardCostPerSqFt from './DashboardCostPerSqFt';
 import DashboardPhotoReminders from './DashboardPhotoReminders';
 import DashboardPhotoGallery from './DashboardPhotoGallery';
 import DashboardTradeSections from './DashboardTradeSections';
@@ -553,6 +554,8 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
             projectInfo={data?.projectInfo || {}}
             formatCurrency={formatCurrency}
           />
+
+          <DashboardCostPerSqFt projectInfo={data?.projectInfo || {}} />
 
           <DashboardPhotoReminders
             reminders={activeReminders}

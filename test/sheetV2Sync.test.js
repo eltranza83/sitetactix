@@ -180,7 +180,7 @@ describe('Dashboard data picks the reader by layout', () => {
 });
 
 describe('new project Sheet from the template', () => {
-  it('copies the template into the lot folder and fills Project Info B2:B7', async () => {
+  it('copies the template into the lot folder and fills Project Info B2:B9', async () => {
     const calls = [];
     globalThis.fetch = async (url, options = {}) => {
       calls.push({ url: decodeURIComponent(String(url)), options });
@@ -202,10 +202,10 @@ describe('new project Sheet from the template', () => {
     assert.deepEqual(result.sheet, { id: 'new_sheet', name: 'Lot 4 – SiteTactix' });
     assert.equal(result.infoWritten, true);
     assert.equal(result.linksClipped, true);
-    assert.equal(calls.length, 4);
+    assert.equal(calls.length, 5);
 
     // Receipt link columns are clipped: column G of the 9 category tabs, Transactions column I
-    const format = calls[3];
+    const format = calls[4];
     assert.equal(format.url, 'https://sheets.googleapis.com/v4/spreadsheets/new_sheet:batchUpdate');
     assert.equal(format.options.method, 'POST');
     const { requests } = JSON.parse(format.options.body);
@@ -226,9 +226,12 @@ describe('new project Sheet from the template', () => {
     assert.equal(copy.options.headers.Authorization, 'Bearer tok');
     assert.deepEqual(JSON.parse(copy.options.body), { name: 'Lot 4 – SiteTactix', parents: ['lot_folder'] });
 
-    const write = calls[1];
-    assert.match(write.url, /spreadsheets\/new_sheet\/values\/'Project Info'!B2:B7\?valueInputOption=USER_ENTERED$/);
-    assert.deepEqual(JSON.parse(write.options.body).values, [['Lot 4'], ['14 Northwood Trail'], ['McAllen, TX 78504'], ['SFR'], [250000], [72000]]);
+    assert.match(calls[1].url, /new_sheet\/values\/'Project Info'!A8:A9$/);
+    const write = calls[2];
+    assert.match(write.url, /spreadsheets\/new_sheet\/values:batchUpdate$/);
+    const { data } = JSON.parse(write.options.body);
+    assert.deepEqual(data[0], { range: "'Project Info'!B2:B7", values: [['Lot 4'], ['14 Northwood Trail'], ['McAllen, TX 78504'], ['SFR'], [250000], [72000]] });
+    assert.deepEqual(data.slice(1).map(d => d.range), ["'Project Info'!A8", "'Project Info'!B8", "'Project Info'!A9", "'Project Info'!B9"]);
   });
 
   it('keeps the copy when Project Info could not be written', async () => {
@@ -245,7 +248,7 @@ describe('new project Sheet from the template', () => {
     globalThis.fetch = async (url) => {
       const raw = String(url);
       if (raw.includes('/copy')) return json({ id: 'new_sheet', name: 'Lot 6 – SiteTactix' });
-      if (raw.includes(':batchUpdate')) throw new Error('offline');
+      if (raw.endsWith('new_sheet:batchUpdate')) throw new Error('offline');
       if (raw.includes('?fields=sheets')) return json({ sheets: [{ properties: { sheetId: 5, title: 'Transactions' } }] });
       return json({});
     };
@@ -258,11 +261,22 @@ describe('new project Sheet from the template', () => {
   it('copy name, form values and change detection', () => {
     assert.equal(templateCopyName('Lot 3 – Northwood Trail'), 'Lot 3 – Northwood Trail – SiteTactix');
     const fromSheet = { name: 'Lot 3', address: '', cityStateZip: 'McAllen, TX', scope: 'SFR', budgetBuild: 240000, lotCost: 0 };
-    assert.deepEqual(projectDetailsFromSheet(fromSheet), { address: '', cityStateZip: 'McAllen, TX', scope: 'SFR', budgetBuild: '240000', lotCost: '' });
+    assert.deepEqual(projectDetailsFromSheet(fromSheet), { address: '', cityStateZip: 'McAllen, TX', scope: 'SFR', budgetBuild: '240000', lotCost: '', sqftTotal: '', sqftLiving: '' });
     const same = buildProjectInfoFromForm('Lot 3', projectDetailsFromSheet(fromSheet));
     assert.equal(projectInfoChanged(fromSheet, same), false);
     assert.equal(projectInfoChanged(fromSheet, { ...same, budgetBuild: '$240,000' }), false);
     assert.equal(projectInfoChanged(fromSheet, { ...same, address: '12 Oak' }), true);
     assert.equal(projectInfoChanged(null, same), true);
+
+    // Square footage is part of the form and of change detection
+    const withSqft = { ...fromSheet, sqftTotal: 2600, sqftLiving: 2000 };
+    const details = projectDetailsFromSheet(withSqft);
+    assert.equal(details.sqftTotal, '2600');
+    assert.equal(details.sqftLiving, '2000');
+    const formInfo = buildProjectInfoFromForm('Lot 3', details);
+    assert.equal(projectInfoChanged(withSqft, formInfo), false);
+    assert.equal(projectInfoChanged(withSqft, { ...formInfo, sqftLiving: '2,000' }), false);
+    assert.equal(projectInfoChanged(withSqft, { ...formInfo, sqftLiving: '2100' }), true);
+    assert.equal(projectInfoChanged(fromSheet, { ...same, sqftTotal: '2600' }), true);
   });
 });

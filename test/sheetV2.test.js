@@ -15,8 +15,11 @@ import {
   fetchV2DashboardData,
   getReceiptId,
   parseProjectInfo,
-  writeProjectInfo
+  writeProjectInfo,
+  planProjectInfoWrite,
+  computeCostPerSqFt
 } from '../src/services/sheetV2.js';
+import { formatPerSqFt } from '../src/services/sheetV2.js';
 import { buildReceiptId } from '../src/services/invoiceUpload.js';
 import { GEMINI_RESPONSE_SCHEMA } from '../api/_lib/document-prompt.js';
 
@@ -145,43 +148,113 @@ describe('Transactions rows', () => {
 });
 
 describe('Project Info', () => {
-  test('read by label, amounts as numbers', () => {
-    const info = parseProjectInfo(SAMPLE.projectInfoRows);
+  test('read by label, amounts as numbers (rows 8-9 = square footage)', () => {
+    const info = parseProjectInfo([...SAMPLE.projectInfoRows, ['Total Sq Ft', 2600], ['Living Sq Ft', '2,000']]);
     assert.deepEqual(info, {
       name: 'Lot 3 – Northwood Trail',
       address: '',
       cityStateZip: 'McAllen, TX 78504',
       scope: 'Single Family Residence Plan',
       budgetBuild: 240000,
-      lotCost: 70500
+      lotCost: 70500,
+      sqftTotal: 2600,
+      sqftLiving: 2000
     });
-    // Rows in a different order still read by label
+    // Older copies without rows 8-9 read as 0; rows in a different order still read by label
+    assert.equal(parseProjectInfo(SAMPLE.projectInfoRows).sqftLiving, 0);
     assert.equal(parseProjectInfo([['Lot Cost (Land)', '1,000'], ['Street Address', '12 Oak']]).lotCost, 1000);
   });
 
-  test('written as B2:B7 in row order', async () => {
+  test('values for B2:B9 in row order', () => {
     const values = buildProjectInfoValues({
       name: 'Lot 4', address: '14 Northwood Trail', cityStateZip: 'McAllen, TX 78504',
-      scope: 'Single Family Residence Plan', budgetBuild: '$250,000', lotCost: ''
+      scope: 'Single Family Residence Plan', budgetBuild: '$250,000', lotCost: '', sqftTotal: '2,600', sqftLiving: '2000'
     });
-    assert.deepEqual(values, [['Lot 4'], ['14 Northwood Trail'], ['McAllen, TX 78504'], ['Single Family Residence Plan'], [250000], ['']]);
+    assert.deepEqual(values, [['Lot 4'], ['14 Northwood Trail'], ['McAllen, TX 78504'], ['Single Family Residence Plan'], [250000], [''], [2600], [2000]]);
+  });
 
+  test('write plan: labels added to an older copy, other content never overwritten', () => {
+    const info = { name: 'Lot 4', sqftTotal: '2600', sqftLiving: '2000' };
+    // Current template: labels already there
+    assert.deepEqual(planProjectInfoWrite(info, ['Total Sq Ft', 'Living Sq Ft']).map(d => d.range), [
+      "'Project Info'!B2:B7", "'Project Info'!B8", "'Project Info'!B9"
+    ]);
+    // Older copy: A8/A9 empty, so the labels are written too
+    const upgraded = planProjectInfoWrite(info, ['', '']);
+    assert.deepEqual(upgraded.map(d => [d.range, d.values]), [
+      ["'Project Info'!B2:B7", [['Lot 4'], [''], [''], [''], [''], ['']]],
+      ["'Project Info'!A8", [['Total Sq Ft']]],
+      ["'Project Info'!B8", [[2600]]],
+      ["'Project Info'!A9", [['Living Sq Ft']]],
+      ["'Project Info'!B9", [[2000]]]
+    ]);
+    // Something else in A8: row 8 left alone, row 9 still filled
+    assert.deepEqual(planProjectInfoWrite(info, ['Notes', '']).map(d => d.range), [
+      "'Project Info'!B2:B7", "'Project Info'!A9", "'Project Info'!B9"
+    ]);
+    // A8:A9 unknown: rows 2-7 only
+    assert.deepEqual(planProjectInfoWrite(info, null).map(d => d.range), ["'Project Info'!B2:B7"]);
+  });
+
+  test('writing reads A8:A9 first, then sends one batch write', async () => {
     const originalFetch = globalThis.fetch;
     const calls = [];
     try {
-      globalThis.fetch = async (url, options) => {
+      globalThis.fetch = async (url, options = {}) => {
         calls.push({ url: decodeURIComponent(String(url)), options });
+        if (!options.method) return { ok: true, json: async () => ({ values: [] }) };
         return { ok: true, json: async () => ({}) };
       };
-      await writeProjectInfo('tok', 'sheet_1', { name: 'Lot 4', budgetBuild: 250000 });
-      assert.equal(calls.length, 1);
-      assert.match(calls[0].url, /sheet_1\/values\/'Project Info'!B2:B7\?valueInputOption=USER_ENTERED$/);
-      assert.equal(calls[0].options.method, 'PUT');
-      assert.equal(calls[0].options.headers.Authorization, 'Bearer tok');
-      assert.equal(JSON.parse(calls[0].options.body).values.length, 6);
+      await writeProjectInfo('tok', 'sheet_1', { name: 'Lot 4', budgetBuild: 250000, sqftTotal: 2600, sqftLiving: 2000 });
+      assert.equal(calls.length, 2);
+      assert.match(calls[0].url, /sheet_1\/values\/'Project Info'!A8:A9$/);
+      assert.match(calls[1].url, /sheet_1\/values:batchUpdate$/);
+      assert.equal(calls[1].options.method, 'POST');
+      assert.equal(calls[1].options.headers.Authorization, 'Bearer tok');
+      const body = JSON.parse(calls[1].options.body);
+      assert.equal(body.valueInputOption, 'USER_ENTERED');
+      assert.deepEqual(body.data[0].values[4], [250000]);
+      assert.deepEqual(body.data.map(d => d.range), [
+        "'Project Info'!B2:B7", "'Project Info'!A8", "'Project Info'!B8", "'Project Info'!A9", "'Project Info'!B9"
+      ]);
+
+      // A failed label read still writes rows 2-7
+      calls.length = 0;
+      globalThis.fetch = async (url, options = {}) => {
+        calls.push({ url: decodeURIComponent(String(url)), options });
+        if (!options.method) return { ok: false, status: 400, text: async () => 'bad range' };
+        return { ok: true, json: async () => ({}) };
+      };
+      await writeProjectInfo('tok', 'sheet_1', { name: 'Lot 4' });
+      assert.deepEqual(JSON.parse(calls[1].options.body).data.map(d => d.range), ["'Project Info'!B2:B7"]);
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe('cost per square foot', () => {
+  test('spec sample: $40 / $31 build, $76 / $58 all-in', () => {
+    const data = computeV2Dashboard({
+      ...SAMPLE,
+      projectInfoRows: [...SAMPLE.projectInfoRows, ['Total Sq Ft', 2600], ['Living Sq Ft', 2000]]
+    });
+    const cost = data.projectInfo.costPerSqFt;
+    assert.equal(data.projectInfo.projectedBuildCost, 80940);
+    assert.equal(cost.buildPerLiving, 40.47);
+    assert.equal(cost.buildPerTotal, 31.13);
+    assert.equal(cost.allInPerLiving, 75.72);
+    assert.equal(cost.allInPerTotal, 58.25);
+    assert.deepEqual([cost.buildPerLiving, cost.buildPerTotal, cost.allInPerLiving, cost.allInPerTotal].map(formatPerSqFt), ['$40', '$31', '$76', '$58']);
+  });
+
+  test('missing or zero square footage shows a dash', () => {
+    const cost = computeV2Dashboard(SAMPLE).projectInfo.costPerSqFt;
+    assert.deepEqual(cost, { buildPerLiving: null, buildPerTotal: null, allInPerLiving: null, allInPerTotal: null });
+    assert.equal(formatPerSqFt(cost.buildPerLiving), '—');
+    const half = computeCostPerSqFt({ projectedBuildCost: 1000, lotCost: 0, sqftLiving: 0, sqftTotal: 100 });
+    assert.equal(half.buildPerLiving, null);
+    assert.equal(half.buildPerTotal, 10);
   });
 });
 
