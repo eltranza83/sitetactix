@@ -445,9 +445,9 @@ export async function fetchExistingReceiptIds(accessToken, spreadsheetId) {
   return collectReceiptIds(data.values || []);
 }
 
-/** Appends rows to the bottom of Transactions (never overwrites anything). Returns the fetch response. */
+/** Fills the next empty rows at the bottom of Transactions (keeps the template's row formatting and dropdowns). Returns the fetch response. */
 export async function appendTransactionRows(accessToken, spreadsheetId, rows) {
-  const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(TRANSACTIONS_APPEND_RANGE)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(TRANSACTIONS_APPEND_RANGE)}:append?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE`;
   return fetch(url, {
     method: 'POST',
     headers: {

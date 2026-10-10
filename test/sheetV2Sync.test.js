@@ -92,7 +92,7 @@ describe('sync to a new-layout Sheet', () => {
     assert.equal(log.appends.length, 2);
     assert.equal(log.puts.length, 0, 'no PUT writes into category tabs');
     const { url, body } = log.appends[0];
-    assert.match(url, /\/values\/Transactions!A:J:append\?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS$/);
+    assert.match(url, /\/values\/Transactions!A:J:append\?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE$/);
     assert.deepEqual(body.values, [[
       '2026-09-20', 'Pedro Salinas', 'Tile labor draw', 'Paint & Tile', 'Tile & Flooring',
       '', 3000, '1050', 'https://drive.google.com/file/d/file_a/view', 'draft_1_split_0'
