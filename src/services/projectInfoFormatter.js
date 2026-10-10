@@ -49,3 +49,8 @@ export function getProjectPacketInfo(projectInfo, projectName, selectedFolderNam
     fullAddress: fullAddress || 'N/A'
   };
 }
+
+// Number boxes on the project form keep only digits, commas and a decimal point (browser address autofill can drop text like "United States" into them)
+export function cleanNumberInput(value) {
+  return String(value ?? '').replace(/[^\d.,]/g, '');
+}

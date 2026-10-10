@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle, FolderOpen, FolderPlus, X } from 'lucide-react';
+import { cleanNumberInput } from '../services/projectInfoFormatter';
 
 export default function SettingsProjectModal({
   isOpen,
@@ -27,9 +28,9 @@ export default function SettingsProjectModal({
   // The house details live in the new-layout Sheet's Project Info tab
   const showDetails = makingFromTemplate || sheetInfo.status === 'v2';
   const detailFields = [
-    { field: 'address', label: 'Street Address', placeholder: 'e.g. 1204 Northwood Trail' },
-    { field: 'cityStateZip', label: 'City, State, Zip', placeholder: 'e.g. McAllen, TX 78504' },
-    { field: 'scope', label: 'Development Scope', placeholder: 'e.g. Single Family Residence Plan' },
+    { field: 'address', label: 'Street Address', placeholder: 'e.g. 1204 Northwood Trail', autoComplete: 'address-line1' },
+    { field: 'cityStateZip', label: 'City, State, Zip', placeholder: 'e.g. McAllen, TX 78504', autoComplete: 'off' },
+    { field: 'scope', label: 'Development Scope', placeholder: 'e.g. Single Family Residence Plan', autoComplete: 'off' },
     { field: 'budgetBuild', label: 'Budget for Build (Hard Costs)', placeholder: 'e.g. 240000', numeric: true },
     { field: 'lotCost', label: 'Lot Cost (Land)', placeholder: 'e.g. 70500', numeric: true },
     { field: 'sqftTotal', label: 'Total sq ft (under roof, incl. garage/porches)', placeholder: 'e.g. 2600', numeric: true },
@@ -173,16 +174,18 @@ export default function SettingsProjectModal({
 
           {showDetails && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {detailFields.map(({ field, label, placeholder, numeric }) => (
+              {detailFields.map(({ field, label, placeholder, numeric, autoComplete }) => (
                 <div className="form-group" key={field}>
                   <label className="form-label" htmlFor={`project-${field}`}>{label}</label>
                   <input
                     type="text"
                     inputMode={numeric ? 'decimal' : undefined}
+                    autoComplete={numeric ? 'off' : autoComplete}
+                    name={`sitetactix-${field}`}
                     id={`project-${field}`}
                     className="form-input"
                     value={projectDetails[field] || ''}
-                    onChange={(e) => onProjectDetailChange?.(field, e.target.value)}
+                    onChange={(e) => onProjectDetailChange?.(field, numeric ? cleanNumberInput(e.target.value) : e.target.value)}
                     placeholder={placeholder}
                   />
                 </div>

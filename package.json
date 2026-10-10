@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.8.4",
-  "releaseName": "Cost per square foot",
+  "version": "1.8.5",
+  "releaseName": "Number boxes ignore autofill",
   "type": "module",
   "scripts": {
     "dev": "vite",
