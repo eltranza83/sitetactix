@@ -10,6 +10,25 @@ export function buildDashboardPhotoFileName(originalName, now = new Date()) {
   return `Photo_${timestamp}_${originalName}`;
 }
 
+/**
+ * Contractor lookup: phases whose payee, phase or category contains the search text, or (new-layout Sheets)
+ * whose contracts' Sub or Company does, so "Enrique" and "Lucen" both find "Enrique Vallejo (Lucen LLC)".
+ */
+export function filterContractorSuggestions(subcontractors, searchTerm) {
+  if (!Array.isArray(subcontractors)) return [];
+  const query = String(searchTerm || '').toLowerCase();
+  return subcontractors.filter(sub => {
+    if (!sub) return false;
+    const names = [
+      sub.payee,
+      sub.phase,
+      sub.category,
+      ...(Array.isArray(sub.contracts) ? sub.contracts.flatMap(c => [c?.sub, c?.company]) : [])
+    ];
+    return names.some(name => String(name || '').toLowerCase().includes(query));
+  });
+}
+
 export function getDashboardStorageKeys(projectId) {
   return {
     spreadsheetId: `jobscan_sheet_id_${projectId}`,

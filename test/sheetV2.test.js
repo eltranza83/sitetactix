@@ -223,7 +223,9 @@ describe('v2 Dashboard math (spec sample)', () => {
     assert.equal(electrical.originalQuote, 15000);
     assert.equal(electrical.contractorPaid, 8000);
     assert.equal(electrical.remainingBalance, 7000);
-    assert.equal(electrical.payee, 'Vallejo Electric LLC');
+    assert.equal(electrical.payee, 'Enrique Vallejo (Vallejo Electric LLC)');
+    assert.equal(data.subcontractors.find(s => s.phase === 'HVAC / AC Systems').payee, 'Rio Cool Air');
+    assert.equal(data.subcontractors.find(s => s.phase === 'Tile & Flooring').payee, 'Pedro Salinas');
     assert.equal(electrical.payments.length, 3);
     const insulation = data.subcontractors.find(s => s.phase === 'Insulation & Alarms');
     assert.equal(insulation.totalSpent, 0);

@@ -258,6 +258,14 @@ export function computeContractPaid(contract, transactions) {
   return roundCents(total);
 }
 
+/** How a contract's sub is shown: "Enrique Vallejo (Lucen LLC)" when both names exist and differ, else the one name. */
+export function contractDisplayName(sub, company) {
+  const person = cellText(sub);
+  const firm = cellText(company);
+  if (person && firm && person.toLowerCase() !== firm.toLowerCase()) return `${person} (${firm})`;
+  return person || firm;
+}
+
 function formatMoney(value) {
   return `$${roundCents(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -273,6 +281,7 @@ export function computeV2Dashboard({ projectInfoRows = [], transactionRows = [],
     const paid = computeContractPaid(contract, transactions);
     return {
       ...contract,
+      displayName: contractDisplayName(contract.sub, contract.company),
       phase: canonicalPhaseName(contract.phase),
       category: categoryForPhase(contract.phase)?.name || categoryDisplayName(contract.category),
       paid,
@@ -325,7 +334,7 @@ export function computeV2Dashboard({ projectInfoRows = [], transactionRows = [],
     const quote = entry.contracts.reduce((sum, c) => sum + c.quote, 0);
     const paid = entry.contracts.reduce((sum, c) => sum + c.paid, 0);
     const owed = entry.contracts.reduce((sum, c) => sum + c.stillOwed, 0);
-    const payee = entry.contracts.map(c => c.company || c.sub).filter(Boolean).join(' / ');
+    const payee = entry.contracts.map(c => c.displayName).filter(Boolean).join(' / ');
     const material = roundCents(entry.material);
     const labor = roundCents(entry.labor);
     return {
@@ -413,6 +422,48 @@ export async function fetchSheetTabs(accessToken, spreadsheetId) {
   const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}?fields=sheets(properties(sheetId,title))`;
   const data = await sheetsRequest(accessToken, url, {}, 'read the Google Sheet tabs');
   return (data.sheets || []).map(s => s.properties || {}).filter(p => p.title);
+}
+
+/** batchUpdate body that clips long receipt links: column G (rows 1-2000) of each category tab and Transactions column I (rows 1-5000). */
+export function buildClipReceiptLinksRequest(tabs) {
+  const clip = (sheetId, column, endRow) => ({
+    repeatCell: {
+      range: { sheetId, startRowIndex: 0, endRowIndex: endRow, startColumnIndex: column, endColumnIndex: column + 1 },
+      cell: { userEnteredFormat: { wrapStrategy: 'CLIP' } },
+      fields: 'userEnteredFormat.wrapStrategy'
+    }
+  });
+  const requests = [];
+  const list = Array.isArray(tabs) ? tabs : [];
+  V2_CATEGORIES.forEach(category => {
+    const tab = list.find(t => cellText(t?.title) === category.name);
+    if (tab && tab.sheetId !== undefined && tab.sheetId !== null) requests.push(clip(tab.sheetId, 6, 2000));
+  });
+  const transactions = list.find(t => cellText(t?.title) === V2_TABS.transactions);
+  if (transactions && transactions.sheetId !== undefined && transactions.sheetId !== null) {
+    requests.push(clip(transactions.sheetId, 8, 5000));
+  }
+  return { requests };
+}
+
+/**
+ * Keeps long Drive links inside their cell instead of spilling into the empty columns to the right.
+ * Returns { ok, error }; never throws.
+ */
+export async function clipReceiptLinkColumns(accessToken, spreadsheetId) {
+  try {
+    const body = buildClipReceiptLinksRequest(await fetchSheetTabs(accessToken, spreadsheetId));
+    if (body.requests.length === 0) return { ok: true, error: null };
+    await sheetsRequest(accessToken, `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }, 'format the receipt link columns');
+    return { ok: true, error: null };
+  } catch (err) {
+    console.warn('[sheetV2] Could not clip the receipt link columns:', err);
+    return { ok: false, error: err };
+  }
 }
 
 export async function fetchSheetLayout(accessToken, spreadsheetId) {

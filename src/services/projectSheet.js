@@ -3,7 +3,7 @@
  */
 
 import { copyDriveFile } from './googleDrive.js';
-import { writeProjectInfo } from './sheetV2.js';
+import { clipReceiptLinkColumns, writeProjectInfo } from './sheetV2.js';
 
 export const PREFERRED_SHEET_NAME = 'JobScan_Expense_Log';
 
@@ -101,10 +101,13 @@ export async function createProjectSheetFromTemplate({ accessToken, templateId, 
     parentId: folderId
   });
   const sheet = { id: copy.id, name: copy.name || templateCopyName(projectName) };
+  let infoError = null;
   try {
     await writeProjectInfo(accessToken, copy.id, info);
-    return { sheet, infoWritten: true, infoError: null };
   } catch (err) {
-    return { sheet, infoWritten: false, infoError: err };
+    infoError = err;
   }
+  // Long receipt links stay inside their cells (a failure here never stops the project being made)
+  const { ok: linksClipped } = await clipReceiptLinkColumns(accessToken, copy.id);
+  return { sheet, infoWritten: !infoError, infoError, linksClipped };
 }

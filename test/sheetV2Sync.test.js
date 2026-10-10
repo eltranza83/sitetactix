@@ -185,6 +185,13 @@ describe('new project Sheet from the template', () => {
     globalThis.fetch = async (url, options = {}) => {
       calls.push({ url: decodeURIComponent(String(url)), options });
       if (String(url).includes('/copy')) return json({ id: 'new_sheet', name: 'Lot 4 – SiteTactix' });
+      if (String(url).includes('?fields=sheets')) {
+        return json({ sheets: [
+          'Dashboard', 'Contracts', 'Paperwork & Permits', 'Site Prep & Structure', 'Framing & Lumber',
+          'Mechanicals & Utilities', 'Interior Finishes', 'Paint & Tile', 'Interior Hardware',
+          'House Exterior & Yard', 'Project Overhead & Bills', 'Project Info', 'Lists', 'Transactions'
+        ].map((title, i) => ({ properties: { sheetId: 100 + i, title } })) });
+      }
       return json({});
     };
     const info = buildProjectInfoFromForm(' Lot 4 ', { address: '14 Northwood Trail', cityStateZip: 'McAllen, TX 78504', scope: 'SFR', budgetBuild: '250000', lotCost: '72,000' });
@@ -194,7 +201,24 @@ describe('new project Sheet from the template', () => {
 
     assert.deepEqual(result.sheet, { id: 'new_sheet', name: 'Lot 4 – SiteTactix' });
     assert.equal(result.infoWritten, true);
-    assert.equal(calls.length, 2);
+    assert.equal(result.linksClipped, true);
+    assert.equal(calls.length, 4);
+
+    // Receipt link columns are clipped: column G of the 9 category tabs, Transactions column I
+    const format = calls[3];
+    assert.equal(format.url, 'https://sheets.googleapis.com/v4/spreadsheets/new_sheet:batchUpdate');
+    assert.equal(format.options.method, 'POST');
+    const { requests } = JSON.parse(format.options.body);
+    assert.equal(requests.length, 10);
+    assert.deepEqual(requests[0], {
+      repeatCell: {
+        range: { sheetId: 102, startRowIndex: 0, endRowIndex: 2000, startColumnIndex: 6, endColumnIndex: 7 },
+        cell: { userEnteredFormat: { wrapStrategy: 'CLIP' } },
+        fields: 'userEnteredFormat.wrapStrategy'
+      }
+    });
+    assert.deepEqual(requests.slice(0, 9).map(r => r.repeatCell.range.sheetId), [102, 103, 104, 105, 106, 107, 108, 109, 110]);
+    assert.deepEqual(requests[9].repeatCell.range, { sheetId: 113, startRowIndex: 0, endRowIndex: 5000, startColumnIndex: 8, endColumnIndex: 9 });
 
     const copy = calls[0];
     assert.equal(copy.url, 'https://www.googleapis.com/drive/v3/files/template_1/copy?fields=id,name,webViewLink&supportsAllDrives=true');
@@ -214,6 +238,21 @@ describe('new project Sheet from the template', () => {
     const result = await createProjectSheetFromTemplate({ accessToken: 'tok', templateId: 't', folderId: 'f', projectName: 'Lot 5', info: {} });
     assert.equal(result.sheet.id, 'new_sheet');
     assert.equal(result.infoWritten, false);
+    assert.equal(result.linksClipped, false, 'a failed format request is reported, never thrown');
+  });
+
+  it('a failed link-format request still makes the project Sheet', async () => {
+    globalThis.fetch = async (url) => {
+      const raw = String(url);
+      if (raw.includes('/copy')) return json({ id: 'new_sheet', name: 'Lot 6 – SiteTactix' });
+      if (raw.includes(':batchUpdate')) throw new Error('offline');
+      if (raw.includes('?fields=sheets')) return json({ sheets: [{ properties: { sheetId: 5, title: 'Transactions' } }] });
+      return json({});
+    };
+    const result = await createProjectSheetFromTemplate({ accessToken: 'tok', templateId: 't', folderId: 'f', projectName: 'Lot 6', info: {} });
+    assert.equal(result.sheet.id, 'new_sheet');
+    assert.equal(result.infoWritten, true);
+    assert.equal(result.linksClipped, false);
   });
 
   it('copy name, form values and change detection', () => {

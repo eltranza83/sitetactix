@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, AlertCircle, FileSpreadsheet, X } from 'lucide-react';
 import { STATUS_MESSAGES, getDriveErrorMessage, getUploadErrorMessage, isAuthError } from '../services/appErrors';
 import {
+  filterContractorSuggestions,
   getCachedDashboardSpreadsheetId,
   loadCachedDashboard,
   listDashboardPhasePhotos,
@@ -286,20 +287,7 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
   }, [activeProject?.id, selectedFolder?.id, googleToken]);
 
   // Autocomplete suggestions for contractor search
-  const suggestions = (data?.subcontractors && Array.isArray(data.subcontractors))
-    ? data.subcontractors.filter(sub => {
-      if (!sub) return false;
-      const query = String(searchTerm || '').toLowerCase();
-      const payee = String(sub.payee || '').toLowerCase();
-      const phase = String(sub.phase || '').toLowerCase();
-      const category = String(sub.category || '').toLowerCase();
-      return (
-        payee.includes(query) ||
-        phase.includes(query) ||
-        category.includes(query)
-      );
-    })
-    : [];
+  const suggestions = filterContractorSuggestions(data?.subcontractors, searchTerm);
 
   const toggleCategory = (catName) => {
     setExpandedCategories(prev => ({
