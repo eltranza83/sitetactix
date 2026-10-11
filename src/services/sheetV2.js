@@ -45,7 +45,6 @@ export const PROJECT_INFO_FIELDS = [
   { field: 'sqftLiving', label: 'Living Sq Ft', numeric: true }
 ];
 const PROJECT_INFO_SHEET = `'${V2_TABS.projectInfo}'`;
-export const PROJECT_INFO_RANGE = `${PROJECT_INFO_SHEET}!B2:B9`;
 const PROJECT_INFO_SQFT_LABEL_RANGE = `${PROJECT_INFO_SHEET}!A8:A9`;
 export const TRANSACTIONS_APPEND_RANGE = `${V2_TABS.transactions}!A:J`;
 
@@ -89,13 +88,6 @@ export function categoryDisplayName(keyOrName) {
   if (!wanted) return '';
   const found = V2_CATEGORIES.find(c => normKey(c.key) === wanted || normKey(c.name) === wanted);
   return found ? found.name : String(keyOrName).replace(/_/g, ' ').trim();
-}
-
-/** Internal category key from a display name or key. */
-export function categoryKeyFor(keyOrName) {
-  const wanted = normKey(keyOrName);
-  const found = V2_CATEGORIES.find(c => normKey(c.key) === wanted || normKey(c.name) === wanted);
-  return found ? found.key : '';
 }
 
 /** The exact phase name used in the Sheet, or the input trimmed when it is not one of the 26. */

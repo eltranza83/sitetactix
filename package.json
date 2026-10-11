@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.9.1",
-  "releaseName": "Cleaner category name on PDFs",
+  "version": "1.9.2",
+  "releaseName": "Small cleanups",
   "type": "module",
   "scripts": {
     "dev": "vite",

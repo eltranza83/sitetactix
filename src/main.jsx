@@ -32,7 +32,6 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
       .then((reg) => {
         reg.update();
-        console.log('Service Worker registered successfully:', reg.scope);
 
         // Check for updates on foreground resume (app switch / tab focus)
         let lastCheck = Date.now();

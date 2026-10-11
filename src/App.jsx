@@ -309,9 +309,11 @@ export default function App() {
               <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--st-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Adepec Homes
               </span>
-              <span style={{ fontSize: '0.65rem', color: 'var(--st-muted)' }}>
-                Austin, TX
-              </span>
+              {googleUser?.email && (
+                <span style={{ fontSize: '0.65rem', color: 'var(--st-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {googleUser.email}
+                </span>
+              )}
             </div>
           </div>
         </div>

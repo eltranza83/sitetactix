@@ -149,7 +149,6 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
           return requestAccessToken(...args);
         };
         window.googleTokenClient = client;
-        console.log('Google token client pre-initialized successfully.');
       } catch (err) {
         console.error('Failed to pre-initialize GIS token client:', err);
       }
