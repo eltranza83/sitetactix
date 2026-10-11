@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.8.9",
-  "releaseName": "Unused buyer PDF code removed",
+  "version": "1.9.0",
+  "releaseName": "Old spreadsheet layout retired",
   "type": "module",
   "scripts": {
     "dev": "vite",

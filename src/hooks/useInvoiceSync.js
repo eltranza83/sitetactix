@@ -400,16 +400,12 @@ export function useInvoiceSync({
       setHasUnprocessedUploads(hasFailures);
       setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasFailures);
 
-      const warningNote = (result.warnings && result.warnings.length > 0)
-        ? ` (Note: Master log tab could not be updated for ${result.warnings.length} invoice(s))`
-        : '';
-
       const phaseNote = invalidPhaseDrafts.length > 0 ? ` ${invalidDesc}` : '';
 
       if (hasFailures) {
         if (result.processedCount > 0) {
           const docWord = result.processedCount === 1 ? 'document' : 'documents';
-          setSuccess(`Synced ${result.processedCount} ${docWord}. ${result.failed.length} file(s) require attention.${warningNote}${phaseNote}${growthNoteFor(result)}`);
+          setSuccess(`Synced ${result.processedCount} ${docWord}. ${result.failed.length} file(s) require attention.${phaseNote}${growthNoteFor(result)}`);
         } else {
           setError(`Spreadsheet sync failed for ${result.failed.length} document(s). Drafts remain safely on device to retry.`);
         }

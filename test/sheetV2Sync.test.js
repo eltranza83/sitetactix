@@ -131,18 +131,20 @@ describe('sync to a new-layout Sheet', () => {
     assert.equal(log.appends.length, 0);
   });
 
-  it('an old-layout Sheet does not use Transactions', async () => {
+  it('an old-layout Sheet stops the sync before any receipt is written, tagged or moved', async () => {
     const log = installMock({ tabs: ['Summary_Dashboard', 'Paint_Tile', 'Transactions'], files: [makeFile('file_a')] });
-    const result = await syncUploadedInvoicesDirectly('tok', 'project_folder', 'sheet_1');
+    await assert.rejects(
+      syncUploadedInvoicesDirectly('tok', 'project_folder', 'sheet_1'),
+      /old layout, which the app no longer reads/
+    );
     assert.equal(log.appends.length, 0);
-    assert.ok(!log.reads.some(r => r.includes('Transactions!J2:J')));
-    // The old path looks for the phase in the category tab (empty here), so it reports the missing phase
-    assert.equal(result.failed.length, 1);
-    assert.match(result.failed[0].reason, /Phase header "Tile & Flooring" not found/);
+    assert.equal(log.puts.length, 0);
+    assert.deepEqual(log.tagged, []);
+    assert.deepEqual(log.moved, [], 'receipts stay in Invoice Uploads');
   });
 });
 
-describe('Dashboard data picks the reader by layout', () => {
+describe('Dashboard data', () => {
   it('new-layout Sheets read Project Info / Transactions / Contracts', async () => {
     const urls = [];
     globalThis.fetch = async (url) => {
@@ -163,19 +165,16 @@ describe('Dashboard data picks the reader by layout', () => {
     assert.ok(!urls.some(u => u.includes('Summary_Dashboard')));
   });
 
-  it('old Sheets keep the Summary_Dashboard reader', async () => {
+  it('an old-layout Sheet gives a clear message instead of numbers', async () => {
     const urls = [];
     globalThis.fetch = async (url) => {
       const decoded = decodeURIComponent(String(url));
       urls.push(decoded);
       if (decoded.includes('?fields=sheets')) return json({ sheets: [{ properties: { title: 'Summary_Dashboard' } }] });
-      return json({ valueRanges: [{ range: 'Summary_Dashboard!A1:E', values: [['Street Address:', '9 Elm'], ['Real Budget Deposits (Capital)', '$5.00']] }] });
+      throw new Error(`Unexpected request ${decoded}`);
     };
-    const data = await fetchProjectDashboardData('tok', 'sheet_1');
-    assert.equal(data.projectInfo.address, '9 Elm');
-    assert.equal(data.projectInfo.deposits, '$5.00');
-    assert.equal(data.projectInfo.layout, undefined);
-    assert.ok(urls.some(u => u.includes('Summary_Dashboard!A1:E')));
+    await assert.rejects(fetchProjectDashboardData('tok', 'sheet_1'), /old layout, which the app no longer reads/);
+    assert.equal(urls.length, 1, 'only the tab list is read');
   });
 });
 
