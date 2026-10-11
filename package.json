@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.9.0",
-  "releaseName": "Old spreadsheet layout retired",
+  "version": "1.9.1",
+  "releaseName": "Cleaner category name on PDFs",
   "type": "module",
   "scripts": {
     "dev": "vite",

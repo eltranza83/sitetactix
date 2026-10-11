@@ -426,7 +426,7 @@ export async function generateDocumentPDF(metadata, imageUrls) {
         ? { label: 'COST CLASSIFICATION:', value: 'LABOR COST', bold: true, color: BLUE }
         : { label: 'COST CLASSIFICATION:', value: 'MATERIAL COST', bold: true, color: GOLD_DARK },
     { label: hasSplits ? 'TOTAL AMOUNT (SPLIT):' : 'TOTAL AMOUNT:', value: `$${Number(metadata.amount || 0).toFixed(2)}`, bold: true, size: 11 },
-    { label: 'TRADE CATEGORY:', value: metadata.tradeCategory || 'N/A', wrap: true },
+    { label: 'TRADE CATEGORY:', value: formatIssueLabel(metadata.tradeCategory), wrap: true },
     { label: 'PROJECT PHASE BLOCK:', value: metadata.tradePhase || 'N/A', wrap: true }
   ];
   if (hasCheck) gridRows.push({ label: 'CHECK # / PAYMENT:', value: String(metadata.checkNumber) });
