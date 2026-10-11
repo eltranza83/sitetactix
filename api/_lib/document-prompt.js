@@ -1,3 +1,9 @@
+import { TRADE_CATEGORIES, ALL_CATEGORY_KEYS, ALL_PHASES } from '../../src/config/tradeCategories.js';
+
+const CLASSIFICATION_RULES = TRADE_CATEGORIES
+  .map(c => `- ${c.key}: ${c.phases.join('; ')}`)
+  .join('\n');
+
 export const GEMINI_RESPONSE_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -10,48 +16,11 @@ export const GEMINI_RESPONSE_SCHEMA = {
     checkNumber: { type: 'STRING', nullable: true },
     tradeCategory: {
       type: 'STRING',
-      enum: [
-        'Site_Prep_&_Structure',
-        'Framing_&_Lumber',
-        'Mechanicals_&_Utilities',
-        'Interior_Finishes',
-        'Paint_Tile',
-        'House_Exterior_&_Yard',
-        'Project_Overhead_&_Bills',
-        'Paperwork_&_Permits',
-        'Interior_Hardware'
-      ]
+      enum: ALL_CATEGORY_KEYS
     },
     tradePhase: {
       type: 'STRING',
-      enum: [
-        'Foundation & Flatwork',
-        'Roofing',
-        'Windows & Exterior Doors',
-        'Framing Lumber & Truss',
-        'Plumbing Rough-In',
-        'Electrical & Lighting',
-        'HVAC / AC Systems',
-        'Insulation & Alarms',
-        'Drywall & Sheetrock',
-        'Cabinets & Trim Carpentry',
-        'Quartz & Countertops',
-        'Glass Work',
-        'Tile & Flooring',
-        'Paint & Finishes',
-        'Stucco & Masonry',
-        'Garage Doors',
-        'Driveway & Sidewalks',
-        'Cantera Stone Detail',
-        'Fencing & Gates',
-        'Landscaping & Irrigation',
-        'Monthly Utility Bills',
-        'Dumpsters & Cleaning',
-        'Extra Costs & Misc',
-        'Paperwork & Permits',
-        'Plumbing Hardware Fixtures',
-        'Electrical Hardware Fixtures'
-      ]
+      enum: ALL_PHASES
     },
     lineItems: {
       type: 'ARRAY',
@@ -90,15 +59,7 @@ You are an expert OCR and financial data extraction assistant for a luxury resid
 Analyze the attached image or PDF of a bank check, vendor invoice, or material receipt and extract the structured details.
 
 Classification Rules:
-- Site_Prep_&_Structure: Foundation & Flatwork; Roofing; Windows & Exterior Doors
-- Framing_&_Lumber: Framing Lumber & Truss
-- Mechanicals_&_Utilities: Plumbing Rough-In; Electrical & Lighting; HVAC / AC Systems; Insulation & Alarms
-- Interior_Finishes: Drywall & Sheetrock; Cabinets & Trim Carpentry; Quartz & Countertops; Glass Work
-- Paint_Tile: Tile & Flooring; Paint & Finishes
-- House_Exterior_&_Yard: Stucco & Masonry; Garage Doors; Driveway & Sidewalks; Cantera Stone Detail; Fencing & Gates; Landscaping & Irrigation
-- Project_Overhead_&_Bills: Monthly Utility Bills; Dumpsters & Cleaning; Extra Costs & Misc
-- Paperwork_&_Permits: Paperwork & Permits
-- Interior_Hardware: Plumbing Hardware Fixtures; Electrical Hardware Fixtures
+${CLASSIFICATION_RULES}
 
 High-Precision OCR Rules:
 1. BANK CHECKS: Extract payee from the "Pay to the Order of" line. Extract total amount from the numerical dollar box and written legal amount line. Check number is located in top-right corner or bottom MICR routing line.

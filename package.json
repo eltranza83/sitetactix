@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.9.2",
-  "releaseName": "Small cleanups",
+  "version": "1.9.3",
+  "releaseName": "One list of categories and phases",
   "type": "module",
   "scripts": {
     "dev": "vite",

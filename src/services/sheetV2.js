@@ -1,3 +1,4 @@
+import { TRADE_CATEGORIES } from '../config/tradeCategories.js';
 /**
  * Support for the new per-house Google Sheet layout ("v2").
  *
@@ -20,18 +21,8 @@ export const V2_TABS = {
   contracts: 'Contracts'
 };
 
-/** The 9 categories and 26 phases, in Sheet order. `key` is the app's internal category key. */
-export const V2_CATEGORIES = [
-  { key: 'Paperwork_&_Permits', name: 'Paperwork & Permits', phases: ['Paperwork & Permits'] },
-  { key: 'Site_Prep_&_Structure', name: 'Site Prep & Structure', phases: ['Foundation & Flatwork', 'Roofing', 'Windows & Exterior Doors'] },
-  { key: 'Framing_&_Lumber', name: 'Framing & Lumber', phases: ['Framing Lumber & Truss'] },
-  { key: 'Mechanicals_&_Utilities', name: 'Mechanicals & Utilities', phases: ['Plumbing Rough-In', 'Electrical & Lighting', 'HVAC / AC Systems', 'Insulation & Alarms'] },
-  { key: 'Interior_Finishes', name: 'Interior Finishes', phases: ['Drywall & Sheetrock', 'Cabinets & Trim Carpentry', 'Quartz & Countertops', 'Glass Work'] },
-  { key: 'Paint_Tile', name: 'Paint & Tile', phases: ['Tile & Flooring', 'Paint & Finishes'] },
-  { key: 'Interior_Hardware', name: 'Interior Hardware', phases: ['Plumbing Hardware Fixtures', 'Electrical Hardware Fixtures'] },
-  { key: 'House_Exterior_&_Yard', name: 'House Exterior & Yard', phases: ['Stucco & Masonry', 'Garage Doors', 'Driveway & Sidewalks', 'Cantera Stone Detail', 'Fencing & Gates', 'Landscaping & Irrigation'] },
-  { key: 'Project_Overhead_&_Bills', name: 'Project Overhead & Bills', phases: ['Monthly Utility Bills', 'Dumpsters & Cleaning', 'Extra Costs & Misc'] }
-];
+/** The 9 categories and 26 phases, in Sheet order (from the shared list). `key` is the app's internal category key. */
+export const V2_CATEGORIES = TRADE_CATEGORIES.map(({ key, name, phases }) => ({ key, name, phases }));
 
 /** Project Info rows 2-9: label in column A (exact), value in column B. Rows 8-9 were added in v2.2. */
 export const PROJECT_INFO_FIELDS = [

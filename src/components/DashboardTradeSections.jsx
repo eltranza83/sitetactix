@@ -1,37 +1,7 @@
 import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
-const PAYEE_REQUIRED_KEYWORDS = [
-  'foundation', 'flatwork', 'flat work', 'roofing', 'roof', 'framing', 'lumber', 'truss',
-  'plumbing', 'plumber', 'hvac', 'ac', 'heating', 'cooling', 'insulation', 'alarm',
-  'drywall', 'sheetrock', 'cabinet', 'trim', 'carpentry', 'carpenter', 'porch',
-  'countertop', 'counter', 'glasswork', 'glass', 'tile', 'flooring', 'floor',
-  'paint', 'finishes', 'stucco', 'masonry', 'driveway', 'sidewalk', 'cantina',
-  'stone', 'fencing', 'fence', 'gate', 'landscaping', 'landscape', 'irrigation',
-  'dumpster', 'cleaning', 'clean', 'electrical', 'electrician', 'lighting'
-];
-
-const EXCLUDED_PAYEE_KEYWORDS = [
-  'plumbing hardware',
-  'plumbing fixtures',
-  'hardware fixtures',
-  'plumbing fixture',
-  'hardware fixture'
-];
-
-const requiresPayeeTracking = (phaseName, catName) => {
-  const combined = `${phaseName || ''} ${catName || ''}`.toLowerCase();
-  
-  if (EXCLUDED_PAYEE_KEYWORDS.some(ex => combined.includes(ex))) {
-    return false;
-  }
-
-  return PAYEE_REQUIRED_KEYWORDS.some(kw => combined.includes(kw));
-};
-
-import { getCategorySortRank, formatCategoryTitle } from '../config/tradesConfig.js';
-
-export { getCategorySortRank, formatCategoryTitle };
+import { categoryRank, phaseHasSub } from '../config/tradeCategories.js';
 
 function parseCurrencyNumber(val) {
   if (typeof val === 'number') return val;
@@ -135,8 +105,8 @@ export default function DashboardTradeSections({
   };
 
   const sortedCategories = [...safeCategories].sort((a, b) => {
-    const rankA = getCategorySortRank(a.name);
-    const rankB = getCategorySortRank(b.name);
+    const rankA = categoryRank(a.name);
+    const rankB = categoryRank(b.name);
     if (rankA !== rankB) return rankA - rankB;
     return (a.name || '').localeCompare(b.name || '');
   });
@@ -203,7 +173,7 @@ export default function DashboardTradeSections({
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
                   }}>
-                    {formatCategoryTitle(cat.name)}
+                    {cat.name}
                   </span>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -295,7 +265,7 @@ export default function DashboardTradeSections({
                         cleanPayee.toLowerCase() === `${cleanPhase.toLowerCase()} payee`;
 
                       const isAssigned = !isPlaceholder;
-                      const needsPayee = isAssigned || requiresPayeeTracking(cleanPhase, cat.name);
+                      const needsPayee = isAssigned || phaseHasSub(cleanPhase);
                       const displayPayee = isAssigned ? cleanPayee : (needsPayee ? 'Payee - Unassigned' : null);
 
                       return (

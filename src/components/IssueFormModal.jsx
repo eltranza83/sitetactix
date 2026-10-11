@@ -34,7 +34,7 @@ export default function IssueFormModal({
   const packetProject = getProjectPacketInfo(projectInfo, projectName, selectedFolderName);
   const [title, setTitle] = useState(editingIssue?.title || '');
   const [description, setDescription] = useState(editingIssue?.description || '');
-  const [category, setCategory] = useState(editingIssue?.category || Object.keys(TRADE_SECTIONS_CONFIG)[0]);
+  const [category, setCategory] = useState(editingIssue?.category || 'Site_Prep_&_Structure');
   const [tradePhase, setTradePhase] = useState(editingIssue?.tradePhase || '');
   const [contractorName, setContractorName] = useState(editingIssue?.contractorName || '');
   const [phoneNumber, setPhoneNumber] = useState(editingIssue?.phoneNumber || '');

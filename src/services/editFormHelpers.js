@@ -1,41 +1,9 @@
-export const TRADE_SECTIONS_CONFIG = {
-  'Site_Prep_&_Structure': {
-    label: 'Site Prep & Structure',
-    phases: ['Foundation & Flatwork', 'Roofing', 'Windows & Exterior Doors']
-  },
-  'Framing_&_Lumber': {
-    label: 'Framing & Lumber',
-    phases: ['Framing Lumber & Truss']
-  },
-  'Mechanicals_&_Utilities': {
-    label: 'Mechanicals & Utilities',
-    phases: ['Plumbing Rough-In', 'Electrical & Lighting', 'HVAC / AC Systems', 'Insulation & Alarms']
-  },
-  'Interior_Finishes': {
-    label: 'Interior Finishes',
-    phases: ['Drywall & Sheetrock', 'Cabinets & Trim Carpentry', 'Quartz & Countertops', 'Glass Work']
-  },
-  'Paint_Tile': {
-    label: 'Paint & Tile',
-    phases: ['Tile & Flooring', 'Paint & Finishes']
-  },
-  'House_Exterior_&_Yard': {
-    label: 'House Exterior & Yard',
-    phases: ['Stucco & Masonry', 'Garage Doors', 'Driveway & Sidewalks', 'Cantera Stone Detail', 'Fencing & Gates', 'Landscaping & Irrigation']
-  },
-  'Project_Overhead_&_Bills': {
-    label: 'Project Overhead & Bills',
-    phases: ['Monthly Utility Bills', 'Dumpsters & Cleaning', 'Extra Costs & Misc']
-  },
-  'Paperwork_&_Permits': {
-    label: 'Paperwork & Permits',
-    phases: ['Paperwork & Permits']
-  },
-  'Interior_Hardware': {
-    label: 'Interior Hardware',
-    phases: ['Plumbing Hardware Fixtures', 'Electrical Hardware Fixtures']
-  }
-};
+import { TRADE_CATEGORIES } from '../config/tradeCategories.js';
+
+/** Category key -> { label, phases }, in Sheet order (from the shared list). */
+export const TRADE_SECTIONS_CONFIG = Object.fromEntries(
+  TRADE_CATEGORIES.map(({ key, name, phases }) => [key, { label: name, phases }])
+);
 
 export function isValidPhase(category, phase) {
   if (!category || !phase) return false;

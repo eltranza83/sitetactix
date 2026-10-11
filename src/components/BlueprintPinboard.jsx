@@ -18,57 +18,26 @@ import {
 } from '../services/dashboardDrive';
 import { createAndShareIssuePacket } from '../services/issuePacketShare';
 import { isPlaceholderProjectInfo } from '../services/projectInfoFormatter';
+import { TRADE_CATEGORIES } from '../config/tradeCategories.js';
 
 
 
-// Subcontractor categories and phases matching EditForm config
-export const TRADE_SECTIONS_CONFIG = {
-  'Mechanicals_&_Utilities': {
-    label: 'Mechanicals & Utilities',
-    color: '#F1D7A7',
-    phases: ['Plumbing Rough-In', 'Electrical & Lighting', 'HVAC / AC Systems', 'Insulation & Alarms']
-  },
-  'Framing_&_Lumber': {
-    label: 'Framing & Lumber',
-    color: '#3b82f6',
-    phases: ['Framing Lumber & Truss']
-  },
-  'Site_Prep_&_Structure': {
-    label: 'Site Prep & Structure',
-    color: '#10b981',
-    phases: ['Foundation & Flatwork', 'Roofing', 'Windows & Exterior Doors']
-  },
-  'Interior_Finishes': {
-    label: 'Interior Finishes',
-    color: '#f43f5e',
-    phases: ['Drywall & Sheetrock', 'Cabinets & Trim Carpentry', 'Quartz & Countertops', 'Glass Work']
-  },
-  'Paint_Tile': {
-    label: 'Paint & Tile',
-    color: '#a855f7',
-    phases: ['Tile & Flooring', 'Paint & Finishes']
-  },
-  'House_Exterior_&_Yard': {
-    label: 'House Exterior & Yard',
-    color: '#F1D7A7',
-    phases: ['Stucco & Masonry', 'Garage Doors', 'Driveway & Sidewalks', 'Cantera Stone Detail', 'Fencing & Gates', 'Landscaping & Irrigation']
-  },
-  'Project_Overhead_&_Bills': {
-    label: 'Project Overhead & Bills',
-    color: '#71717a',
-    phases: ['Monthly Utility Bills', 'Dumpsters & Cleaning', 'Extra Costs & Misc']
-  },
-  'Paperwork_&_Permits': {
-    label: 'Paperwork & Permits',
-    color: '#14b8a6',
-    phases: ['Paperwork & Permits']
-  },
-  'Interior_Hardware': {
-    label: 'Interior Hardware',
-    color: '#6366f1',
-    phases: ['Plumbing Hardware Fixtures', 'Electrical Hardware Fixtures']
-  }
+// Pin colors per category; labels and phases come from the shared list
+const CATEGORY_COLORS = {
+  'Mechanicals_&_Utilities': '#F1D7A7',
+  'Framing_&_Lumber': '#3b82f6',
+  'Site_Prep_&_Structure': '#10b981',
+  'Interior_Finishes': '#f43f5e',
+  'Paint_Tile': '#a855f7',
+  'House_Exterior_&_Yard': '#F1D7A7',
+  'Project_Overhead_&_Bills': '#71717a',
+  'Paperwork_&_Permits': '#14b8a6',
+  'Interior_Hardware': '#6366f1'
 };
+
+const TRADE_SECTIONS_CONFIG = Object.fromEntries(
+  TRADE_CATEGORIES.map(({ key, name, phases }) => [key, { label: name, color: CATEGORY_COLORS[key], phases }])
+);
 
 function BlueprintViewModeToggle({ viewMode, onSetViewMode, activeIssuesCount }) {
   return (
