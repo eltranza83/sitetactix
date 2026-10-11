@@ -61,6 +61,13 @@ Analyze the attached image or PDF of a bank check, vendor invoice, or material r
 Classification Rules:
 ${CLASSIFICATION_RULES}
 
+Rough-in vs fixtures (the owner's rules; apply them to the whole document and to each line item):
+- Electrical & Lighting = rough-in electrical supplies: wire, boxes, breakers, panels, conduit, and other supplies bought for the electrician (for example exhaust fan duct or vent pipe).
+- Electrical Hardware Fixtures = finished items people see and use: switches, ceiling fans, vanity lights, exterior lights, security lights, chandeliers and other light fixtures.
+- Plumbing Rough-In = rough-in plumbing supplies: rough-in valves, shower valves, pipe and fittings.
+- Plumbing Hardware Fixtures = finished plumbing items: faucets, shower kits, toilets, sinks, tubs, and the water heater.
+- The electrician and plumber supply most of their own rough-in material, so owner receipts are often fixtures; still classify each item by what it is.
+
 High-Precision OCR Rules:
 1. BANK CHECKS: Extract payee from the "Pay to the Order of" line. Extract total amount from the numerical dollar box and written legal amount line. Check number is located in top-right corner or bottom MICR routing line.
 2. VENDOR RECEIPTS: Identify stores (Home Depot, Lowe's, Ferguson, Builders FirstSource). Extract the FINAL GRAND TOTAL (ignoring tax sub-totals).

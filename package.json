@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.9.3",
-  "releaseName": "One list of categories and phases",
+  "version": "1.9.4",
+  "releaseName": "Clear rules for fixtures",
   "type": "module",
   "scripts": {
     "dev": "vite",

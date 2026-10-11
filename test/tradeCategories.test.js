@@ -38,3 +38,12 @@ describe('shared category and phase list', () => {
     assert.equal(phaseHasSub('Not a phase'), false);
   });
 });
+
+describe('scan rules for rough-in vs fixtures', () => {
+  test('the scan AI gets the owner\'s electrical and plumbing fixture rules', () => {
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Electrical Hardware Fixtures = [^\n]*switches[^\n]*chandeliers/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Electrical & Lighting = [^\n]*wire[^\n]*conduit/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Plumbing Rough-In = [^\n]*shower valves/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Plumbing Hardware Fixtures = [^\n]*faucets[^\n]*water heater/);
+  });
+});
