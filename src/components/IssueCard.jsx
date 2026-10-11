@@ -131,40 +131,7 @@ export default function IssueCard({
     });
   })() : null;
 
-  // Backward compatibility: build synthesized history if legacy issue has none
-  const historyItems = (Array.isArray(activityHistory) && activityHistory.length > 0)
-    ? activityHistory
-    : [
-        createdAt ? {
-          id: 'legacy_created',
-          action: 'created',
-          timestamp: createdAt,
-          actor: 'Builder',
-          note: description ? `Initial defect logged: ${description}` : 'Initial defect logged'
-        } : null,
-        contractorName ? {
-          id: 'legacy_assigned',
-          action: 'assigned',
-          timestamp: createdAt || new Date().toISOString(),
-          actor: 'Builder',
-          details: `Assigned to ${contractorName}`
-        } : null,
-        hasProofPhoto ? {
-          id: 'legacy_proof',
-          action: 'proof_submitted',
-          timestamp: proofSubmittedAt || createdAt || new Date().toISOString(),
-          actor: 'Builder',
-          details: contractorName ? `Submitted on behalf of ${contractorName}` : 'Resolution proof submitted',
-          note: storedProofNotes || 'Proof attached'
-        } : null,
-        status === 'resolved' ? {
-          id: 'legacy_verified',
-          action: 'verified_closed',
-          timestamp: verifiedAt || createdAt || new Date().toISOString(),
-          actor: verifiedBy || 'Builder',
-          note: 'Work verified and closed'
-        } : null
-      ].filter(Boolean);
+  const historyItems = Array.isArray(activityHistory) ? activityHistory : [];
 
   // Priority Styles
   const getPriorityBadge = () => {

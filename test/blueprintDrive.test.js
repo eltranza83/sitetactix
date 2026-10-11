@@ -10,12 +10,8 @@ test('buildBlueprintAlbumPhotoFileName sanitizes phase names', () => {
   );
 });
 
-test('normalizePinPhotos supports both legacy single-photo pins and multi-photo arrays', () => {
-  const legacyPin = {
-    id: 'pin_1',
-    photoFileId: 'file-1',
-    photoUrl: 'https://example.com/one.jpg'
-  };
+test('normalizePinPhotos reads multi-photo arrays and returns nothing for pins without photos', () => {
+  const noPhotoPin = { id: 'pin_1' };
   const modernPin = {
     id: 'pin_2',
     photoAttachments: [
@@ -24,7 +20,7 @@ test('normalizePinPhotos supports both legacy single-photo pins and multi-photo 
     ]
   };
 
-  assert.deepEqual(normalizePinPhotos(legacyPin), [{ fileId: 'file-1', url: 'https://example.com/one.jpg', name: '' }]);
+  assert.deepEqual(normalizePinPhotos(noPhotoPin), []);
   assert.deepEqual(normalizePinPhotos(modernPin), [
     { fileId: 'file-2', url: 'https://example.com/two.jpg', name: 'two.jpg' },
     { fileId: 'file-3', url: 'https://example.com/three.jpg', name: 'three.jpg' }

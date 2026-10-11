@@ -84,8 +84,7 @@ test('loadStoredAppState builds selected folder and arrays from local storage', 
   assert.equal(state.hasUnprocessedUploads, true);
 });
 
-test('loadStoredAppState purges legacy browser secrets and sanitizes projects', () => {
-  localStorage.setItem(APP_STORAGE_KEYS.legacyGeminiKey, 'old-gemini-key');
+test('loadStoredAppState sanitizes projects', () => {
   localStorage.setItem(APP_STORAGE_KEYS.googleToken, 'persisted-drive-token');
   setStoredJson(APP_STORAGE_KEYS.projects, [{
     id: 'p1',
@@ -96,7 +95,6 @@ test('loadStoredAppState purges legacy browser secrets and sanitizes projects', 
   const state = loadStoredAppState();
 
   assert.deepEqual(state.projects, [{ id: 'p1' }]);
-  assert.equal(localStorage.getItem(APP_STORAGE_KEYS.legacyGeminiKey), null);
   assert.equal(state.googleToken, 'persisted-drive-token');
 });
 
@@ -156,11 +154,8 @@ test('Google session clearing removes identity and linked project session values
   assert.equal(localStorage.getItem(APP_STORAGE_KEYS.invited), null);
 });
 
-test('loadStoredAppState always uses the built-in Google sign-in ID and drops an old saved copy', () => {
-  localStorage.setItem(APP_STORAGE_KEYS.legacyGoogleClientId, 'old-client-id.apps.googleusercontent.com');
-
+test('loadStoredAppState always uses the built-in Google sign-in ID', () => {
   const state = loadStoredAppState();
 
   assert.equal(state.googleClientId, DEFAULT_GOOGLE_CLIENT_ID);
-  assert.equal(localStorage.getItem(APP_STORAGE_KEYS.legacyGoogleClientId), null);
 });

@@ -59,27 +59,14 @@ export function normalizePhotoUrl(url, fileId) {
 }
 
 export function normalizePinPhotos(pin) {
-  const legacyPhoto = pin?.photoUrl || pin?.photoFileId ? {
-    fileId: pin?.photoFileId || '',
-    url: pin?.photoUrl || '',
-    name: pin?.photoName || ''
-  } : null;
-
-  if (Array.isArray(pin?.photoAttachments)) {
-    return pin.photoAttachments
-      .filter(Boolean)
-      .map((photo) => ({
-        fileId: photo?.fileId || '',
-        url: normalizePhotoUrl(photo?.url || '', photo?.fileId || ''),
-        name: photo?.name || ''
-      }));
-  }
-
-  return legacyPhoto ? [{
-    fileId: legacyPhoto.fileId,
-    url: normalizePhotoUrl(legacyPhoto.url, legacyPhoto.fileId),
-    name: legacyPhoto.name
-  }] : [];
+  if (!Array.isArray(pin?.photoAttachments)) return [];
+  return pin.photoAttachments
+    .filter(Boolean)
+    .map((photo) => ({
+      fileId: photo?.fileId || '',
+      url: normalizePhotoUrl(photo?.url || '', photo?.fileId || ''),
+      name: photo?.name || ''
+    }));
 }
 
 function buildPinPhotoAttachment(selectedPhoto, formData, accessToken, projectFolderId) {
@@ -205,8 +192,6 @@ export async function addBlueprintPin({
     y: parseFloat(pinCoords.y.toFixed(2)),
     ...buildPinDetailsFromForm(formData),
     photoAttachments,
-    photoFileId: photoAttachments[0]?.fileId || '',
-    photoUrl: photoAttachments[0]?.url || '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -238,8 +223,6 @@ export async function updateBlueprintPin({
   }
 
   let photoAttachments = normalizePinPhotos(existingPin);
-  let photoUrl = existingPin.photoUrl || (photoAttachments[0]?.url || '');
-  let photoFileId = existingPin.photoFileId || (photoAttachments[0]?.fileId || '');
 
   if (selectedPhotos?.length) {
     const uploadResults = await Promise.all(
@@ -251,16 +234,12 @@ export async function updateBlueprintPin({
       name: selectedPhotos[index]?.name || ''
     }));
     photoAttachments = [...nextAttachments, ...photoAttachments.filter((attachment) => !nextAttachments.some((nextAttachment) => nextAttachment.fileId === attachment.fileId))];
-    photoUrl = photoAttachments[0]?.url || '';
-    photoFileId = photoAttachments[0]?.fileId || '';
   }
 
   const updatedPin = {
     ...existingPin,
     ...buildPinDetailsFromForm(formData),
     photoAttachments,
-    photoFileId,
-    photoUrl,
     updatedAt: new Date().toISOString()
   };
   const updatedPins = pins.map(pin => (pin.id === pinId ? updatedPin : pin));
