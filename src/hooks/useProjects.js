@@ -10,10 +10,6 @@ import {
   saveUserProject,
   resolveUserActiveProject
 } from '../services/projectService.js';
-import {
-  loadProjectsConfigFromDrive,
-  saveProjectsConfigToDrive
-} from '../services/projectCloudSync.js';
 import { listProjectSpreadsheets } from '../services/googleDrive.js';
 import { chooseProjectSpreadsheet, linkSheetToProject } from '../services/projectSheet.js';
 
@@ -52,35 +48,15 @@ export function useProjects({ googleToken, googleUser, setSuccess } = {}) {
     }
   }, [googleUser, syncProjectsFromFirestore]);
 
-  // Secondary Drive sync (legacy fallback)
-  useEffect(() => {
-    if (googleToken && (!projects || projects.length === 0)) {
-      loadProjectsConfigFromDrive(googleToken, projects)
-        .then((driveProjects) => {
-          if (Array.isArray(driveProjects) && driveProjects.length > 0) {
-            setProjects(driveProjects);
-            persistProjects(driveProjects);
-            if (googleUser?.email) {
-              driveProjects.forEach((p) => saveUserProject(p, googleUser));
-            }
-          }
-        })
-        .catch(() => {});
-    }
-  }, [googleToken, googleUser, projects]);
-
   const updateProjects = (newProjects) => {
     setProjects(newProjects);
     persistProjects(newProjects);
     if (googleUser?.email) {
       newProjects.forEach((p) => saveUserProject(p, googleUser));
     }
-    if (googleToken) {
-      saveProjectsConfigToDrive(googleToken, newProjects);
-    }
   };
 
-  // Saves the project's Sheet link everywhere the project lives (this device, Firestore, Drive config)
+  // Saves the project's Sheet link everywhere the project lives (this device and Firestore)
   const linkProjectSheet = useCallback((projectId, sheet) => {
     const base = (projects || []).find(p => p.id === projectId)
       || (activeProject?.id === projectId ? activeProject : null);
@@ -92,7 +68,6 @@ export function useProjects({ googleToken, googleUser, setSuccess } = {}) {
       : [...(projects || []), linked];
     setProjects(next);
     persistProjects(next);
-    if (googleToken) saveProjectsConfigToDrive(googleToken, next);
     if (googleUser?.email) saveUserProject(linked, googleUser);
 
     if (activeProject?.id === projectId) {
@@ -100,7 +75,7 @@ export function useProjects({ googleToken, googleUser, setSuccess } = {}) {
       setActiveProject(updated);
       persistActiveProject(updated);
     }
-  }, [projects, activeProject, googleToken, googleUser]);
+  }, [projects, activeProject, googleUser]);
 
   // Always call the newest version (the lookup below finishes after later renders)
   const linkProjectSheetRef = useRef(linkProjectSheet);
