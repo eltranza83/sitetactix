@@ -1,10 +1,12 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 
 export default function SettingsProjectProfilesCard({
   activeProject,
   isOpen,
   projects,
+  notionBusyId = null,
+  onMakeNotionPage,
   onCreateProject,
   onDeleteProject,
   onEditProject,
@@ -93,6 +95,30 @@ export default function SettingsProjectProfilesCard({
                         textOverflow: 'ellipsis'
                       }}>
                         Folder: {project.folderName}
+                      </div>
+                      <div style={{ marginTop: '4px', fontSize: '0.75rem' }} onClick={(e) => e.stopPropagation()}>
+                        {project.notionPageUrl ? (
+                          <a
+                            href={project.notionPageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: 'var(--color-emerald-500)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <ExternalLink size={12} /> Notion page
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onMakeNotionPage(project)}
+                            disabled={Boolean(notionBusyId)}
+                            style={{
+                              background: 'none', border: 'none', padding: 0, cursor: notionBusyId ? 'default' : 'pointer',
+                              color: 'var(--color-amber-500)', fontSize: '0.75rem', fontWeight: 600
+                            }}
+                          >
+                            {notionBusyId === project.id ? 'Making Notion page...' : '+ Make Notion page'}
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 'none' }} onClick={(e) => e.stopPropagation()}>

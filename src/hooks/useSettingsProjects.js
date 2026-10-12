@@ -16,6 +16,7 @@ import {
 } from '../services/projectSheet';
 import { readProjectInfoIfV2, writeProjectInfo } from '../services/sheetV2';
 import { TEMPLATE_SHEET_ID } from '../config/appConfig';
+import { buildNotionLotRequest, createNotionLotPage, linkNotionPageToProject } from '../services/notionLot';
 
 export function useSettingsProjects({
   activeProject,
@@ -54,6 +55,11 @@ export function useSettingsProjects({
   const [useTemplate, setUseTemplate] = useState(false);
   const [savingProject, setSavingProject] = useState(false);
   const templateAvailable = Boolean(TEMPLATE_SHEET_ID);
+  // The project whose Notion page is being made right now (its id), so its button can show progress
+  const [notionBusyId, setNotionBusyId] = useState(null);
+  // The Notion page is made after the project is saved; by then the project list has moved on
+  const latestRef = useRef({ projects, activeProject });
+  latestRef.current = { projects, activeProject };
 
   const fetchFolders = async (parentId = 'root') => {
     setLoadingFolders(true);
@@ -176,6 +182,42 @@ export function useSettingsProjects({
     } catch (err) {
       console.error(err);
       return getDriveErrorMessage(err, "update the Sheet's Project Info");
+    }
+  };
+
+  // Makes the lot's Notion page from the lot template and remembers its link on the project
+  const makeNotionPage = async (project, details = null) => {
+    if (!project || notionBusyId) return;
+    setNotionBusyId(project.id);
+    setError(null);
+    try {
+      let lotDetails = details;
+      if (!lotDetails && googleToken && project.spreadsheetId) {
+        lotDetails = await readProjectInfoIfV2(googleToken, project.spreadsheetId).catch(() => null);
+      }
+      const result = await createNotionLotPage(buildNotionLotRequest(project, lotDetails || {}));
+
+      const { projects: currentProjects, activeProject: currentActive } = latestRef.current;
+      const base = currentProjects.find(p => p.id === project.id) || project;
+      const linked = linkNotionPageToProject(base, result);
+      setProjects(currentProjects.map(p => (p.id === project.id ? linked : p)));
+      if (currentActive?.id === project.id) {
+        const updatedActive = linkNotionPageToProject(currentActive, result);
+        setActiveProject(updatedActive);
+        localStorage.setItem('jobscan_active_project', JSON.stringify(updatedActive));
+      }
+
+      const finishes = result.finishesCopied ? ` with ${result.finishesCopied} standard finishes` : '';
+      setSuccess(result.existing
+        ? `"${project.name}" already had a Notion page. It's linked now.`
+        : `Notion page made for "${project.name}"${finishes}.`);
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err) {
+      console.error(err);
+      setSuccess(null);
+      setError(`The Notion page for "${project.name}" was not made: ${err.message} Tap "Make Notion page" on the project to try again.`);
+    } finally {
+      setNotionBusyId(null);
     }
   };
 
@@ -303,6 +345,7 @@ export function useSettingsProjects({
     localStorage.setItem('jobscan_folder_id', newProj.folderId);
     localStorage.setItem('jobscan_folder_name', newProj.folderName);
 
+    const notionDetails = projectDetails;
     setProjectNameInput('');
     setTempSelectedFolder(null);
     setTempSelectedSheet(null);
@@ -312,10 +355,9 @@ export function useSettingsProjects({
       setError(`Project "${newProj.name}" saved, but the Sheet's Project Info was not filled in: ${sheetWriteError}`);
       return;
     }
-    setSuccess(newProj.spreadsheetName
-      ? `Project "${newProj.name}" saved and linked to "${newProj.spreadsheetName}"!`
-      : `Project "${newProj.name}" saved and set as active!`);
-    setTimeout(() => setSuccess(null), 3000);
+    setSuccess(`Project "${newProj.name}" saved. Making its Notion page...`);
+    // Every new house gets its Notion lot page (Sheet link filled in)
+    await makeNotionPage(newProj, notionDetails);
   };
 
   const handleCancelCreateProject = () => {
@@ -422,6 +464,8 @@ export function useSettingsProjects({
     useTemplate,
     setUseTemplate,
     savingProject,
+    notionBusyId,
+    makeNotionPage,
     confirmDeleteProject,
     handleCancelCreateProject,
     handleCreateFolder,

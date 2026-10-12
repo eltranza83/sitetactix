@@ -15,6 +15,8 @@ export function normalizeProjectRecord(data, id = null) {
   const folderName = data.folderName || '';
   const spreadsheetId = data.spreadsheetId || '';
   const spreadsheetName = data.spreadsheetName || '';
+  const notionPageId = data.notionPageId || '';
+  const notionPageUrl = data.notionPageUrl || '';
   const ownerEmail = (data.ownerEmail || '').trim().toLowerCase();
   const ownerUid = (data.ownerUid || '').trim();
   const members = Array.isArray(data.members)
@@ -32,6 +34,8 @@ export function normalizeProjectRecord(data, id = null) {
     folderName,
     spreadsheetId,
     spreadsheetName,
+    notionPageId,
+    notionPageUrl,
     ownerEmail,
     ownerUid,
     members,

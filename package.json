@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.10.2",
-  "releaseName": "Scans wait longer and retry",
+  "version": "1.11.0",
+  "releaseName": "Notion lot pages",
   "type": "module",
   "scripts": {
     "dev": "vite",

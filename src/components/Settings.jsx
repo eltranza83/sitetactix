@@ -56,6 +56,8 @@ export default function Settings({
           activeProject={activeProject}
           isOpen={projectSettings.showProjectsAccordion}
           projects={projects}
+          notionBusyId={projectSettings.notionBusyId}
+          onMakeNotionPage={projectSettings.makeNotionPage}
           onCreateProject={projectSettings.openCreateProjectModal}
           onDeleteProject={projectSettings.setProjectToDelete}
           onEditProject={projectSettings.openEditProjectModal}

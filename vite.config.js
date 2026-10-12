@@ -22,7 +22,10 @@ function apiDevPlugin() {
     name: 'api-dev-middleware',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        const devRoutes = { '/api/extract-document': './api/extract-document.js' };
+        const devRoutes = {
+          '/api/extract-document': './api/extract-document.js',
+          '/api/notion-lot': './api/notion-lot.js'
+        };
         if (devRoutes[req.url] && req.method === 'POST') {
           try {
             const chunks = [];
