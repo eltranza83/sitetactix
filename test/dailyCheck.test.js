@@ -144,3 +144,17 @@ describe('Today card on the Dashboard', () => {
     assert.equal(parseSheetDashboardTotals([['Something else', 5]]), null);
   });
 });
+
+describe('reading the Sheet Dashboard tab', () => {
+  test('finds "Spent to date" when its note shares the cell on a second line', () => {
+    const rows = [
+      ['', 'Budget for build\nHard costs', '', '', '', 240000, '', 'Spent to date\nAll receipts synced', '', 4497.07],
+      ['', '', '', '', '', '', '', 'Still owed to subs\nQuotes - labor paid', '', 11000]
+    ];
+    assert.deepEqual(parseSheetDashboardTotals(rows), { spent: 4497.07, owed: 11000 });
+  });
+
+  test('extra spaces in the label do not matter', () => {
+    assert.deepEqual(parseSheetDashboardTotals([['Spent  to date ', 10]]), { spent: 10, owed: null });
+  });
+});

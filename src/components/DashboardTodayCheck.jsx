@@ -58,6 +58,9 @@ export default function DashboardTodayCheck({ data, history, drafts, projectName
             <><Clock size={12} /> {result.draftsWaiting} {result.draftsWaiting === 1 ? 'draft' : 'drafts'} waiting to sync</>
           ) : '0 drafts waiting'}
           {result.totalsMatch === true ? ' · Sheet totals match' : ''}
+          {result.totalsMatch === null && !isCached
+            ? (data?.sheetDashboardRows ? ' · Sheet total not found on the Dashboard tab' : ' · could not read the Sheet Dashboard tab')
+            : ''}
           {isCached ? ' · saved copy, tap Refresh for the latest' : ''}
         </span>
       </div>

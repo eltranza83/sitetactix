@@ -108,10 +108,12 @@ export function findPossibleDuplicates(transactions, todaysReceiptIds) {
 
 /** The Sheet's own Dashboard numbers, found by their labels ("Spent to date", "Still owed to subs"). */
 export function parseSheetDashboardTotals(rows) {
+  // A label cell can hold a second line ("Spent to date" + "All receipts synced"): match on its first line
+  const firstLine = (cell) => text(cell).split(/\r?\n/)[0].replace(/\s+/g, ' ');
   const valueAfterLabel = (label) => {
     for (const row of rows || []) {
       if (!Array.isArray(row)) continue;
-      const at = row.findIndex(cell => same(cell, label));
+      const at = row.findIndex(cell => same(firstLine(cell), label));
       if (at === -1) continue;
       const numbers = row.slice(at + 1).filter(cell => typeof cell === 'number');
       if (numbers.length) return numbers[numbers.length - 1];
