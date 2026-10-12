@@ -15,6 +15,7 @@ import {
   buildTransactionRow,
   computeV2Dashboard,
   formatPerSqFt,
+  overpaidAmount,
   paidToSub
 } from '../src/services/sheetV2.js';
 
@@ -226,5 +227,28 @@ describe('MONEY CHECK: categories', () => {
     assert.equal(category('Framing & Lumber').totalPaid, 18531.41);
     assert.equal(category('Interior Hardware').totalPaid, 20.14);
     assert.equal(category('Interior Finishes').totalPaid, 340.47);
+  });
+});
+
+describe('MONEY CHECK: overpaid subs are flagged', () => {
+  test('Oscar Garza is listed once as overpaid by $500; nobody else is', () => {
+    assert.deepEqual(dashboard.projectInfo.overpaidSubs, [
+      { name: 'Oscar Garza', phase: 'Framing Lumber & Truss', amount: 500 }
+    ]);
+  });
+
+  test('his card shows Overpaid $500; subs still owed money show no overpaid amount', () => {
+    assert.equal(overpaidAmount(phase('Framing Lumber & Truss')), 500);
+    assert.equal(overpaidAmount(phase('Electrical & Lighting')), 0);
+    assert.equal(overpaidAmount(phase('Cabinets & Trim Carpentry')), 0);
+  });
+
+  test('no flag when every sub is at or under their quote', () => {
+    const fair = computeV2Dashboard({
+      projectInfoRows: PROJECT_INFO_ROWS,
+      transactionRows: TRANSACTION_ROWS.filter(r => r[7] !== '1750'),
+      contractRows: CONTRACT_ROWS
+    });
+    assert.deepEqual(fair.projectInfo.overpaidSubs, []);
   });
 });

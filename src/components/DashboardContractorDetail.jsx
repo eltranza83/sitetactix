@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Camera, X, Copy, Check } from 'lucide-react';
-import { paidToSub } from '../services/sheetV2.js';
+import { paidToSub, overpaidAmount } from '../services/sheetV2.js';
 
 export default function DashboardContractorDetail({
   selectedSub,
@@ -32,8 +32,11 @@ export default function DashboardContractorDetail({
     return lab > 0;
   });
 
+  const overpaid = overpaidAmount(selectedSub);
+  const balanceText = overpaid > 0 ? `Overpaid ${safeFormatCurrency(overpaid)}` : safeFormatCurrency(selectedSub.remainingBalance);
+
   const handleCopySummary = () => {
-    let summaryText = `${selectedSub.payee} - ${selectedSub.phase} (${selectedSub.category})\nQuote: ${safeFormatCurrency(selectedSub.originalQuote)}\nPaid (${laborPayments.length}): ${safeFormatCurrency(paidToSub(selectedSub))}\nBalance: ${safeFormatCurrency(selectedSub.remainingBalance)}`;
+    let summaryText = `${selectedSub.payee} - ${selectedSub.phase} (${selectedSub.category})\nQuote: ${safeFormatCurrency(selectedSub.originalQuote)}\nPaid (${laborPayments.length}): ${safeFormatCurrency(paidToSub(selectedSub))}\nBalance: ${balanceText}`;
 
     if (laborPayments.length > 0) {
       summaryText += `\n\nPayment History Logs (${laborPayments.length}):`;
@@ -181,15 +184,21 @@ export default function DashboardContractorDetail({
             {safeFormatCurrency(paidToSub(selectedSub))}
           </div>
         </div>
-        <div style={{ padding: '10px 6px', backgroundColor: 'rgba(212, 183, 135, 0.1)', border: '1px solid rgba(212, 183, 135, 0.3)', borderRadius: '8px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
-          <span style={{ fontSize: '0.66rem', color: 'var(--st-gold)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em', display: 'block' }}>
-            Balance
+        <div style={{ padding: '10px 6px', backgroundColor: overpaid > 0 ? 'rgba(248, 113, 113, 0.12)' : 'rgba(212, 183, 135, 0.1)', border: overpaid > 0 ? '1px solid rgba(248, 113, 113, 0.45)' : '1px solid rgba(212, 183, 135, 0.3)', borderRadius: '8px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
+          <span style={{ fontSize: '0.66rem', color: overpaid > 0 ? '#f87171' : 'var(--st-gold)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em', display: 'block' }}>
+            {overpaid > 0 ? 'Overpaid' : 'Balance'}
           </span>
-          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.remainingBalance), fontWeight: 700, color: 'var(--st-gold)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {safeFormatCurrency(selectedSub.remainingBalance)}
+          <div className="font-display" style={{ fontSize: getDynamicFontSize(overpaid || selectedSub.remainingBalance), fontWeight: 700, color: overpaid > 0 ? '#f87171' : 'var(--st-gold)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {safeFormatCurrency(overpaid || selectedSub.remainingBalance)}
           </div>
         </div>
       </div>
+
+      {overpaid > 0 && (
+        <p style={{ fontSize: '0.72rem', color: '#fca5a5', margin: 0, lineHeight: 1.4 }}>
+          Paid {safeFormatCurrency(overpaid)} more than the quote. Check the Contracts tab for extra work that was not added to the quote, a check scanned twice, or a payment in the wrong phase.
+        </p>
+      )}
 
       <div>
         <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--st-muted)', display: 'block', marginBottom: '8px' }}>

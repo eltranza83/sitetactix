@@ -259,6 +259,12 @@ export function paidToSub(sub) {
   return Number(paid) || 0;
 }
 
+/** How much more a sub was paid than their quote (0 when not overpaid). */
+export function overpaidAmount(sub) {
+  const balance = Number(sub?.remainingBalance ?? sub?.stillOwed) || 0;
+  return balance < 0 ? roundCents(-balance) : 0;
+}
+
 function formatMoney(value) {
   return `$${roundCents(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -384,6 +390,10 @@ export function computeV2Dashboard({ projectInfoRows = [], transactionRows = [],
       stillOwed,
       budgetAfterSubs: roundCents(budgetRemaining - stillOwed),
       projectedBuildCost: roundCents(totalSpent + stillOwed),
+      // Subs paid more than their quote: usually extra work not added to Contracts, a check scanned twice, or a wrong phase
+      overpaidSubs: contracts
+        .filter(c => overpaidAmount(c) > 0)
+        .map(c => ({ name: c.displayName, phase: c.phase, amount: overpaidAmount(c) })),
       sqftTotal: info.sqftTotal,
       sqftLiving: info.sqftLiving,
       costPerSqFt: computeCostPerSqFt({

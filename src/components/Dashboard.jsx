@@ -13,6 +13,7 @@ import {
 } from '../services/dashboardDrive';
 import DashboardContractorSearch from './DashboardContractorSearch';
 import DashboardKpiCards from './DashboardKpiCards';
+import DashboardOverpaidNotice from './DashboardOverpaidNotice';
 import DashboardCostPerSqFt from './DashboardCostPerSqFt';
 import DashboardPhotoReminders from './DashboardPhotoReminders';
 import DashboardPhotoGallery from './DashboardPhotoGallery';
@@ -552,6 +553,11 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
         <>
           <DashboardKpiCards
             projectInfo={data?.projectInfo || {}}
+            formatCurrency={formatCurrency}
+          />
+
+          <DashboardOverpaidNotice
+            overpaidSubs={data?.projectInfo?.overpaidSubs}
             formatCurrency={formatCurrency}
           />
 

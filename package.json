@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.9.8",
-  "releaseName": "Money check on every release",
+  "version": "1.9.9",
+  "releaseName": "Overpaid subs flagged",
   "type": "module",
   "scripts": {
     "dev": "vite",
