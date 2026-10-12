@@ -4,8 +4,9 @@ import { TRADE_CATEGORIES } from '../config/tradeCategories.js';
  *
  * A v2 Sheet has a `Transactions` tab (the only tab the app writes receipts to),
  * a `Contracts` tab (quotes typed by the owner) and a `Project Info` tab (house setup values).
- * The Dashboard and category tabs are formulas only and are never written or parsed by the app:
+ * The Dashboard and category tabs are formulas only and are never written by the app:
  * everything the in-app Dashboard shows is worked out here from the three data tabs.
+ * The Sheet's Dashboard tab is only read back to double-check that its "Spent to date" matches.
  *
  * Sheets without both `Transactions` and `Project Info` keep the old behavior.
  */
@@ -18,7 +19,8 @@ export const SHEET_LAYOUT_LEGACY = 'legacy';
 export const V2_TABS = {
   transactions: 'Transactions',
   projectInfo: 'Project Info',
-  contracts: 'Contracts'
+  contracts: 'Contracts',
+  dashboard: 'Dashboard'
 };
 
 /** The 9 categories and 26 phases, in Sheet order (from the shared list). `key` is the app's internal category key. */
@@ -407,7 +409,18 @@ export function computeV2Dashboard({ projectInfoRows = [], transactionRows = [],
     },
     subcontractors,
     categories,
-    contracts
+    contracts,
+    // Every Transactions row (for the automatic check that synced receipts really landed)
+    transactions: transactions.map(t => ({
+      rowNumber: t.rowNumber,
+      date: t.date,
+      payee: t.payee,
+      category: t.category,
+      phase: t.phase,
+      material: t.material,
+      labor: t.labor,
+      receiptId: t.receiptId
+    }))
   };
 }
 
@@ -493,11 +506,32 @@ export async function fetchV2DashboardData(accessToken, spreadsheetId) {
   const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values:batchGet?${query}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`;
   const data = await sheetsRequest(accessToken, url, {}, 'load the Google Sheet');
   const [projectInfoRange, transactionsRange, contractsRange] = data.valueRanges || [];
-  return computeV2Dashboard({
+  const dashboard = computeV2Dashboard({
     projectInfoRows: projectInfoRange?.values || [],
     transactionRows: transactionsRange?.values || [],
     contractRows: contractsRange?.values || []
   });
+  dashboard.sheetDashboardRows = await fetchSheetDashboardRows(accessToken, spreadsheetId);
+  return dashboard;
+}
+
+/** The Sheet's own Dashboard tab (its formula results), or null when it cannot be read. Never throws. */
+export async function fetchSheetDashboardRows(accessToken, spreadsheetId) {
+  try {
+    const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(`'${V2_TABS.dashboard}'!A1:L40`)}?valueRenderOption=UNFORMATTED_VALUE`;
+    const data = await sheetsRequest(accessToken, url, {}, 'read the Sheet Dashboard');
+    return data.values || [];
+  } catch (err) {
+    console.warn('[sheetV2] Could not read the Sheet Dashboard tab:', err?.message || err);
+    return null;
+  }
+}
+
+/** All Transactions rows (row 1 = headers), as stored. */
+export async function fetchTransactionRows(accessToken, spreadsheetId) {
+  const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(`${V2_TABS.transactions}!A1:J`)}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`;
+  const data = await sheetsRequest(accessToken, url, {}, 'read Transactions');
+  return data.values || [];
 }
 
 /** Receipt IDs already in Transactions (column J). */

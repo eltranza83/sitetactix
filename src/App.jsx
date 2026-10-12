@@ -696,6 +696,16 @@ export default function App() {
                             <span style={{ fontSize: '0.65rem', color: 'var(--color-zinc-600)' }}>•</span>
                             <span style={{ fontSize: '0.65rem', color: 'var(--color-zinc-500)' }}>Logged {item.dateLogged}</span>
                           </div>
+                          {item.check?.status === 'ok' && (
+                            <div style={{ fontSize: '0.68rem', color: '#4ade80', marginTop: '3px', fontWeight: 600 }}>
+                              ✓ Recorded in Sheet{item.check.rowNumber ? ` (row ${item.check.rowNumber})` : ''}
+                            </div>
+                          )}
+                          {item.check && item.check.status !== 'ok' && (
+                            <div style={{ fontSize: '0.68rem', color: '#f87171', marginTop: '3px', fontWeight: 600, lineHeight: 1.35 }}>
+                              ⚠ {item.check.status === 'missing' ? 'Not found in the Sheet' : 'Sheet row is different'}: {(item.check.problems || []).join('; ')}
+                            </div>
+                          )}
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
@@ -751,6 +761,8 @@ export default function App() {
               onSessionExpired={handleSessionExpired}
               onRequestConnect={requestDriveAccessToken}
               onShowToast={setSuccess}
+              history={history}
+              drafts={stagedItems}
             />
           </DashboardErrorBoundary>
         ) : activeTab === 'xray' ? (

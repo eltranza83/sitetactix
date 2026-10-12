@@ -85,7 +85,8 @@ test('buildHistoryLogs uses split overrides and defaults', () => {
   assert.equal(logs[0].tradePhase, 'Paint & Finishes');
   assert.equal(logs[1].id, 'file-1_split_1');
   assert.equal(logs[1].description, '[Main Lot] Shared receipt');
-  assert.equal(logs[1].costCategory, 'material');
+  // A split with no type of its own is saved to the Sheet as the receipt's type, so History says the same
+  assert.equal(logs[1].costCategory, 'labor');
 });
 
 test('resolveSplitProjectFolder matches project names case-insensitively', () => {

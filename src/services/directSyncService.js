@@ -118,7 +118,7 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
   });
 
   if (processableFiles.length === 0) {
-    return { ok: true, processedCount: 0, message: 'No new uploaded files found to sync.' };
+    return { ok: true, processedCount: 0, spreadsheetId, message: 'No new uploaded files found to sync.' };
   }
 
   // 4. Fetch full spreadsheet metadata to inspect sheet tab names
@@ -288,5 +288,5 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
     }
   }
 
-  return { ok: true, processedCount, failed, phaseGrowth, growthNote };
+  return { ok: true, processedCount, failed, phaseGrowth, growthNote, spreadsheetId };
 }

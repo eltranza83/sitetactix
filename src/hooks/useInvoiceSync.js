@@ -14,6 +14,27 @@ import {
 } from '../services/invoiceSyncState';
 import { syncUploadedInvoicesDirectly } from '../services/directSyncService';
 import { isDraftPhaseValid } from '../services/editFormHelpers';
+import { fetchTransactionRows } from '../services/sheetV2';
+import { checkSyncedEntries } from '../services/dailyCheck';
+
+/** Reads the Sheet back and marks each synced entry as recorded or not. Never throws (entries stay unchecked). */
+async function checkAgainstSheet(googleToken, spreadsheetId, logs) {
+  if (!googleToken || !spreadsheetId) return logs;
+  try {
+    return checkSyncedEntries(logs, await fetchTransactionRows(googleToken, spreadsheetId));
+  } catch (err) {
+    console.warn('[useInvoiceSync] Could not check the Sheet after sync:', err?.message || err);
+    return logs;
+  }
+}
+
+/** A short warning when any synced entry did not land in the Sheet as expected (null when all good). */
+function checkWarning(logs) {
+  const bad = (logs || []).filter(l => l.check && l.check.status !== 'ok');
+  if (bad.length === 0) return null;
+  const first = bad[0];
+  return `Synced, but ${bad.length === 1 ? '1 entry' : `${bad.length} entries`} did not land right in the Sheet (${first.vendor || 'entry'}: ${first.check.problems[0]}). See History.`;
+}
 
 function writePdfLoadingState(newWindow) {
   if (!newWindow) return;
@@ -155,7 +176,8 @@ export function useInvoiceSync({
           webViewLink: itemToSync.driveFileLink,
           logs: buildHistoryLogs(itemToSync.metadata, {
             idPrefix: itemToSync.driveFileId,
-            link: itemToSync.driveFileLink
+            link: itemToSync.driveFileLink,
+            draftId: itemToSync.id
           })
         };
       } else {
@@ -210,14 +232,21 @@ export function useInvoiceSync({
         return;
       }
 
-      // Successful for this item
-      saveHistory([...driveUploadResult.logs, ...history]);
+      // Successful for this item: read the Sheet back to confirm the rows really landed
+      setUploadStatusText('Checking the spreadsheet...');
+      const checkedLogs = await checkAgainstSheet(googleToken, result.spreadsheetId, driveUploadResult.logs);
+      saveHistory([...checkedLogs, ...history]);
       removeStagedItem(id);
+      const oneShotWarning = checkWarning(checkedLogs);
 
       const hasOtherFailures = (result.failed || []).length > 0;
       setHasUnprocessedUploads(hasOtherFailures);
       setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasOtherFailures);
 
+      if (oneShotWarning) {
+        setError(oneShotWarning);
+        return;
+      }
       if (hasOtherFailures) {
         setSuccess(`Synced directly to spreadsheet & Drive! (Note: ${result.failed.length} other file(s) in Uploads require attention)${growthNoteFor(result)}`);
       } else {
@@ -318,7 +347,8 @@ export function useInvoiceSync({
           uploadedDrafts.push(item);
           allLogs.push(...buildHistoryLogs(item.metadata, {
             idPrefix: item.driveFileId,
-            link: item.driveFileLink
+            link: item.driveFileLink,
+            draftId: item.id
           }));
         } else {
           try {
@@ -382,7 +412,12 @@ export function useInvoiceSync({
 
       // Save history and remove only successful drafts
       const successfulIds = successfulDrafts.map(d => d.id);
-      saveHistory([...allLogs, ...history]);
+      // History gets only the drafts that really synced (failed ones stay in Drafts), checked against the Sheet
+      const successfulLogs = allLogs.filter(log => !log.draftId || successfulIds.includes(log.draftId));
+      setUploadStatusText('Checking the spreadsheet...');
+      const checkedLogs = await checkAgainstSheet(googleToken, result.spreadsheetId, successfulLogs);
+      saveHistory([...checkedLogs, ...history]);
+      const syncAllWarning = checkWarning(checkedLogs);
       if (typeof removeStagedItems === 'function' && successfulIds.length > 0) {
         removeStagedItems(successfulIds);
       } else {
@@ -402,7 +437,9 @@ export function useInvoiceSync({
 
       const phaseNote = invalidPhaseDrafts.length > 0 ? ` ${invalidDesc}` : '';
 
-      if (hasFailures) {
+      if (syncAllWarning) {
+        setError(syncAllWarning);
+      } else if (hasFailures) {
         if (result.processedCount > 0) {
           const docWord = result.processedCount === 1 ? 'document' : 'documents';
           setSuccess(`Synced ${result.processedCount} ${docWord}. ${result.failed.length} file(s) require attention.${phaseNote}${growthNoteFor(result)}`);

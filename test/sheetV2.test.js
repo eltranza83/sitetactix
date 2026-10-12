@@ -314,12 +314,16 @@ describe('v2 Dashboard math (spec sample)', () => {
     assert.equal(sum, 59540);
   });
 
-  test('reads the three data tabs in one request (never the Dashboard tab)', async () => {
+  test('works out the numbers from the three data tabs; the Sheet Dashboard is only read back to double-check', async () => {
     const originalFetch = globalThis.fetch;
-    let seenUrl = '';
+    const seen = [];
     try {
-      globalThis.fetch = async (url) => {
-        seenUrl = decodeURIComponent(String(url));
+      globalThis.fetch = async (url, options = {}) => {
+        const decoded = decodeURIComponent(String(url));
+        seen.push({ url: decoded, method: options.method || 'GET' });
+        if (decoded.includes("'Dashboard'!")) {
+          return { ok: true, json: async () => ({ values: [['Spent to date', 59540]] }) };
+        }
         return {
           ok: true,
           json: async () => ({
@@ -333,10 +337,14 @@ describe('v2 Dashboard math (spec sample)', () => {
       };
       const fetched = await fetchV2DashboardData('tok', 'sheet_1');
       assert.equal(fetched.projectInfo.totalSpent, 59540);
-      assert.match(seenUrl, /'Project Info'!A1:B20/);
-      assert.match(seenUrl, /Transactions!A1:J/);
-      assert.match(seenUrl, /Contracts!A1:E/);
-      assert.doesNotMatch(seenUrl, /Dashboard/);
+      assert.equal(seen.length, 2);
+      assert.match(seen[0].url, /'Project Info'!A1:B20/);
+      assert.match(seen[0].url, /Transactions!A1:J/);
+      assert.match(seen[0].url, /Contracts!A1:E/);
+      assert.doesNotMatch(seen[0].url, /Dashboard/);
+      assert.match(seen[1].url, /'Dashboard'!A1:L40/);
+      seen.forEach(req => assert.equal(req.method, 'GET'));
+      assert.deepEqual(fetched.sheetDashboardRows, [['Spent to date', 59540]]);
     } finally {
       globalThis.fetch = originalFetch;
     }

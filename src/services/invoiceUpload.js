@@ -43,8 +43,17 @@ export function buildSplitMetadata(metadata, split, draftId, splitIndex) {
   };
 }
 
-export function buildHistoryLogs(metadata, { idPrefix, link }) {
+/**
+ * History entries for a synced receipt (one per split). With a draftId, each entry also carries the
+ * Receipt ID of its Transactions row and when it was synced, so the app can check the row really landed.
+ */
+export function buildHistoryLogs(metadata, { idPrefix, link, draftId = null, syncedAt = null }) {
   const dateLogged = new Date().toLocaleDateString();
+  const checkFields = (splitIndex) => (draftId ? {
+    draftId,
+    receiptId: buildReceiptId(draftId, splitIndex),
+    syncedAt: syncedAt || new Date().toISOString()
+  } : {});
 
   if (metadata.splits && metadata.splits.length > 0) {
     return metadata.splits.map((split, index) => ({
@@ -53,11 +62,13 @@ export function buildHistoryLogs(metadata, { idPrefix, link }) {
       dateTransaction: metadata.date,
       description: `[${split.lotNumber || metadata.lotNumber || 'N/A'}] ${split.description || metadata.description || ''}`,
       vendor: metadata.vendor,
-      costCategory: split.costCategory || 'material',
+      costCategory: split.costCategory || metadata.costCategory || 'material',
       amount: split.amount,
       link,
       tradeCategory: split.tradeCategory || metadata.tradeCategory,
-      tradePhase: split.tradePhase || metadata.tradePhase
+      tradePhase: split.tradePhase || metadata.tradePhase,
+      ...(draftId ? { lotName: split.lotNumber || metadata.lotNumber || '' } : {}),
+      ...checkFields(index)
     }));
   }
 
@@ -71,7 +82,9 @@ export function buildHistoryLogs(metadata, { idPrefix, link }) {
     amount: metadata.amount,
     link,
     tradeCategory: metadata.tradeCategory,
-    tradePhase: metadata.tradePhase
+    tradePhase: metadata.tradePhase,
+    ...(draftId ? { lotName: metadata.lotNumber || '' } : {}),
+    ...checkFields(null)
   }];
 }
 
@@ -238,7 +251,8 @@ export async function syncInvoiceDocument({
     return {
       logs: buildHistoryLogs(metadata, {
         idPrefix: mainUploadResult.id,
-        link: mainUploadResult.webViewLink
+        link: mainUploadResult.webViewLink,
+        draftId: item.id || null
       }),
       hasDriveUpload: true,
       successMessage: 'Document report PDF synced successfully!',

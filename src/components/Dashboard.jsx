@@ -14,13 +14,14 @@ import {
 import DashboardContractorSearch from './DashboardContractorSearch';
 import DashboardKpiCards from './DashboardKpiCards';
 import DashboardOverpaidNotice from './DashboardOverpaidNotice';
+import DashboardTodayCheck from './DashboardTodayCheck';
 import DashboardCostPerSqFt from './DashboardCostPerSqFt';
 import DashboardPhotoReminders from './DashboardPhotoReminders';
 import DashboardPhotoGallery from './DashboardPhotoGallery';
 import DashboardTradeSections from './DashboardTradeSections';
 import { auditSpreadsheetHealth } from '../services/spreadsheetHealth';
 
-export default function Dashboard({ googleToken, activeProject, selectedFolder, onSessionExpired, onRequestConnect, onShowToast }) {
+export default function Dashboard({ googleToken, activeProject, selectedFolder, onSessionExpired, onRequestConnect, onShowToast, history, drafts }) {
   const [data, setData] = useState(() => loadCachedDashboard(localStorage, activeProject?.id));
   const [isCached, setIsCached] = useState(() => Boolean(loadCachedDashboard(localStorage, activeProject?.id)));
   const [loading, setLoading] = useState(false);
@@ -554,6 +555,14 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
           <DashboardKpiCards
             projectInfo={data?.projectInfo || {}}
             formatCurrency={formatCurrency}
+          />
+
+          <DashboardTodayCheck
+            data={data}
+            history={history}
+            drafts={drafts}
+            projectName={activeProject?.name || ''}
+            isCached={isCached}
           />
 
           <DashboardOverpaidNotice
