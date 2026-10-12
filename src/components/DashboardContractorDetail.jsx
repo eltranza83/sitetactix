@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Camera, X, Copy, Check } from 'lucide-react';
+import { paidToSub } from '../services/sheetV2.js';
 
 export default function DashboardContractorDetail({
   selectedSub,
@@ -32,7 +33,7 @@ export default function DashboardContractorDetail({
   });
 
   const handleCopySummary = () => {
-    let summaryText = `${selectedSub.payee} - ${selectedSub.phase} (${selectedSub.category})\nQuote: ${safeFormatCurrency(selectedSub.originalQuote)}\nPaid (${laborPayments.length}): ${safeFormatCurrency(selectedSub.contractorPaid || selectedSub.totalLabor || selectedSub.totalPaid || 0)}\nBalance: ${safeFormatCurrency(selectedSub.remainingBalance)}`;
+    let summaryText = `${selectedSub.payee} - ${selectedSub.phase} (${selectedSub.category})\nQuote: ${safeFormatCurrency(selectedSub.originalQuote)}\nPaid (${laborPayments.length}): ${safeFormatCurrency(paidToSub(selectedSub))}\nBalance: ${safeFormatCurrency(selectedSub.remainingBalance)}`;
 
     if (laborPayments.length > 0) {
       summaryText += `\n\nPayment History Logs (${laborPayments.length}):`;
@@ -176,8 +177,8 @@ export default function DashboardContractorDetail({
           <span style={{ fontSize: '0.66rem', color: '#7dd3fc', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em', display: 'block' }}>
             Paid ({laborPayments.length})
           </span>
-          <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.contractorPaid || selectedSub.totalLabor || selectedSub.totalPaid || 0), fontWeight: 700, color: '#7dd3fc', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {safeFormatCurrency(selectedSub.contractorPaid || selectedSub.totalLabor || selectedSub.totalPaid || 0)}
+          <div className="font-display" style={{ fontSize: getDynamicFontSize(paidToSub(selectedSub)), fontWeight: 700, color: '#7dd3fc', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {safeFormatCurrency(paidToSub(selectedSub))}
           </div>
         </div>
         <div style={{ padding: '10px 6px', backgroundColor: 'rgba(212, 183, 135, 0.1)', border: '1px solid rgba(212, 183, 135, 0.3)', borderRadius: '8px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>

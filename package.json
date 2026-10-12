@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.9.6",
-  "releaseName": "Old data formats removed",
+  "version": "1.9.7",
+  "releaseName": "Paid shows only sub payments",
   "type": "module",
   "scripts": {
     "dev": "vite",

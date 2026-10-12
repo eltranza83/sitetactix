@@ -253,6 +253,12 @@ export function contractDisplayName(sub, company) {
   return person || firm;
 }
 
+/** What has been paid to the sub for a phase: labor only, never the phase's materials (0 stays 0). */
+export function paidToSub(sub) {
+  const paid = sub?.contractorPaid ?? sub?.totalLabor ?? 0;
+  return Number(paid) || 0;
+}
+
 function formatMoney(value) {
   return `$${roundCents(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }

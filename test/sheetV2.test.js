@@ -358,3 +358,13 @@ describe('v2 Dashboard math (spec sample)', () => {
     ]);
   });
 });
+
+describe('paidToSub', () => {
+  test('counts only labor paid to the sub, so a materials-only phase shows $0', async () => {
+    const { paidToSub } = await import('../src/services/sheetV2.js');
+    assert.equal(paidToSub({ contractorPaid: 0, totalLabor: 0, totalPaid: 31.58 }), 0);
+    assert.equal(paidToSub({ contractorPaid: 4000, totalLabor: 4000, totalPaid: 4023.2 }), 4000);
+    assert.equal(paidToSub({ totalLabor: 2000, totalPaid: 2500 }), 2000);
+    assert.equal(paidToSub({}), 0);
+  });
+});
