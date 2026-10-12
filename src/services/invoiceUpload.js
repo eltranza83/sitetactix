@@ -27,6 +27,22 @@ export function buildReceiptId(draftId, splitIndex = null) {
   return splitIndex === null || splitIndex === undefined ? base : `${base}_split_${splitIndex}`;
 }
 
+/** The receipt details for one split, as it is saved (its own amount, phase, lot and items). */
+export function buildSplitMetadata(metadata, split, draftId, splitIndex) {
+  return {
+    ...metadata,
+    ...(draftId ? { receiptId: buildReceiptId(draftId, splitIndex) } : {}),
+    amount: parseFloat(split.amount) || 0,
+    description: split.description || metadata.description,
+    lotNumber: split.lotNumber || metadata.lotNumber,
+    tradeCategory: split.tradeCategory || metadata.tradeCategory,
+    tradePhase: split.tradePhase || metadata.tradePhase,
+    costCategory: split.costCategory || metadata.costCategory,
+    lineItems: Array.isArray(split.items) ? split.items : [],
+    splits: null
+  };
+}
+
 export function buildHistoryLogs(metadata, { idPrefix, link }) {
   const dateLogged = new Date().toLocaleDateString();
 
@@ -178,18 +194,7 @@ export async function syncInvoiceDocument({
       const splitAmount = parseFloat(split.amount) || 0;
       if (splitAmount <= 0) continue;
 
-      const splitMetadata = {
-        ...metadata,
-        ...(item.id ? { receiptId: buildReceiptId(item.id, splitIndex) } : {}),
-        amount: splitAmount,
-        description: split.description || metadata.description,
-        lotNumber: split.lotNumber || metadata.lotNumber,
-        tradeCategory: split.tradeCategory || metadata.tradeCategory,
-        tradePhase: split.tradePhase || metadata.tradePhase,
-        costCategory: split.costCategory || metadata.costCategory,
-        lineItems: Array.isArray(split.items) ? split.items : [],
-        splits: null
-      };
+      const splitMetadata = buildSplitMetadata(metadata, split, item.id, splitIndex);
       const splitPdfBlob = await generateDocumentPDF(splitMetadata, images);
       const projectFolder = resolveSplitProjectFolder(projects, selectedFolder, split);
       if (projectFolder.unresolved || !projectFolder.folderId) {

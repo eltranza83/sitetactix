@@ -1,8 +1,8 @@
 const ENV = import.meta.env || {};
 
-export const APP_VERSION = ENV.VITE_APP_VERSION || '1.9.7';
+export const APP_VERSION = ENV.VITE_APP_VERSION || '1.9.8';
 export const APP_BUILD_LABEL = ENV.VITE_APP_BUILD_LABEL || `v${APP_VERSION}`;
-export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Paid shows only sub payments';
+export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Money check on every release';
 
 // Google Sheet copied for each new project: the master "SiteTactix Templates" Sheet in the owner's Drive
 export const TEMPLATE_SHEET_ID = String(ENV.VITE_TEMPLATE_SHEET_ID || '1Lrxya8aLaVoVYVyyjT51PDT25DcCa46yvENWdFEJxhA').trim();

@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.9.7",
-  "releaseName": "Paid shows only sub payments",
+  "version": "1.9.8",
+  "releaseName": "Money check on every release",
   "type": "module",
   "scripts": {
     "dev": "vite",
