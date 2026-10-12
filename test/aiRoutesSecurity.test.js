@@ -185,3 +185,38 @@ describe('AI scan route: auth, keys, request limits and error sanitization', () 
     });
   });
 });
+
+describe('scan timeouts', () => {
+  const timeoutError = () => { const err = new Error('The operation was aborted'); err.name = 'TimeoutError'; return err; };
+
+  it('tries once more after a slow answer when there is time left', async () => {
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls += 1;
+      if (calls === 1) throw timeoutError();
+      return { ok: true, status: 200 };
+    };
+    const response = await fetchWithExponentialBackoff('https://example.com/api', { timeoutMs: 35000, deadlineMs: 55000 }, { maxRetries: 2 }, fetchImpl);
+    assert.strictEqual(response.ok, true);
+    assert.strictEqual(calls, 2);
+  });
+
+  it('stops with a clear message when not enough time is left for another try', async () => {
+    let calls = 0;
+    const fetchImpl = async () => { calls += 1; throw timeoutError(); };
+    await assert.rejects(
+      () => fetchWithExponentialBackoff('https://example.com/api', { timeoutMs: 5000, deadlineMs: 5000 }, { maxRetries: 2 }, fetchImpl),
+      /timed out/
+    );
+    assert.strictEqual(calls, 1);
+  });
+
+  it('does not send its own timing settings to Google', async () => {
+    let seen = null;
+    const fetchImpl = async (url, options) => { seen = options; return { ok: true, status: 200 }; };
+    await fetchWithExponentialBackoff('https://example.com/api', { method: 'POST', timeoutMs: 35000, deadlineMs: 55000 }, { maxRetries: 0 }, fetchImpl);
+    assert.strictEqual(seen.method, 'POST');
+    assert.strictEqual('timeoutMs' in seen, false);
+    assert.strictEqual('deadlineMs' in seen, false);
+  });
+});

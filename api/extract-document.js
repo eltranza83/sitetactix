@@ -34,6 +34,9 @@ export async function generateDocumentData({ bytes, mimeType, apiKey, fetchImpl 
     targetUrl,
     {
       method: 'POST',
+      // Each try may take up to 35 seconds; all tries together stay under the 60-second server limit
+      timeoutMs: 35000,
+      deadlineMs: 55000,
       headers: {
         'content-type': 'application/json',
         'x-goog-api-key': apiKey

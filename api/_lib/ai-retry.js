@@ -12,12 +12,20 @@ export async function fetchWithExponentialBackoff(
 ) {
   const { maxRetries = 3, initialDelayMs = 500, backoffFactor = 2, jitter = true, retryableStatusCodes = [429, 500, 502, 503, 504] } = retryConfig;
   const timeoutMs = options.timeoutMs || 25000;
+  // Total time allowed across all attempts (keeps the whole call inside the server's time limit)
+  const deadlineMs = options.deadlineMs || timeoutMs;
+  const startedAt = Date.now();
+  const remainingMs = () => deadlineMs - (Date.now() - startedAt);
+  // A retry after a timeout only makes sense with at least this much time left
+  const MIN_RETRY_WINDOW_MS = 8000;
+  const { timeoutMs: _timeout, deadlineMs: _deadline, ...requestOptions } = options;
   let lastError = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const attemptTimeoutMs = Math.max(1, Math.min(timeoutMs, remainingMs()));
     try {
-      const signal = options.signal || (typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(timeoutMs) : undefined);
-      const fetchOptions = signal ? { ...options, signal } : options;
+      const signal = options.signal || (typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(attemptTimeoutMs) : undefined);
+      const fetchOptions = signal ? { ...requestOptions, signal } : requestOptions;
       const response = await fetchImpl(url, fetchOptions);
 
       if (response.ok) {
@@ -32,7 +40,13 @@ export async function fetchWithExponentialBackoff(
       lastError = `Status ${response.status}: ${errorText}`;
     } catch (err) {
       if (err.name === 'TimeoutError' || err.name === 'AbortError') {
-        throw new HttpError(504, `AI request timed out after ${Math.round(timeoutMs / 1000)} seconds. Please retry.`);
+        // A slow answer gets one more try when there is still time; otherwise stop with a clear message
+        if (attempt === maxRetries || options.signal || remainingMs() < MIN_RETRY_WINDOW_MS) {
+          throw new HttpError(504, `AI request timed out after ${Math.round((Date.now() - startedAt) / 1000)} seconds. Please retry.`);
+        }
+        lastError = 'timed out';
+        console.warn(`[AI Retry] Attempt ${attempt + 1} timed out after ${Math.round(attemptTimeoutMs / 1000)}s. Trying again.`);
+        continue;
       }
       lastError = err.message || String(err);
       if (attempt === maxRetries) {
