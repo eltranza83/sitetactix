@@ -7,13 +7,21 @@ import {
   cleanRichText,
   createLotPage,
   finishCopyProperties,
+  listSubdivisions,
   lotProperties,
   notionRequest,
   parseLotRequest,
   readBlockTree,
-  toCreateBlock
+  toCreateBlock,
+  updateLotSubdivision
 } from '../api/_lib/notion-lot.js';
-import { buildNotionLotRequest, linkNotionPageToProject, localDateString } from '../src/services/notionLot.js';
+import {
+  buildNotionLotRequest,
+  linkNotionPageToProject,
+  localDateString,
+  matchSubdivision,
+  subdivisionProblem
+} from '../src/services/notionLot.js';
 import { normalizeProjectRecord } from '../src/services/projectService.js';
 
 const text = (content, extra = {}) => ({
@@ -133,7 +141,7 @@ test('toCreateBlock unticks checkboxes, keeps toggles and colors, and skips bloc
 test('createLotPage copies the whole template (3 levels deep) into a new lot page, unticked', async () => {
   const notion = fakeNotion();
   const result = await createLotPage(
-    { name: 'Lot 7 – Northwood Trail', address: '12 Oak St, McAllen, TX', startDate: '2026-10-12', spreadsheetId: 'sheet_ABC123xyz' },
+    { name: 'Lot 7 – Northwood Trail', subdivision: 'Northwood Trail', address: '12 Oak St, McAllen, TX', startDate: '2026-10-12', spreadsheetId: 'sheet_ABC123xyz' },
     { apiKey: 'secret', fetchImpl: notion.fetchImpl, sleep: noSleep }
   );
 
@@ -145,6 +153,7 @@ test('createLotPage copies the whole template (3 levels deep) into a new lot pag
   assert.equal(page.properties.Status.select.name, 'Active');
   assert.equal(page.properties.Sheet.url, 'https://docs.google.com/spreadsheets/d/sheet_ABC123xyz/edit');
   assert.equal(page.properties['Start date'].date.start, '2026-10-12');
+  assert.equal(page.properties.Subdivision.select.name, 'Northwood Trail');
 
   const copied = notion.tree(result.pageId);
   assert.deepEqual(copied.map(b => b.type), ['callout', 'heading_1', 'heading_2', 'heading_2', 'divider', 'paragraph']);
@@ -246,8 +255,9 @@ test('parseLotRequest checks what the browser sent', () => {
   assert.throws(() => parseLotRequest({ name: '  ' }), /needs a name/);
   assert.throws(() => parseLotRequest({ name: 'Lot 1', startDate: '10/12/2026' }), /start date/);
   assert.throws(() => parseLotRequest({ name: 'Lot 1', spreadsheetId: 'bad id/../x' }), /Sheet link/);
-  assert.deepEqual(parseLotRequest({ name: ' Lot 1 ', address: ' 1 Main ', startDate: '2026-10-12', spreadsheetId: 'abcdefghij_-12' }),
-    { name: 'Lot 1', address: '1 Main', startDate: '2026-10-12', spreadsheetId: 'abcdefghij_-12' });
+  assert.throws(() => parseLotRequest({ name: 'Lot 1', subdivision: 'Oaks, Phase 2' }), /comma/);
+  assert.deepEqual(parseLotRequest({ name: ' Lot 1 ', subdivision: ' Northwood   Trail ', address: ' 1 Main ', startDate: '2026-10-12', spreadsheetId: 'abcdefghij_-12' }),
+    { name: 'Lot 1', subdivision: 'Northwood Trail', address: '1 Main', startDate: '2026-10-12', spreadsheetId: 'abcdefghij_-12' });
 });
 
 test('lotProperties leaves the Sheet empty when the project has none', () => {
@@ -255,6 +265,56 @@ test('lotProperties leaves the Sheet empty when the project has none', () => {
   assert.equal(properties.Sheet.url, null);
   assert.equal(properties.Address, undefined);
   assert.equal(properties['Start date'], undefined);
+  assert.equal(properties.Subdivision, undefined);
+});
+
+function pageServer(pages) {
+  const patches = [];
+  const fetchImpl = async (url, options = {}) => {
+    const path = String(url).replace('https://api.notion.com/v1/', '');
+    if (path === `data_sources/${NOTION_IDS.projectsDataSource}`) {
+      return Response.json({ properties: { Subdivision: { select: { options: [{ name: 'Northwood Trail' }, { name: 'Oak Ridge' }] } } } });
+    }
+    const id = path.replace('pages/', '');
+    if (!pages[id]) return new Response('{}', { status: 404 });
+    if ((options.method || 'GET') === 'PATCH') {
+      patches.push({ id, body: JSON.parse(options.body) });
+      return Response.json(pages[id]);
+    }
+    return Response.json(pages[id]);
+  };
+  return { fetchImpl, patches };
+}
+
+test('listSubdivisions reads the Subdivision choices from Projects', async () => {
+  const { fetchImpl } = pageServer({});
+  assert.deepEqual(await listSubdivisions({ apiKey: 'k', fetchImpl, sleep: noSleep }), ['Northwood Trail', 'Oak Ridge']);
+});
+
+test('updateLotSubdivision changes only lot pages in Projects, never the template or other pages', async () => {
+  const lotId = '3f753b8e-2336-81ea-a174-df0a21022238';
+  const server = pageServer({
+    [lotId]: { id: lotId, parent: { type: 'data_source_id', data_source_id: NOTION_IDS.projectsDataSource } },
+    'other-page': { id: 'other-page', parent: { type: 'page_id', page_id: 'x' } },
+    [NOTION_IDS.templatePage]: { id: NOTION_IDS.templatePage, parent: { type: 'data_source_id', data_source_id: NOTION_IDS.projectsDataSource } }
+  });
+  const ctx = { apiKey: 'k', fetchImpl: server.fetchImpl, sleep: noSleep };
+
+  await updateLotSubdivision({ pageId: lotId, subdivision: 'Oak Ridge' }, ctx);
+  assert.deepEqual(server.patches[0].body, { properties: { Subdivision: { select: { name: 'Oak Ridge' } } } });
+  await updateLotSubdivision({ pageId: lotId, subdivision: '' }, ctx);
+  assert.deepEqual(server.patches[1].body, { properties: { Subdivision: { select: null } } });
+
+  await assert.rejects(() => updateLotSubdivision({ pageId: 'other-page', subdivision: 'X' }, ctx), /not a lot page/);
+  await assert.rejects(() => updateLotSubdivision({ pageId: NOTION_IDS.templatePage, subdivision: 'X' }, ctx), /not a lot page/);
+  assert.equal(server.patches.length, 2);
+});
+
+test('a typed subdivision reuses the spelling already in Notion and rejects commas', () => {
+  assert.equal(matchSubdivision('  northwood   trail ', ['Northwood Trail']), 'Northwood Trail');
+  assert.equal(matchSubdivision('Palm Valley', ['Northwood Trail']), 'Palm Valley');
+  assert.equal(subdivisionProblem('Oaks, Phase 2'), "The subdivision name can't contain a comma.");
+  assert.equal(subdivisionProblem('Oak Ridge'), null);
 });
 
 test('finishCopyProperties never copies photos', () => {
@@ -264,18 +324,19 @@ test('finishCopyProperties never copies photos', () => {
 
 test('the app sends the project name, full address, today and its Sheet', () => {
   const request = buildNotionLotRequest(
-    { name: 'Lot 7', spreadsheetId: 'sheet1' },
+    { name: 'Lot 7', subdivision: ' Northwood Trail ', spreadsheetId: 'sheet1' },
     { address: '12 Oak St', cityStateZip: 'McAllen, TX 78504' },
     '2026-10-12'
   );
-  assert.deepEqual(request, { name: 'Lot 7', address: '12 Oak St, McAllen, TX 78504', startDate: '2026-10-12', spreadsheetId: 'sheet1' });
+  assert.deepEqual(request, { name: 'Lot 7', subdivision: 'Northwood Trail', address: '12 Oak St, McAllen, TX 78504', startDate: '2026-10-12', spreadsheetId: 'sheet1' });
   assert.equal(localDateString(new Date(2026, 0, 5)), '2026-01-05');
 });
 
 test('a project remembers its Notion page in the saved record', () => {
-  const linked = linkNotionPageToProject({ name: 'Lot 7', folderId: 'f1' }, { pageId: 'p1', url: 'https://www.notion.so/p1' });
+  const linked = linkNotionPageToProject({ name: 'Lot 7', folderId: 'f1', subdivision: 'Oak Ridge' }, { pageId: 'p1', url: 'https://www.notion.so/p1' });
   const saved = normalizeProjectRecord(linked, 'lot_7');
   assert.equal(saved.notionPageId, 'p1');
   assert.equal(saved.notionPageUrl, 'https://www.notion.so/p1');
+  assert.equal(saved.subdivision, 'Oak Ridge');
   assert.equal(normalizeProjectRecord({ name: 'Lot 8' }).notionPageUrl, '');
 });

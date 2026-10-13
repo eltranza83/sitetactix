@@ -149,13 +149,14 @@ export function sheetUrl(spreadsheetId) {
 
 const plain = (value) => [{ type: 'text', text: { content: value } }];
 
-/** The lot's Projects properties: name, Active, address, start date and Sheet link. */
-export function lotProperties({ name, address, startDate, spreadsheetId }) {
+/** The lot's Projects properties: name, Active, subdivision, address, start date and Sheet link. */
+export function lotProperties({ name, subdivision, address, startDate, spreadsheetId }) {
   const properties = {
     Lot: { title: plain(name) },
     Status: { select: { name: 'Active' } },
     Sheet: { url: sheetUrl(spreadsheetId) }
   };
+  if (subdivision) properties.Subdivision = { select: { name: subdivision } };
   if (address) properties.Address = { rich_text: plain(address) };
   if (startDate) properties['Start date'] = { date: { start: startDate } };
   return properties;
@@ -200,7 +201,7 @@ export async function findLotPage(name, ctx) {
  * Makes the lot page, or returns the one that already exists under that name.
  * If copying the template fails part way, the half-made page is moved to Notion's trash so a retry starts clean.
  */
-export async function createLotPage({ name, address, startDate, spreadsheetId }, ctx) {
+export async function createLotPage({ name, subdivision, address, startDate, spreadsheetId }, ctx) {
   const existing = await findLotPage(name, ctx);
   if (existing) {
     return { pageId: existing.id, url: existing.url, existing: true, finishesCopied: 0, skippedBlocks: 0 };
@@ -218,7 +219,7 @@ export async function createLotPage({ name, address, startDate, spreadsheetId },
     method: 'POST',
     body: {
       parent: { type: 'data_source_id', data_source_id: NOTION_IDS.projectsDataSource },
-      properties: lotProperties({ name, address, startDate, spreadsheetId })
+      properties: lotProperties({ name, subdivision, address, startDate, spreadsheetId })
     }
   });
 
@@ -244,15 +245,54 @@ export async function createLotPage({ name, address, startDate, spreadsheetId },
   return { pageId: page.id, url: page.url, existing: false, finishesCopied, skippedBlocks: template.skipped };
 }
 
+/** The Subdivision choices already in Notion (shown as suggestions in the project form). */
+export async function listSubdivisions(ctx) {
+  const dataSource = await notionRequest(`data_sources/${NOTION_IDS.projectsDataSource}`, ctx);
+  return (dataSource.properties?.Subdivision?.select?.options || []).map(option => option.name).filter(Boolean);
+}
+
+/** Changes a lot page's Subdivision (only pages in Projects, never the template). */
+export async function updateLotSubdivision({ pageId, subdivision }, ctx) {
+  const page = await notionRequest(`pages/${pageId}`, ctx);
+  const inProjects = page.parent?.data_source_id === NOTION_IDS.projectsDataSource
+    || page.parent?.database_id === 'aea5da36-8d2b-4805-9a17-7505967b2373';
+  if (!inProjects || page.id === NOTION_IDS.templatePage) {
+    throw new HttpError(400, 'That Notion page is not a lot page.');
+  }
+  await notionRequest(`pages/${pageId}`, {
+    ...ctx,
+    method: 'PATCH',
+    body: { properties: { Subdivision: { select: subdivision ? { name: subdivision } : null } } }
+  });
+  return { pageId, subdivision };
+}
+
+/** A subdivision name as Notion accepts it for a choice (no commas, 100 characters at most). */
+export function parseSubdivision(value) {
+  const subdivision = String(value || '').trim().replace(/\s+/g, ' ');
+  if (subdivision.includes(',')) throw new HttpError(400, 'The subdivision name can\'t contain a comma.');
+  if (subdivision.length > 100) throw new HttpError(400, 'The subdivision name is too long.');
+  return subdivision;
+}
+
+export function parsePageId(value) {
+  const pageId = String(value || '').trim();
+  if (!/^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(pageId)) {
+    throw new HttpError(400, 'The Notion page is not valid.');
+  }
+  return pageId;
+}
+
 /** Checks and tidies what the browser sent. */
 export function parseLotRequest(payload) {
   const name = String(payload?.name || '').trim();
   if (!name) throw new HttpError(400, 'The project needs a name.');
   if (name.length > 200) throw new HttpError(400, 'The project name is too long.');
+  const subdivision = parseSubdivision(payload?.subdivision);
   const address = String(payload?.address || '').trim().slice(0, 300);
   const startDate = String(payload?.startDate || '').trim();
   if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw new HttpError(400, 'The start date is not valid.');
   const spreadsheetId = String(payload?.spreadsheetId || '').trim();
   if (spreadsheetId && !/^[A-Za-z0-9_-]{10,100}$/.test(spreadsheetId)) throw new HttpError(400, 'The Sheet link is not valid.');
-  return { name, address, startDate, spreadsheetId };
+  return { name, subdivision, address, startDate, spreadsheetId };
 }

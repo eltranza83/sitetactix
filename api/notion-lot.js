@@ -1,10 +1,23 @@
 import { HttpError, errorResponse, jsonResponse, requireScannerAccess } from './_lib/firebase-auth.js';
-import { createLotPage, parseLotRequest, resolveNotionKey } from './_lib/notion-lot.js';
+import {
+  createLotPage,
+  listSubdivisions,
+  parseLotRequest,
+  parsePageId,
+  parseSubdivision,
+  resolveNotionKey,
+  updateLotSubdivision
+} from './_lib/notion-lot.js';
 
-/** Makes the lot's Notion page for a new project (the Notion key only lives on the server). */
+/**
+ * The lot's Notion page (the Notion key only lives on the server):
+ * - "create" (default): make the page for a new project
+ * - "subdivisions": the Subdivision choices already in Notion
+ * - "update-subdivision": change a lot page's Subdivision
+ */
 export async function POST(request) {
   try {
-    await requireScannerAccess(request, fetch, { rateLimit: 10 });
+    await requireScannerAccess(request, fetch, { rateLimit: 20 });
 
     const apiKey = resolveNotionKey();
     if (!apiKey) {
@@ -18,8 +31,21 @@ export async function POST(request) {
       throw new HttpError(400, 'The request was not readable.');
     }
 
-    const lot = parseLotRequest(payload);
-    const result = await createLotPage(lot, { apiKey });
+    const ctx = { apiKey };
+    const action = payload?.action || 'create';
+    if (action === 'subdivisions') {
+      return jsonResponse({ subdivisions: await listSubdivisions(ctx) });
+    }
+    if (action === 'update-subdivision') {
+      const result = await updateLotSubdivision({
+        pageId: parsePageId(payload.pageId),
+        subdivision: parseSubdivision(payload.subdivision)
+      }, ctx);
+      return jsonResponse(result);
+    }
+    if (action !== 'create') throw new HttpError(400, 'Unknown request.');
+
+    const result = await createLotPage(parseLotRequest(payload), ctx);
     return jsonResponse(result);
   } catch (error) {
     return errorResponse(error);

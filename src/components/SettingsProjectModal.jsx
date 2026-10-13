@@ -6,6 +6,9 @@ export default function SettingsProjectModal({
   isOpen,
   editingProject,
   projectName,
+  subdivision = '',
+  subdivisionOptions = [],
+  onSubdivisionChange,
   selectedFolder,
   sheetPreview = { status: 'idle' },
   selectedSheet = null,
@@ -92,6 +95,28 @@ export default function SettingsProjectModal({
               placeholder="e.g. Lot 102, 456 Oak St"
               required
             />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="project-subdivision">Subdivision</label>
+            <input
+              type="text"
+              id="project-subdivision"
+              className="form-input"
+              list="project-subdivision-options"
+              autoComplete="off"
+              value={subdivision}
+              onChange={(e) => onSubdivisionChange?.(e.target.value)}
+              placeholder="e.g. Northwood Trail"
+            />
+            <datalist id="project-subdivision-options">
+              {subdivisionOptions.map(option => <option key={option} value={option} />)}
+            </datalist>
+            <div style={{ fontSize: '0.72rem', color: 'var(--color-zinc-500)', marginTop: '4px' }}>
+              {subdivisionOptions.length > 0
+                ? 'Pick one you used before, or type a new one. Shown on the Notion page.'
+                : 'Shown on the Notion page.'}
+            </div>
           </div>
 
           <div className="form-group">

@@ -16,7 +16,16 @@ import {
 } from '../services/projectSheet';
 import { readProjectInfoIfV2, writeProjectInfo } from '../services/sheetV2';
 import { TEMPLATE_SHEET_ID } from '../config/appConfig';
-import { buildNotionLotRequest, createNotionLotPage, linkNotionPageToProject } from '../services/notionLot';
+import {
+  buildNotionLotRequest,
+  cleanSubdivision,
+  createNotionLotPage,
+  fetchSubdivisionOptions,
+  linkNotionPageToProject,
+  matchSubdivision,
+  subdivisionProblem,
+  updateNotionSubdivision
+} from '../services/notionLot';
 
 export function useSettingsProjects({
   activeProject,
@@ -57,6 +66,9 @@ export function useSettingsProjects({
   const templateAvailable = Boolean(TEMPLATE_SHEET_ID);
   // The project whose Notion page is being made right now (its id), so its button can show progress
   const [notionBusyId, setNotionBusyId] = useState(null);
+  // The house's subdivision (goes on its Notion page), with the names already used in Notion as suggestions
+  const [subdivisionInput, setSubdivisionInput] = useState('');
+  const [subdivisionOptions, setSubdivisionOptions] = useState([]);
   // The Notion page is made after the project is saved; by then the project list has moved on
   const latestRef = useRef({ projects, activeProject });
   latestRef.current = { projects, activeProject };
@@ -109,6 +121,16 @@ export function useSettingsProjects({
     return () => { stale = true; };
   }, [showCreateModal, googleToken, tempSelectedFolder?.id]);
 
+  // Load the subdivision names from Notion each time the form opens (suggestions only; typing a new one is fine)
+  useEffect(() => {
+    if (!showCreateModal) return;
+    let stale = false;
+    fetchSubdivisionOptions()
+      .then(options => { if (!stale) setSubdivisionOptions(options); })
+      .catch(err => console.warn('[useSettingsProjects] Subdivision suggestions unavailable:', err?.message));
+    return () => { stale = true; };
+  }, [showCreateModal]);
+
   // A new project gets a Sheet made from the template when its folder has no spreadsheet yet
   useEffect(() => {
     if (!showCreateModal || editingProject) return;
@@ -156,6 +178,7 @@ export function useSettingsProjects({
 
   const openCreateProjectModal = () => {
     setProjectNameInput('');
+    setSubdivisionInput('');
     setTempSelectedFolder(null);
     setTempSelectedSheet(null);
     resetProjectDetails();
@@ -165,6 +188,7 @@ export function useSettingsProjects({
   const openEditProjectModal = (project) => {
     setEditingProject(project);
     setProjectNameInput(project.name);
+    setSubdivisionInput(project.subdivision || '');
     setTempSelectedFolder({ id: project.folderId, name: project.folderName });
     setTempSelectedSheet(project.spreadsheetId ? { id: project.spreadsheetId, name: project.spreadsheetName } : null);
     resetProjectDetails();
@@ -186,10 +210,10 @@ export function useSettingsProjects({
   };
 
   // Makes the lot's Notion page from the lot template and remembers its link on the project
-  const makeNotionPage = async (project, details = null) => {
+  const makeNotionPage = async (project, details = null, { keepError = false } = {}) => {
     if (!project || notionBusyId) return;
     setNotionBusyId(project.id);
-    setError(null);
+    if (!keepError) setError(null);
     try {
       let lotDetails = details;
       if (!lotDetails && googleToken && project.spreadsheetId) {
@@ -215,7 +239,8 @@ export function useSettingsProjects({
     } catch (err) {
       console.error(err);
       setSuccess(null);
-      setError(`The Notion page for "${project.name}" was not made: ${err.message} Tap "Make Notion page" on the project to try again.`);
+      const notionMessage = `The Notion page for "${project.name}" was not made: ${err.message} Tap "Make Notion page" on the project to try again.`;
+      setError(prev => (keepError && prev ? `${prev} ${notionMessage}` : notionMessage));
     } finally {
       setNotionBusyId(null);
     }
@@ -232,10 +257,27 @@ export function useSettingsProjects({
       setError(getValidationErrorMessage('Please select a target Google Drive folder first'));
       return;
     }
+    const badSubdivision = subdivisionProblem(subdivisionInput);
+    if (badSubdivision) {
+      setError(badSubdivision);
+      return;
+    }
+    const subdivision = matchSubdivision(subdivisionInput, subdivisionOptions);
 
     if (editingProject) {
       setSavingProject(true);
       const sheetWriteError = await saveProjectInfoToSheet(tempSelectedSheet?.id, projectNameInput.trim());
+      // A project that already has its Notion page gets the new subdivision there too
+      let notionError = null;
+      const subdivisionChanged = cleanSubdivision(editingProject.subdivision) !== subdivision;
+      if (subdivisionChanged && editingProject.notionPageId) {
+        try {
+          await updateNotionSubdivision(editingProject.notionPageId, subdivision);
+        } catch (err) {
+          console.error(err);
+          notionError = err.message;
+        }
+      }
       setSavingProject(false);
       const updatedProjects = projects.map(p => {
         if (p.id === editingProject.id) {
@@ -244,6 +286,8 @@ export function useSettingsProjects({
           return {
             ...(tempSelectedSheet ? linkSheetToProject(base, tempSelectedSheet) : base),
             name: projectNameInput.trim(),
+            // Kept as it was if Notion could not be updated, so the app and Notion never disagree
+            subdivision: notionError ? (editingProject.subdivision || '') : subdivision,
             folderId: tempSelectedFolder.id,
             folderName: tempSelectedFolder.name
           };
@@ -268,6 +312,7 @@ export function useSettingsProjects({
       }
 
       setProjectNameInput('');
+      setSubdivisionInput('');
       setTempSelectedFolder(null);
       setTempSelectedSheet(null);
       setEditingProject(null);
@@ -275,6 +320,8 @@ export function useSettingsProjects({
       setShowCreateModal(false);
       if (sheetWriteError) {
         setError(`Project "${updatedProj.name}" updated, but the Sheet was not: ${sheetWriteError}`);
+      } else if (notionError) {
+        setError(`Project "${updatedProj.name}" updated, but its subdivision was not changed (Notion: ${notionError}) Please try again.`);
       } else {
         setSuccess(`Project "${updatedProj.name}" updated successfully!`);
         setTimeout(() => setSuccess(null), 3000);
@@ -292,6 +339,7 @@ export function useSettingsProjects({
       id: canonicalId,
       canonicalId,
       name: projectNameInput.trim(),
+      subdivision,
       folderId: tempSelectedFolder.id,
       folderName: tempSelectedFolder.name
     };
@@ -347,21 +395,23 @@ export function useSettingsProjects({
 
     const notionDetails = projectDetails;
     setProjectNameInput('');
+    setSubdivisionInput('');
     setTempSelectedFolder(null);
     setTempSelectedSheet(null);
     resetProjectDetails();
     setShowCreateModal(false);
     if (sheetWriteError) {
       setError(`Project "${newProj.name}" saved, but the Sheet's Project Info was not filled in: ${sheetWriteError}`);
-      return;
+    } else {
+      setSuccess(`Project "${newProj.name}" saved. Making its Notion page...`);
     }
-    setSuccess(`Project "${newProj.name}" saved. Making its Notion page...`);
-    // Every new house gets its Notion lot page (Sheet link filled in)
-    await makeNotionPage(newProj, notionDetails);
+    // Every new house gets its Notion lot page (Sheet link filled in), even when the Sheet step had a problem
+    await makeNotionPage(newProj, notionDetails, { keepError: Boolean(sheetWriteError) });
   };
 
   const handleCancelCreateProject = () => {
     setProjectNameInput('');
+    setSubdivisionInput('');
     setTempSelectedFolder(null);
     setTempSelectedSheet(null);
     resetProjectDetails();
@@ -464,6 +514,9 @@ export function useSettingsProjects({
     useTemplate,
     setUseTemplate,
     savingProject,
+    subdivisionInput,
+    setSubdivisionInput,
+    subdivisionOptions,
     notionBusyId,
     makeNotionPage,
     confirmDeleteProject,

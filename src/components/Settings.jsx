@@ -100,6 +100,9 @@ export default function Settings({
         isOpen={projectSettings.showCreateModal}
         editingProject={projectSettings.editingProject}
         projectName={projectSettings.projectNameInput}
+        subdivision={projectSettings.subdivisionInput}
+        subdivisionOptions={projectSettings.subdivisionOptions}
+        onSubdivisionChange={projectSettings.setSubdivisionInput}
         selectedFolder={projectSettings.tempSelectedFolder}
         sheetPreview={projectSettings.sheetPreview}
         selectedSheet={projectSettings.tempSelectedSheet}

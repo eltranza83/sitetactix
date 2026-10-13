@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.11.0",
-  "releaseName": "Notion lot pages",
+  "version": "1.12.0",
+  "releaseName": "Subdivision on Notion pages",
   "type": "module",
   "scripts": {
     "dev": "vite",
