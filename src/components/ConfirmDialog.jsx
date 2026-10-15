@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { connectConfirmDialog } from '../services/confirmAction';
 
 /**
  * A yes/no question in the app's own style. Cancel is the safe choice: it has the focus
@@ -37,5 +38,33 @@ export default function ConfirmDialog({ title, message, confirmLabel = 'Continue
         </div>
       </div>
     </div>
+  );
+}
+
+/** Shows the questions asked with confirmAction(). Rendered once, in App. */
+export function ConfirmHost() {
+  const [request, setRequest] = useState(null);
+
+  useEffect(() => connectConfirmDialog((next) => {
+    // A new question replaces one still open; the old one counts as cancelled
+    setRequest(previous => {
+      previous?.resolve(false);
+      return next;
+    });
+  }), []);
+
+  if (!request) return null;
+  const answer = (yes) => {
+    request.resolve(yes);
+    setRequest(null);
+  };
+  return (
+    <ConfirmDialog
+      title={request.title}
+      message={request.message}
+      confirmLabel={request.confirmLabel}
+      onConfirm={() => answer(true)}
+      onCancel={() => answer(false)}
+    />
   );
 }

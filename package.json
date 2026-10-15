@@ -1,7 +1,7 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.13.8",
+  "version": "1.13.9",
   "releaseName": "Subdivision on Notion pages",
   "type": "module",
   "scripts": {

@@ -11,6 +11,7 @@ import {
   uploadBlueprintVaultFile
 } from '../services/blueprintDrive';
 import { normalizeZoomScale } from '../services/blueprintViewport';
+import { confirmAction } from '../services/confirmAction';
 
 const DEFAULT_PIN_FORM = {
   tradeCategory: 'Mechanicals_&_Utilities',
@@ -318,7 +319,7 @@ export function useBlueprintPinboard({
   };
 
   const handleDeletePin = async (pinId) => {
-    if (!window.confirm('Are you sure you want to delete this pin?')) return;
+    if (!(await confirmAction({ title: 'Delete this pin?', message: 'The pin comes off the floor plan. Its photos stay in Drive.', confirmLabel: 'Delete pin' }))) return;
 
     setLoading(true);
     setError(null);
@@ -345,7 +346,11 @@ export function useBlueprintPinboard({
   };
 
   const handleResetBlueprint = async () => {
-    if (!window.confirm('Remove floor plan image? This will also remove all X-Ray pins saved on this floor plan.')) return;
+    if (!(await confirmAction({
+      title: 'Remove the floor plan?',
+      message: 'This also removes every X-Ray pin on it. The pin photos stay in Drive, but lose their spots on the plan.',
+      confirmLabel: 'Remove floor plan'
+    }))) return;
 
     setLoading(true);
     setError(null);

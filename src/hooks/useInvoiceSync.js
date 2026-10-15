@@ -16,6 +16,7 @@ import { syncUploadedInvoicesDirectly } from '../services/directSyncService';
 import { isDraftPhaseValid } from '../services/editFormHelpers';
 import { fetchTransactionRows, parseTransactions } from '../services/sheetV2';
 import { checkSyncedEntries, describeSheetMatch, findReceiptInSheet } from '../services/dailyCheck';
+import { confirmAction } from '../services/confirmAction';
 
 /** Reads the Sheet back and marks each synced entry as recorded or not. Never throws (entries stay unchecked). */
 async function checkAgainstSheet(googleToken, spreadsheetId, logs) {
@@ -115,14 +116,6 @@ export function useInvoiceSync({
     loadStoredAppState().hasUnprocessedUploads
   ));
   const [triggeringSync, setTriggeringSync] = useState(false);
-  // An open "already in the Sheet" question; the sync waits for the answer
-  const [confirmRequest, setConfirmRequest] = useState(null);
-
-  const askConfirm = (request) => new Promise(resolve => setConfirmRequest({ ...request, resolve }));
-  const answerConfirm = (yes) => {
-    confirmRequest?.resolve(yes);
-    setConfirmRequest(null);
-  };
 
   const saveHistory = (newHistory) => {
     setHistory(newHistory);
@@ -193,7 +186,7 @@ export function useInvoiceSync({
 
     setUploadStatusText('Checking for duplicates...');
     const [duplicate] = await findAlreadyInSheet(googleToken, linkedSheetFor(activeProject, targetFolderId), [itemToSync]);
-    if (duplicate && !(await askConfirm({
+    if (duplicate && !(await confirmAction({
       title: 'Already in the Sheet?',
       message: `${describeSheetMatch(duplicate.match)}\n\nIf this is the same receipt, cancel and delete the draft.`,
       confirmLabel: 'Sync anyway'
@@ -353,7 +346,7 @@ export function useInvoiceSync({
       const lines = duplicates.slice(0, 5).map(d => `• ${describeSheetMatch(d.match)}`);
       if (duplicates.length > 5) lines.push(`• and ${duplicates.length - 5} more`);
       const heading = duplicates.length === 1 ? '1 draft looks already synced:' : `${duplicates.length} drafts look already synced:`;
-      if (!(await askConfirm({
+      if (!(await confirmAction({
         title: 'Already in the Sheet?',
         message: `${heading}\n${lines.join('\n')}\n\nCancel syncs nothing, so you can delete those drafts first.`,
         confirmLabel: 'Sync everything anyway'
@@ -565,8 +558,12 @@ export function useInvoiceSync({
     }
   };
 
-  const handleClearHistory = () => {
-    if (!window.confirm('Are you sure you want to clear all upload history? This will remove all history log entries from this device.')) return;
+  const handleClearHistory = async () => {
+    if (!(await confirmAction({
+      title: 'Clear all History?',
+      message: 'This removes every History entry from this device. Nothing changes in the Sheet or Drive.',
+      confirmLabel: 'Clear History'
+    }))) return;
     saveHistory([]);
   };
 
@@ -588,8 +585,6 @@ export function useInvoiceSync({
     handleSyncAllDrafts,
     handleViewPDF,
     handleClearHistory,
-    handleDeleteHistoryItem,
-    confirmRequest,
-    answerConfirm
+    handleDeleteHistoryItem
   };
 }

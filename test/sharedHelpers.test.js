@@ -179,3 +179,13 @@ test('punch status names: the saved in_progress value shows as "Fix submitted"',
   assert.equal(issueStatusLabel('resolved'), 'Resolved');
   assert.equal(issueStatusLabel(undefined), 'Open');
 });
+
+test('no screen asks with the browser pop-up (OK highlighted); all questions use confirmAction', () => {
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => (
+    entry.isDirectory() ? walk(`${dir}/${entry.name}`) : [`${dir}/${entry.name}`]
+  ));
+  const offenders = walk('src')
+    .filter(file => /\.(js|jsx)$/.test(file) && !file.endsWith('confirmAction.js'))
+    .filter(file => /(window\.confirm|[^\w.]confirm)\(/.test(fs.readFileSync(file, 'utf8')));
+  assert.deepEqual(offenders, []);
+});

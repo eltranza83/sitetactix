@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore/lite';
 import { getFirebaseAuthInstance, getFirebaseDb } from '../services/firebase';
 import { isBuiltInAdmin } from '../config/appConfig';
+import { confirmAction } from '../services/confirmAction';
 
 export function useSettingsAdmin({ setError, setSuccess }) {
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
@@ -133,7 +134,8 @@ export function useSettingsAdmin({ setError, setSuccess }) {
 
   const handleDeleteInvite = async (code) => {
     const db = getFirebaseDb();
-    if (!db || !isAdminUnlocked || !window.confirm(`Deactivate/delete invite code: ${code}?`)) return;
+    if (!db || !isAdminUnlocked) return;
+    if (!(await confirmAction({ title: 'Delete this invite code?', message: `${code} will stop working.`, confirmLabel: 'Delete code' }))) return;
     try {
       await deleteDoc(doc(db, 'invites', code));
       setSuccess(`Deactivated invite code: ${code}`);

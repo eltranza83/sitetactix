@@ -19,6 +19,7 @@ import { useAuthenticatedDriveImage } from '../hooks/useAuthenticatedDriveImage'
 import { getDisplayImageUrl } from '../services/imageFiles';
 import { formatPhone } from '../services/projectInfoFormatter';
 import { ISSUE_STATUS_LABELS } from '../services/issueStatus';
+import { confirmAction } from '../services/confirmAction';
 
 export default function IssueCard({
   issue,
@@ -383,8 +384,8 @@ export default function IssueCard({
           )}
 
           <button
-            onClick={() => {
-              if (confirm('Are you sure you want to delete this issue?')) {
+            onClick={async () => {
+              if (await confirmAction({ title: 'Delete this punch item?', message: `"${title}" will be removed from the punch list.`, confirmLabel: 'Delete item' })) {
                 onDelete(id);
               }
             }}

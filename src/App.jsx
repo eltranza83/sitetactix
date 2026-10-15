@@ -8,7 +8,7 @@ import { useProjects } from './hooks/useProjects';
 import { useStagedDocuments } from './hooks/useStagedDocuments';
 import { loadCachedKnownSubs } from './services/payeeMatching';
 import ToastNotification from './components/ToastNotification';
-import ConfirmDialog from './components/ConfirmDialog';
+import { ConfirmHost } from './components/ConfirmDialog';
 import DashboardErrorBoundary from './components/DashboardErrorBoundary';
 
 function lazyWithRetry(componentImport) {
@@ -138,9 +138,7 @@ export default function App() {
     handleSyncAllDrafts,
     handleViewPDF,
     handleClearHistory,
-    handleDeleteHistoryItem,
-    confirmRequest,
-    answerConfirm
+    handleDeleteHistoryItem
   } = useInvoiceSync({
     activeProject,
     googleToken,
@@ -335,15 +333,7 @@ export default function App() {
           type={success ? 'success' : 'error'}
           onClose={() => { setSuccess(null); setError(null); }}
         />
-        {confirmRequest && (
-          <ConfirmDialog
-            title={confirmRequest.title}
-            message={confirmRequest.message}
-            confirmLabel={confirmRequest.confirmLabel}
-            onConfirm={() => answerConfirm(true)}
-            onCancel={() => answerConfirm(false)}
-          />
-        )}
+        <ConfirmHost />
         {/* 1. Header */}
         <header className={`app-header${headerHidden && !showProjectDropdown ? ' app-header--hidden' : ''}`}>
           <div className="executive-command-island">
