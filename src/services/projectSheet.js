@@ -3,6 +3,7 @@
  */
 
 import { copyDriveFile } from './googleDrive.js';
+import { parseMoney } from './money.js';
 import { clipReceiptLinkColumns, writeProjectInfo } from './sheetV2.js';
 
 export const PREFERRED_SHEET_NAME = 'JobScan_Expense_Log';
@@ -89,8 +90,8 @@ export function projectInfoChanged(before, after) {
   const numeric = new Set(['budgetBuild', 'lotCost', 'sqftTotal', 'sqftLiving']);
   return ['name', 'address', 'cityStateZip', 'scope', 'budgetBuild', 'lotCost', 'sqftTotal', 'sqftLiving'].some(field => {
     if (numeric.has(field)) {
-      const left = parseFloat(String(before[field] ?? '').replace(/[^0-9.-]/g, '')) || 0;
-      const right = parseFloat(String(after?.[field] ?? '').replace(/[^0-9.-]/g, '')) || 0;
+      const left = parseMoney(before[field]);
+      const right = parseMoney(after?.[field]);
       return left !== right;
     }
     return String(before[field] ?? '').trim() !== String(after?.[field] ?? '').trim();

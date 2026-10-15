@@ -1,4 +1,5 @@
 import { TRADE_CATEGORIES } from '../config/tradeCategories.js';
+import { formatMoney, parseMoney as toAmount } from './money.js';
 /**
  * Support for the new per-house Google Sheet layout ("v2").
  *
@@ -43,12 +44,6 @@ export const TRANSACTIONS_APPEND_RANGE = `${V2_TABS.transactions}!A:J`;
 
 function normKey(value) {
   return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function toAmount(value) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const parsed = parseFloat(String(value || '').replace(/[^0-9.-]/g, ''));
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function roundCents(value) {
@@ -265,10 +260,6 @@ export function paidToSub(sub) {
 export function overpaidAmount(sub) {
   const balance = Number(sub?.remainingBalance ?? sub?.stillOwed) || 0;
   return balance < 0 ? roundCents(-balance) : 0;
-}
-
-function formatMoney(value) {
-  return `$${roundCents(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**

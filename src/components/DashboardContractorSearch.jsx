@@ -2,12 +2,12 @@ import React from 'react';
 import { Search } from 'lucide-react';
 import DashboardContractorDetail from './DashboardContractorDetail';
 import { overpaidAmount } from '../services/sheetV2.js';
+import { formatMoney } from '../services/money.js';
 
 export default function DashboardContractorSearch({
   searchTerm,
   suggestions,
   selectedSub,
-  formatCurrency,
   getStatusStyle,
   onSearchTermChange,
   onSelectSubcontractor,
@@ -67,9 +67,9 @@ export default function DashboardContractorSearch({
                   <span style={{ fontSize: '0.72rem', color: 'var(--st-muted)', marginLeft: '6px' }}>({sub.phase})</span>
                 </div>
                 {overpaidAmount(sub) > 0 ? (
-                  <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>Overpaid {formatCurrency(overpaidAmount(sub))}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>Overpaid {formatMoney(overpaidAmount(sub))}</span>
                 ) : (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--st-gold)', fontWeight: 600 }}>{formatCurrency(sub.remainingBalance)}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--st-gold)', fontWeight: 600 }}>{formatMoney(sub.remainingBalance)}</span>
                 )}
               </div>
             ))}
@@ -79,7 +79,6 @@ export default function DashboardContractorSearch({
 
       <DashboardContractorDetail
         selectedSub={selectedSub}
-        formatCurrency={formatCurrency}
         getStatusStyle={getStatusStyle}
         onViewPhasePhotos={onViewPhasePhotos}
         onClearSelection={onClearSelection}

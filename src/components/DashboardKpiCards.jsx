@@ -1,12 +1,10 @@
 import React from 'react';
 import { Wallet } from 'lucide-react';
+import { formatMoney } from '../services/money.js';
+
+const safeFormat = (val) => formatMoney(val, { cents: 'auto' });
 
 export default function DashboardKpiCards({ projectInfo = {} }) {
-  const safeFormat = (val) => {
-    const num = typeof val === 'number' ? val : parseFloat(String(val || 0).replace(/[^0-9.-]/g, '')) || 0;
-    const hasCents = Math.abs(num % 1) > 0.009;
-    return `$${num.toLocaleString('en-US', { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 })}`;
-  };
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>

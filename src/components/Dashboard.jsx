@@ -323,17 +323,6 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
     return { bg: 'rgba(113, 113, 122, 0.15)', text: '#a1a1aa', border: 'rgba(113, 113, 122, 0.3)' };
   };
 
-  // Helper to format currency values safely
-  const formatCurrency = (val) => {
-    if (typeof val === 'number') {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
-    }
-    // If it's already a formatted string, return as-is
-    if (String(val).startsWith('$')) return val;
-    const num = parseFloat(String(val).replace(/[^0-9.-]/g, '')) || 0;
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
-  };
-
   if (!activeProject) {
     return (
       <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-zinc-400)' }}>
@@ -554,7 +543,6 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
         <>
           <DashboardKpiCards
             projectInfo={data?.projectInfo || {}}
-            formatCurrency={formatCurrency}
           />
 
           <DashboardTodayCheck
@@ -567,7 +555,6 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
 
           <DashboardOverpaidNotice
             overpaidSubs={data?.projectInfo?.overpaidSubs}
-            formatCurrency={formatCurrency}
           />
 
           <DashboardCostPerSqFt projectInfo={data?.projectInfo || {}} />
@@ -584,7 +571,6 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
             searchTerm={searchTerm}
             suggestions={suggestions}
             selectedSub={selectedSub}
-            formatCurrency={formatCurrency}
             getStatusStyle={getStatusStyle}
             onSearchTermChange={(value) => {
               setSearchTerm(value);
@@ -603,7 +589,6 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
             expandedCategories={expandedCategories}
             onToggleCategory={toggleCategory}
             onSelectSubcontractor={selectSubcontractor}
-            formatCurrency={formatCurrency}
           />
         </>
       )}

@@ -88,53 +88,6 @@ export const ALLOCATION_COLORS = [
   { text: '#c084fc', border: '#c084fc', bg: 'rgba(192, 132, 252, 0.12)', darkBg: 'rgba(192, 132, 252, 0.04)' }
 ];
 
-export function compressImage(file, maxWidth = 1200, maxHeight = 1200) {
-  return new Promise((resolve) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
-
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-      } else if (height > maxHeight) {
-        width = Math.round((width * maxHeight) / height);
-        height = maxHeight;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const compressedFile = new File([blob], `${file.name.replace(/\.[^/.]+$/, '')}_compressed.jpg`, {
-            type: 'image/jpeg',
-            lastModified: Date.now()
-          });
-          resolve(compressedFile);
-        } else {
-          resolve(file);
-        }
-      }, 'image/jpeg', 0.8);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(file);
-    };
-    img.src = objectUrl;
-  });
-}
-
 function isValidTrade(category, phase) {
   return !!TRADE_SECTIONS_CONFIG[category]?.phases.includes(phase);
 }
@@ -212,6 +165,28 @@ export function getItemIndexesForSplit(lineItems, itemAllocations, splitId) {
 export function getItemsForSplit(lineItems, itemAllocations, splitId) {
   if (!Array.isArray(lineItems) || !itemAllocations) return [];
   return lineItems.filter((_, idx) => itemAllocations[idx] === splitId);
+}
+
+/**
+ * Spreads the receipt total over the splits by the prices of the items assigned to each one,
+ * and lists those items as each split's description. Amounts or descriptions the user typed
+ * by hand (manualAmounts / manualDescriptions, keyed by split id) are kept.
+ * Returns the same array when nothing changed.
+ */
+export function recalculateSplits(splits, lineItems, itemAllocations, receiptTotal, { manualAmounts = {}, manualDescriptions = {} } = {}) {
+  const itemsPerSplit = splits.map(s => getItemsForSplit(lineItems || [], itemAllocations, s.id));
+  const baseSums = itemsPerSplit.map(items => items.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0));
+  const distributed = distributeReceiptTotalToSplits(baseSums, parseFloat(receiptTotal) || 0);
+
+  let changed = false;
+  const updated = splits.map((s, i) => {
+    const amount = manualAmounts[s.id] ? s.amount : (distributed[i] || '');
+    const description = manualDescriptions[s.id] ? s.description : itemsPerSplit[i].map(item => item.description).join(', ');
+    if (amount === s.amount && description === s.description) return s;
+    changed = true;
+    return { ...s, amount, description };
+  });
+  return changed ? updated : splits;
 }
 
 /**

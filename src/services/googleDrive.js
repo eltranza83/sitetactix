@@ -326,6 +326,8 @@ const inFlightFolderPromises = new Map();
 export const APP_FOLDERS_CONTAINER_NAME = 'App Folders';
 export const VENDORS_STORES_FOLDER_NAME = 'Vendors / Stores';
 export const UNKNOWN_VENDORS_FOLDER_NAME = 'Unknown Vendors';
+export const X_RAY_FOLDER_NAME = 'X-Ray Photos';
+export const INVOICE_UPLOADS_FOLDER_NAME = 'Invoice Uploads';
 
 /**
  * Checks if a vendor name string is confident vs generic placeholder/unidentified.
@@ -520,7 +522,7 @@ export async function findOrCreateFolder(accessToken, folderName, parentId) {
  */
 export async function uploadPhotoToPhaseFolder(accessToken, rootFolderId, categoryName, phaseName, fileName, mimeType, fileBlob) {
   // 1. Ensure X-Ray Photos exists inside App Folders
-  const xRayFolderId = await ensureAppSubfolder(accessToken, rootFolderId, 'X-Ray Photos');
+  const xRayFolderId = await ensureAppSubfolder(accessToken, rootFolderId, X_RAY_FOLDER_NAME);
   
   // 2. Find or create "Project_Photos" inside "X-Ray Photos"
   const photosFolderId = await findOrCreateFolder(accessToken, 'Project_Photos', xRayFolderId);
@@ -710,4 +712,14 @@ export async function listFilesWithDescriptionInFolder(accessToken, folderId) {
   }
   const result = await response.json();
   return result.files || [];
+}
+
+/** The lot's X-Ray Photos folder (punch list and blueprint data live here). */
+export async function ensureXRayFolder(accessToken, projectFolderId) {
+  return await ensureAppSubfolder(accessToken, projectFolderId, X_RAY_FOLDER_NAME);
+}
+
+/** A JSON file body for Drive uploads. */
+export function buildJsonBlob(data) {
+  return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
 }

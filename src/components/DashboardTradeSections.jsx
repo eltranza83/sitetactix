@@ -2,19 +2,11 @@ import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 import { categoryRank, phaseHasSub } from '../config/tradeCategories.js';
+import { formatMoney, parseMoney as parseCurrencyNumber } from '../services/money.js';
 
-function parseCurrencyNumber(val) {
-  if (typeof val === 'number') return val;
-  return parseFloat(String(val || 0).replace(/[^0-9.-]/g, '')) || 0;
-}
+const safeFormat = (val) => formatMoney(val, { cents: 'auto' });
 
 function PhaseMetricGroup({ sub }) {
-  const safeFormat = (val) => {
-    const num = parseCurrencyNumber(val);
-    const hasCents = Math.abs(num % 1) > 0.009;
-    return `$${num.toLocaleString('en-US', { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 })}`;
-  };
-
   const phaseTotal = sub.totalSpent || (
     parseCurrencyNumber(sub.totalMaterial) +
     parseCurrencyNumber(sub.totalLabor)
@@ -92,17 +84,10 @@ export default function DashboardTradeSections({
   subcontractors = [],
   expandedCategories = {},
   onToggleCategory,
-  onSelectSubcontractor,
-  formatCurrency
+  onSelectSubcontractor
 }) {
   const safeCategories = Array.isArray(categories) ? categories : [];
   const safeSubcontractors = Array.isArray(subcontractors) ? subcontractors : [];
-
-  const safeFormat = (val) => {
-    const num = typeof val === 'number' ? val : parseFloat(String(val || 0).replace(/[^0-9.-]/g, '')) || 0;
-    const hasCents = Math.abs(num % 1) > 0.009;
-    return `$${num.toLocaleString('en-US', { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 })}`;
-  };
 
   const sortedCategories = [...safeCategories].sort((a, b) => {
     const rankA = categoryRank(a.name);
@@ -315,7 +300,7 @@ export default function DashboardTradeSections({
                           </div>
 
                           {/* Row 2: Fixed 3-Column Pill Bar (Mat, Lab, Total) */}
-                          <PhaseMetricGroup sub={sub} formatCurrency={formatCurrency} />
+                          <PhaseMetricGroup sub={sub} />
                         </div>
                       );
                     })}

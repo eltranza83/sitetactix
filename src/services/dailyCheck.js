@@ -7,6 +7,7 @@
  * No AI: it is a plain comparison, so the answer is exact.
  */
 import { buildTransactionRow, parseTransactions } from './sheetV2.js';
+import { formatMoney as money } from './money.js';
 
 const cents = (value) => Math.round((Number(value) || 0) * 100);
 const text = (value) => String(value ?? '').trim();
@@ -38,7 +39,6 @@ export function expectedRowFor(log) {
   };
 }
 
-const money = (value) => `$${(cents(value) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
  * Compares one synced entry with its row. Result status:

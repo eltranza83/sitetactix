@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { extractDocumentData } from '../services/gemini';
 import { detectDocumentCorners, rotationForTextDirection } from '../services/documentCorners';
+import { compressImage } from '../services/imageFiles';
 
 const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024; // the scan upload limit is 4 MB
 
@@ -38,59 +39,6 @@ async function canvasToJpegUnderLimit(canvas) {
     current = smaller;
   }
   return canvasToBlob(current, 0.7);
-}
-
-/**
- * Resizes and compresses an image client-side in a memory-efficient manner.
- */
-function compressImage(file, maxWidth = 3000, maxHeight = 3000) {
-  return new Promise((resolve) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      // Clean up reference immediately
-      URL.revokeObjectURL(objectUrl);
-      
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
-
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxHeight) {
-          width = Math.round((width * maxHeight) / height);
-          height = maxHeight;
-        }
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + "_compressed.jpg", {
-            type: 'image/jpeg',
-            lastModified: Date.now()
-          });
-          resolve(compressedFile);
-        } else {
-          resolve(file);
-        }
-      }, 'image/jpeg', 0.85);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(file);
-    };
-    img.src = objectUrl;
-  });
 }
 
 /**
@@ -540,11 +488,11 @@ export default function Scanner({ onDataExtracted, onError }) {
       }
 
       // Compress client-side first
-      const compressedFile = await compressImage(file);
+      const compressedFile = await compressImage(file, 3000, 3000, 0.85);
 
       // Find the paper's edges so the crop starts on the document (falls back to the default box)
       setStatusMessage('Finding the document edges...');
-      const detected = await detectDocumentCorners(await compressImage(file, 1000, 1000));
+      const detected = await detectDocumentCorners(await compressImage(file, 1000, 1000, 0.85));
       setTextDirection(detected?.textDirection || 'upright');
       
       // Load image into crop editor

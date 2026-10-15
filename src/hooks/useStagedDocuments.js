@@ -10,18 +10,10 @@ import {
   resetDraftTimer,
   updateDraftField
 } from '../services/stagedDocumentOperations';
-import { normalizeScanDate, buildAutoSplits, compressImage } from '../services/editFormHelpers';
+import { normalizeScanDate, buildAutoSplits } from '../services/editFormHelpers';
 import { applyPayeeMatch, loadCachedKnownSubs, persistKnownSubs } from '../services/payeeMatching';
 import { fetchKnownSubs } from '../services/sheetV2';
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = (err) => reject(err);
-    reader.readAsDataURL(file);
-  });
-}
+import { compressImage, fileToBase64 } from '../services/imageFiles';
 
 // Known subs from the linked Sheet's Contracts tab (new layout only); the last good list is kept for offline scans
 async function loadKnownSubsForProject(activeProject, googleToken) {

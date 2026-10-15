@@ -16,21 +16,7 @@ import {
   ClipboardCheck
 } from 'lucide-react';
 import { useAuthenticatedDriveImage } from '../hooks/useAuthenticatedDriveImage';
-
-function getDisplayImageUrl(url, base64, size = 'w200') {
-  if (base64) return base64;
-  if (!url) return '';
-  if (url.startsWith('data:')) return url;
-
-  const driveIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
-  if (driveIdMatch && driveIdMatch[1]) {
-    const fileId = driveIdMatch[1];
-    const widthParam = size === 'w1000' ? 'w1000' : (size === 'w400' ? 'w400' : 'w200');
-    return `https://drive.google.com/thumbnail?id=${fileId}&sz=${widthParam}`;
-  }
-
-  return url;
-}
+import { getDisplayImageUrl } from '../services/imageFiles';
 
 export default function IssueCard({
   issue,

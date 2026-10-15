@@ -7,16 +7,16 @@ import { knownSubPayeeName } from '../services/payeeMatching';
 import {
   ALLOCATION_COLORS,
   TRADE_SECTIONS_CONFIG,
-  compressImage,
   isValidPhase,
   planSplitsFromLineItems,
   pickSplitForItem,
-  distributeReceiptTotalToSplits,
+  recalculateSplits,
   checkLineItemsDiscrepancy,
   getItemsForSplit,
   getItemIndexesForSplit,
   normalizeScanDate
 } from '../services/editFormHelpers';
+import { compressImage } from '../services/imageFiles';
 
 export default function EditForm({ stagedItem, onSave, onCancel, history = [], stagedItems = [], projects = [], knownSubs = [] }) {
   const [formData, setFormData] = useState({
@@ -118,91 +118,19 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     }
   }, [splits, stagedItem.metadata.lineItems, manualAllocations]);
 
-  // Run initial allocation calculation if itemAllocations is populated
+  // Re-spread the receipt total and descriptions over the splits whenever item assignments change
   useEffect(() => {
     if (stagedItem.metadata.lineItems && splits.length > 0 && Object.keys(itemAllocations).length > 0) {
-      // Calculate sums and descriptions based on current allocations
-      setSplits(currentSplits => {
-        let changed = false;
-
-        const splitBaseSums = currentSplits.map(s => {
-          const itemsForThisSplit = (stagedItem.metadata.lineItems || []).filter((_, idx) => itemAllocations[idx] === s.id);
-          return itemsForThisSplit.reduce((acc, item) => acc + (parseFloat(item.price) || 0), 0);
-        });
-
-        const receiptTotalVal = parseFloat(formData.amount) || 0;
-        const distributedAmounts = distributeReceiptTotalToSplits(splitBaseSums, receiptTotalVal);
-
-        const updated = currentSplits.map((s, sIdx) => {
-          const itemsForThisSplit = (stagedItem.metadata.lineItems || []).filter((_, idx) => itemAllocations[idx] === s.id);
-          
-          let amtStr = s.amount;
-          if (!manualAmounts[s.id]) {
-            amtStr = distributedAmounts[sIdx] || '';
-          }
-          
-          let descStr = s.description;
-          if (!manualDescriptions[s.id]) {
-            descStr = itemsForThisSplit.map(item => item.description).join(', ');
-          }
-
-          if (s.amount !== amtStr || s.description !== descStr) {
-            changed = true;
-          }
-          return {
-            ...s,
-            amount: amtStr,
-            description: descStr
-          };
-        });
-        
-        if (changed) {
-          return updated;
-        }
-        return currentSplits;
-      });
+      setSplits(currentSplits => recalculateSplits(currentSplits, stagedItem.metadata.lineItems, itemAllocations, formData.amount, {
+        manualAmounts,
+        manualDescriptions
+      }));
     }
   }, [itemAllocations, stagedItem.metadata.lineItems, manualDescriptions, manualAmounts, formData.amount]);
 
   const handleAllocateItem = (itemIdx, splitId) => {
     setManualAllocations(prev => ({ ...prev, [itemIdx]: true }));
-    setItemAllocations(prev => {
-      const next = { ...prev, [itemIdx]: splitId };
-      
-      setSplits(currentSplits => {
-        const splitBaseSums = currentSplits.map(s => {
-          const itemsForThisSplit = (stagedItem.metadata.lineItems || []).filter((_, idx) => next[idx] === s.id);
-          return itemsForThisSplit.reduce((acc, item) => acc + (parseFloat(item.price) || 0), 0);
-        });
-
-        const receiptTotalVal = parseFloat(formData.amount) || 0;
-        const distributedAmounts = distributeReceiptTotalToSplits(splitBaseSums, receiptTotalVal);
-
-        const updated = currentSplits.map((s, sIdx) => {
-          const itemsForThisSplit = (stagedItem.metadata.lineItems || []).filter((_, idx) => next[idx] === s.id);
-          
-          let amtStr = s.amount;
-          if (!manualAmounts[s.id]) {
-            amtStr = distributedAmounts[sIdx] || '';
-          }
-
-          let descStr = s.description;
-          if (!manualDescriptions[s.id]) {
-            descStr = itemsForThisSplit.map(item => item.description).join(', ');
-          }
-
-          return {
-            ...s,
-            amount: amtStr,
-            description: descStr
-          };
-        });
-        
-        return updated;
-      });
-      
-      return next;
-    });
+    setItemAllocations(prev => ({ ...prev, [itemIdx]: splitId }));
   };
 
   // Run real-time duplicate check

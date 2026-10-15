@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { loadIssuesVault, saveIssuesVault, uploadIssuePhoto, uploadIssueProofPhoto, mergeIssues, mergeActivityHistories } from '../services/issuesDrive';
 import { getDriveErrorMessage } from '../services/appErrors';
+import { fileToBase64 } from '../services/imageFiles';
 
 const OFFLINE_QUEUE_KEY = 'jobscan_offline_issues_queue';
 const CACHED_ISSUES_PREFIX = 'jobscan_cached_issues_';
@@ -9,16 +10,6 @@ function appendActivityHistoryEvent(history = [], newEvent) {
   const list = Array.isArray(history) ? history : [];
   const eventId = newEvent.id || `act_${newEvent.action}_${Date.now()}`;
   return mergeActivityHistories(list, [{ ...newEvent, id: eventId }]);
-}
-
-// Helper to convert File to Base64 (for offline storage)
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
 }
 
 // Helper to convert Base64 to Blob (for uploading when going online)

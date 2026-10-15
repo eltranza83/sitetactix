@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import { buildDailyCheck, parseSheetDashboardTotals } from '../services/dailyCheck';
+import { formatMoney as money } from '../services/money';
 
-const money = (value) => `$${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
  * "Today" card: everything synced today on this device for this house, checked against the Sheet

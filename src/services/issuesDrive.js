@@ -1,5 +1,6 @@
 import {
-  ensureAppSubfolder,
+  buildJsonBlob,
+  ensureXRayFolder,
   findFileInFolder,
   findOrCreateFolder,
   getFileContent,
@@ -7,18 +8,11 @@ import {
   uploadFileToDrive
 } from './googleDrive.js';
 
-const X_RAY_FOLDER_NAME = 'X-Ray Photos';
 const ISSUE_PHOTOS_FOLDER_NAME = 'Issue Photos';
 const ISSUES_CONFIG_FILE = 'issues_data.json';
 const ISSUES_CONFIG_MIME_TYPE = 'application/json';
 
-function buildJsonBlob(data) {
-  return new Blob([JSON.stringify(data, null, 2)], { type: ISSUES_CONFIG_MIME_TYPE });
-}
 
-async function ensureXRayFolder(accessToken, projectFolderId) {
-  return await ensureAppSubfolder(accessToken, projectFolderId, X_RAY_FOLDER_NAME);
-}
 
 async function ensureIssuePhotosFolder(accessToken, xRayFolderId) {
   return await findOrCreateFolder(accessToken, ISSUE_PHOTOS_FOLDER_NAME, xRayFolderId);

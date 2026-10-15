@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Camera, X, Copy, Check } from 'lucide-react';
 import { paidToSub, overpaidAmount } from '../services/sheetV2.js';
+import { formatMoney, parseMoney } from '../services/money.js';
 
 export default function DashboardContractorDetail({
   selectedSub,
-  formatCurrency,
   onViewPhasePhotos,
   onClearSelection,
   onShowToast
@@ -19,32 +19,24 @@ export default function DashboardContractorDetail({
     );
   }
 
-  const safeFormatCurrency = (val) => {
-    if (typeof formatCurrency === 'function') {
-      return formatCurrency(val);
-    }
-    const num = parseFloat(String(val || 0).replace(/[^0-9.-]/g, '')) || 0;
-    return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   const laborPayments = (selectedSub.payments || []).filter((p) => {
-    const lab = parseFloat(String(p.laborCost || '').replace(/[^0-9.-]/g, '')) || 0;
+    const lab = parseMoney(p.laborCost);
     return lab > 0;
   });
 
   const overpaid = overpaidAmount(selectedSub);
-  const balanceText = overpaid > 0 ? `Overpaid ${safeFormatCurrency(overpaid)}` : safeFormatCurrency(selectedSub.remainingBalance);
+  const balanceText = overpaid > 0 ? `Overpaid ${formatMoney(overpaid)}` : formatMoney(selectedSub.remainingBalance);
 
   const handleCopySummary = () => {
-    let summaryText = `${selectedSub.payee} - ${selectedSub.phase} (${selectedSub.category})\nQuote: ${safeFormatCurrency(selectedSub.originalQuote)}\nPaid (${laborPayments.length}): ${safeFormatCurrency(paidToSub(selectedSub))}\nBalance: ${balanceText}`;
+    let summaryText = `${selectedSub.payee} - ${selectedSub.phase} (${selectedSub.category})\nQuote: ${formatMoney(selectedSub.originalQuote)}\nPaid (${laborPayments.length}): ${formatMoney(paidToSub(selectedSub))}\nBalance: ${balanceText}`;
 
     if (laborPayments.length > 0) {
       summaryText += `\n\nPayment History Logs (${laborPayments.length}):`;
       laborPayments.forEach((p, idx) => {
-        const lab = parseFloat(String(p.laborCost || '').replace(/[^0-9.-]/g, '')) || 0;
+        const lab = parseMoney(p.laborCost);
         const checkDetails = p.checkNumber && p.checkNumber !== 'N/A' ? ` - Check: ${p.checkNumber}` : '';
         const dateDetails = p.date ? `Date: ${p.date}` : 'Date: N/A';
-        summaryText += `\n${idx + 1}. ${safeFormatCurrency(lab)} (${dateDetails}${checkDetails})`;
+        summaryText += `\n${idx + 1}. ${formatMoney(lab)} (${dateDetails}${checkDetails})`;
       });
     }
 
@@ -57,7 +49,7 @@ export default function DashboardContractorDetail({
   };
 
   const getDynamicFontSize = (val) => {
-    const formatted = safeFormatCurrency(val);
+    const formatted = formatMoney(val);
     const len = formatted.length;
     if (len >= 13) return '0.72rem';
     if (len >= 11) return '0.80rem';
@@ -173,7 +165,7 @@ export default function DashboardContractorDetail({
             Quote
           </span>
           <div className="font-display" style={{ fontSize: getDynamicFontSize(selectedSub.originalQuote), fontWeight: 700, color: 'var(--st-text)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {safeFormatCurrency(selectedSub.originalQuote)}
+            {formatMoney(selectedSub.originalQuote)}
           </div>
         </div>
         <div style={{ padding: '10px 6px', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -181,7 +173,7 @@ export default function DashboardContractorDetail({
             Paid ({laborPayments.length})
           </span>
           <div className="font-display" style={{ fontSize: getDynamicFontSize(paidToSub(selectedSub)), fontWeight: 700, color: '#7dd3fc', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {safeFormatCurrency(paidToSub(selectedSub))}
+            {formatMoney(paidToSub(selectedSub))}
           </div>
         </div>
         <div style={{ padding: '10px 6px', backgroundColor: overpaid > 0 ? 'rgba(248, 113, 113, 0.12)' : 'rgba(212, 183, 135, 0.1)', border: overpaid > 0 ? '1px solid rgba(248, 113, 113, 0.45)' : '1px solid rgba(212, 183, 135, 0.3)', borderRadius: '8px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -189,14 +181,14 @@ export default function DashboardContractorDetail({
             {overpaid > 0 ? 'Overpaid' : 'Balance'}
           </span>
           <div className="font-display" style={{ fontSize: getDynamicFontSize(overpaid || selectedSub.remainingBalance), fontWeight: 700, color: overpaid > 0 ? '#f87171' : 'var(--st-gold)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {safeFormatCurrency(overpaid || selectedSub.remainingBalance)}
+            {formatMoney(overpaid || selectedSub.remainingBalance)}
           </div>
         </div>
       </div>
 
       {overpaid > 0 && (
         <p style={{ fontSize: '0.72rem', color: '#fca5a5', margin: 0, lineHeight: 1.4 }}>
-          Paid {safeFormatCurrency(overpaid)} more than the quote. Check the Contracts tab for extra work that was not added to the quote, a check scanned twice, or a payment in the wrong phase.
+          Paid {formatMoney(overpaid)} more than the quote. Check the Contracts tab for extra work that was not added to the quote, a check scanned twice, or a payment in the wrong phase.
         </p>
       )}
 
@@ -212,7 +204,7 @@ export default function DashboardContractorDetail({
         ) : (
           <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {laborPayments.map((p, idx) => {
-              const lab = parseFloat(String(p.laborCost || '').replace(/[^0-9.-]/g, '')) || 0;
+              const lab = parseMoney(p.laborCost);
               return (
                 <div key={idx} style={{
                   display: 'flex',
@@ -233,7 +225,7 @@ export default function DashboardContractorDetail({
                   </div>
 
                   <div style={{ textAlign: 'right', fontWeight: 700, color: '#7dd3fc', fontSize: '0.82rem' }}>
-                    {safeFormatCurrency(lab)}
+                    {formatMoney(lab)}
                   </div>
                 </div>
               );

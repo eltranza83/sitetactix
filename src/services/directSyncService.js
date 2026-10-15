@@ -1,5 +1,6 @@
 import {
   ensureAppSubfolder,
+  INVOICE_UPLOADS_FOLDER_NAME,
   ensureUnknownVendorsFolder,
   ensureVendorFolder,
   findSpreadsheetInFolder,
@@ -98,7 +99,7 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
 
   // 1. Resolve the Uploads folder inside canonical 'App Folders' container
   // (synced files move to Vendors / Stores / [Vendor Name], see step 2 below)
-  const uploadsFolderId = await ensureAppSubfolder(accessToken, projectFolderId, 'Invoice Uploads');
+  const uploadsFolderId = await ensureAppSubfolder(accessToken, projectFolderId, INVOICE_UPLOADS_FOLDER_NAME);
 
   // 2. Resolve Google Spreadsheet in the project folder
   // Use the project's linked Sheet; search the folder only when none is linked yet

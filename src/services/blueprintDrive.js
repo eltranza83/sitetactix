@@ -1,5 +1,6 @@
 import {
-  ensureAppSubfolder,
+  buildJsonBlob,
+  ensureXRayFolder,
   fetchDriveFileBlob,
   findFileInFolder,
   getFileContent,
@@ -9,13 +10,9 @@ import {
   uploadPhotoToPhaseFolder
 } from './googleDrive.js';
 
-const X_RAY_FOLDER_NAME = 'X-Ray Photos';
 const BLUEPRINT_CONFIG_FILE = 'blueprint_data.json';
 const BLUEPRINT_CONFIG_MIME_TYPE = 'application/json';
 
-function buildJsonBlob(data) {
-  return new Blob([JSON.stringify(data, null, 2)], { type: BLUEPRINT_CONFIG_MIME_TYPE });
-}
 
 function buildBlueprintConfig({ blueprintFileId = null, blueprintFileName = null, pins = [] } = {}) {
   return {
@@ -83,9 +80,6 @@ function buildPinPhotoAttachment(selectedPhoto, formData, accessToken, projectFo
   );
 }
 
-async function ensureXRayFolder(accessToken, projectFolderId) {
-  return await ensureAppSubfolder(accessToken, projectFolderId, X_RAY_FOLDER_NAME);
-}
 
 async function saveBlueprintConfig(accessToken, blueprintDataFileId, config) {
   const blob = buildJsonBlob(config);

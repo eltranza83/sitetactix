@@ -3,19 +3,7 @@ import { X, Camera, Upload, Check } from 'lucide-react';
 import { TRADE_SECTIONS_CONFIG } from '../services/editFormHelpers';
 import { getProjectPacketInfo } from '../services/projectInfoFormatter';
 import { useAuthenticatedDriveImage } from '../hooks/useAuthenticatedDriveImage';
-
-function getDisplayImageUrl(url, base64, size = 'w400') {
-  if (base64) return base64;
-  if (!url) return '';
-  if (url.startsWith('data:')) return url;
-
-  const driveIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
-  if (driveIdMatch && driveIdMatch[1]) {
-    return `https://drive.google.com/thumbnail?id=${driveIdMatch[1]}&sz=${size}`;
-  }
-
-  return url;
-}
+import { compressImage, getDisplayImageUrl } from '../services/imageFiles';
 
 export default function IssueFormModal({
   issues,
@@ -144,57 +132,11 @@ export default function IssueFormModal({
     }
   };
 
-function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const compressedFile = new File([blob], file.name || 'photo.jpg', {
-              type: 'image/jpeg',
-              lastModified: Date.now()
-            });
-            resolve(compressedFile);
-          } else {
-            resolve(file);
-          }
-        }, 'image/jpeg', quality);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
   const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       try {
-        const compressed = await compressImage(file);
+        const compressed = await compressImage(file, 1024, 1024, 0.7);
         setPhotoFile(compressed);
         const reader = new FileReader();
         reader.onloadend = () => {

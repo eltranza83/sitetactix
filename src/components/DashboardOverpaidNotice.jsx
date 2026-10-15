@@ -1,12 +1,10 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { formatMoney } from '../services/money.js';
 
 /** Shown under the Dashboard totals when a sub has been paid more than their quote. */
-export default function DashboardOverpaidNotice({ overpaidSubs = [], formatCurrency }) {
+export default function DashboardOverpaidNotice({ overpaidSubs = [] }) {
   if (!Array.isArray(overpaidSubs) || overpaidSubs.length === 0) return null;
-  const format = (value) => (typeof formatCurrency === 'function'
-    ? formatCurrency(value)
-    : `$${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 
   return (
     <div
@@ -28,7 +26,7 @@ export default function DashboardOverpaidNotice({ overpaidSubs = [], formatCurre
         </span>
         {overpaidSubs.map(sub => (
           <span key={`${sub.name}|${sub.phase}`} style={{ fontSize: '0.76rem', color: 'var(--st-text)' }}>
-            {sub.name} ({sub.phase}): overpaid {format(sub.amount)}
+            {sub.name} ({sub.phase}): overpaid {formatMoney(sub.amount)}
           </span>
         ))}
         <span style={{ fontSize: '0.7rem', color: 'var(--st-muted)', lineHeight: 1.4 }}>

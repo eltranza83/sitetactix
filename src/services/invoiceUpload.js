@@ -1,4 +1,4 @@
-import { ensureAppSubfolder, uploadFileToDrive } from './googleDrive.js';
+import { ensureAppSubfolder, INVOICE_UPLOADS_FOLDER_NAME, uploadFileToDrive } from './googleDrive.js';
 
 function dataURLtoBlob(dataUrl) {
   const arr = dataUrl.split(',');
@@ -213,7 +213,7 @@ export async function syncInvoiceDocument({
       if (projectFolder.unresolved || !projectFolder.folderId) {
         throw new Error(projectFolder.error || `Could not resolve lot "${split.lotNumber}".`);
       }
-      const uploadsFolder = await ensureAppSubfolder(googleToken, projectFolder.folderId, 'Invoice Uploads');
+      const uploadsFolder = await ensureAppSubfolder(googleToken, projectFolder.folderId, INVOICE_UPLOADS_FOLDER_NAME);
       const splitFileName = buildInvoiceFileName({
         ...splitMetadata,
         lotNumber: projectFolder.lotName
@@ -233,7 +233,7 @@ export async function syncInvoiceDocument({
       }
     }
   } else {
-    const uploadsFolder = await ensureAppSubfolder(googleToken, selectedFolder.id, 'Invoice Uploads');
+    const uploadsFolder = await ensureAppSubfolder(googleToken, selectedFolder.id, INVOICE_UPLOADS_FOLDER_NAME);
     mainUploadResult = await uploadFileToDrive(
       googleToken,
       uploadsFolder,

@@ -1,6 +1,7 @@
 /**
  * Service to audit Google Spreadsheet structural integrity and column header health.
  */
+import { parseMoney } from './money.js';
 
 export function auditSpreadsheetHealth(parsedData) {
   const warnings = [];
@@ -29,7 +30,7 @@ export function auditSpreadsheetHealth(parsedData) {
 
   // Check 3: Verify the budget numbers
   if (projectInfo) {
-    const grossBudget = parseFloat(String(projectInfo.budgetGross || 0).replace(/[^0-9.-]/g, '')) || 0;
+    const grossBudget = parseMoney(projectInfo.budgetGross);
     if (grossBudget === 0) {
       warnings.push("Budget for Build and Lot Cost are blank in the Sheet's Project Info tab. Fill them in (or edit the project in Settings) to see budget numbers.");
     }
