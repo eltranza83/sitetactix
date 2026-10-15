@@ -45,33 +45,6 @@ export function saveDraftEdits(drafts, editingItemId, updatedItem) {
   });
 }
 
-export function adjustDraftTimer(drafts, id, additionalMinutes) {
-  if (!Array.isArray(drafts)) return [];
-  return drafts.map(item => {
-    if (item.id === id) {
-      return {
-        ...item,
-        timerDuration: (item.timerDuration || 0) + (additionalMinutes * 60 * 1000)
-      };
-    }
-    return item;
-  });
-}
-
-export function resetDraftTimer(drafts, id) {
-  if (!Array.isArray(drafts)) return [];
-  return drafts.map(item => {
-    if (item.id === id) {
-      return {
-        ...item,
-        createdAt: Date.now(),
-        timerDuration: 60 * 60 * 1000
-      };
-    }
-    return item;
-  });
-}
-
 export function updateDraftField(drafts, id, field, value) {
   if (!Array.isArray(drafts)) return [];
   return drafts.map(item => {

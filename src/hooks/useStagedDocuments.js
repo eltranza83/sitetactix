@@ -6,8 +6,6 @@ import {
   updateDraftById,
   addDraft,
   saveDraftEdits,
-  adjustDraftTimer,
-  resetDraftTimer,
   updateDraftField
 } from '../services/stagedDocumentOperations';
 import { normalizeScanDate, buildAutoSplits } from '../services/editFormHelpers';
@@ -106,8 +104,7 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
         metadata: draftMetadata,
         mainImageBase64,
         secondaryImageBase64: null,
-        createdAt: Date.now(),
-        timerDuration: 60 * 60 * 1000
+        createdAt: Date.now()
       };
 
       saveStagedItems(prev => addDraft(prev, newDraft));
@@ -149,14 +146,6 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
     setTimeout(() => setSuccess(null), 2500);
   };
 
-  const handleAdjustTimer = (id, additionalMinutes) => {
-    saveStagedItems(prev => adjustDraftTimer(prev, id, additionalMinutes));
-  };
-
-  const handleResetTimer = (id) => {
-    saveStagedItems(prev => resetDraftTimer(prev, id));
-  };
-
   const handleUpdateDraftField = (id, field, value) => {
     saveStagedItems(prev => updateDraftField(prev, id, field, value));
   };
@@ -176,8 +165,6 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
     handleSaveStagedEdits,
     handleDeleteStaged,
     confirmDeleteDraft,
-    handleAdjustTimer,
-    handleResetTimer,
     handleUpdateDraftField,
     updateStagedItem,
     removeStagedItem,

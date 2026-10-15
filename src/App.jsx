@@ -120,8 +120,6 @@ export default function App() {
     handleSaveStagedEdits,
     handleDeleteStaged,
     confirmDeleteDraft,
-    handleAdjustTimer,
-    handleResetTimer,
     handleUpdateDraftField,
     updateStagedItem,
     removeStagedItem,
@@ -642,8 +640,6 @@ export default function App() {
                         onEditClick={() => setEditingItemId(item.id)}
                         onUploadClick={() => handleOneShotSync(item.id)}
                         onDeleteClick={() => handleDeleteStaged(item.id)}
-                        onAdjustTimer={(minutes) => handleAdjustTimer(item.id, minutes)}
-                        onResetTimer={() => handleResetTimer(item.id)}
                         onDescriptionChange={(val) => handleUpdateDraftField(item.id, 'description', val)}
                         onCostCategoryChange={(val) => handleUpdateDraftField(item.id, 'costCategory', val)}
                         onLotNumberChange={(val) => handleUpdateDraftField(item.id, 'lotNumber', val)}

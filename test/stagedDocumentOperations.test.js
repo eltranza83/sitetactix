@@ -7,8 +7,6 @@ import {
   updateDraftById,
   addDraft,
   saveDraftEdits,
-  adjustDraftTimer,
-  resetDraftTimer,
   updateDraftField
 } from '../src/services/stagedDocumentOperations.js';
 
@@ -96,19 +94,11 @@ test('6. saveDraftEdits updates metadata and base64 images for matching draft', 
   assert.equal(result[0].secondaryImageBase64, 'img2_new');
 });
 
-test('7. Timer helpers and updateDraftField update targets correctly', () => {
+test('7. updateDraftField updates the target draft', () => {
   const initial = [
-    { id: 'd1', timerDuration: 60000, createdAt: 1000, metadata: { vendor: 'Old Vendor' } }
+    { id: 'd1', createdAt: 1000, metadata: { vendor: 'Old Vendor' } }
   ];
 
-  // Adjust timer by +5 minutes
-  const adjusted = adjustDraftTimer(initial, 'd1', 5);
-  assert.equal(adjusted[0].timerDuration, 60000 + (5 * 60 * 1000));
-
-  // Reset timer
-  const reset = resetDraftTimer(initial, 'd1');
-  assert.equal(reset[0].timerDuration, 3600000);
-  assert.ok(reset[0].createdAt > 1000);
 
   // Update draft field
   const updatedField = updateDraftField(initial, 'd1', 'vendor', '84 Lumber');

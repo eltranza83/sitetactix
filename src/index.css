@@ -1205,7 +1205,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   50% { transform: scale(1.03); opacity: 0.85; }
 }
 
-/* Timer and Queue Badge Extensions */
+/* Queue Badge */
 .nav-badge {
   position: absolute;
   top: 4px;

@@ -1,29 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Edit2, CloudLightning, FileText, CheckCircle, Trash2, Clock, Sparkles, AlertCircle } from 'lucide-react';
+import React from 'react';
+import { Edit2, CloudLightning, FileText, CheckCircle, Trash2, AlertCircle } from 'lucide-react';
 import { STATUS_MESSAGES } from '../services/appErrors';
 import { isDraftPhaseValid, TRADE_SECTIONS_CONFIG } from '../services/editFormHelpers';
-
-function formatTime(ms) {
-  const totalSecs = Math.floor(ms / 1000);
-  const hrs = Math.floor(totalSecs / 3600);
-  const mins = Math.floor((totalSecs % 3600) / 60);
-  const secs = totalSecs % 60;
-
-  const pad = (num) => String(num).padStart(2, '0');
-  
-  if (hrs > 0) {
-    return `${hrs}h ${pad(mins)}m`;
-  }
-  return `${pad(mins)}:${pad(secs)}`;
-}
 
 export default function StagingCard({ 
   stagedItem, 
   onEditClick, 
   onUploadClick, 
   onDeleteClick, 
-  onAdjustTimer,
-  onResetTimer,
   onDescriptionChange,
   onCostCategoryChange,
   onLotNumberChange,
@@ -34,33 +18,12 @@ export default function StagingCard({
 }) {
   if (!stagedItem) return null;
 
-  const { metadata, mainImageBase64, secondaryImageBase64, createdAt, timerDuration } = stagedItem;
+  const { metadata, mainImageBase64, secondaryImageBase64 } = stagedItem;
 
   const isLabor = metadata.costCategory === 'labor';
   const isCheck = metadata.type === 'check';
   const isMockMode = !googleToken || !selectedFolder;
   const hasValidPhase = isDraftPhaseValid(metadata);
-
-  // Countdown timer state
-  const [timeLeft, setTimeLeft] = useState(
-    Math.max(0, (createdAt || Date.now()) + (timerDuration || 3600000) - Date.now())
-  );
-
-  useEffect(() => {
-    // Recalculate immediately when props change
-    const initialTime = Math.max(0, (createdAt || Date.now()) + (timerDuration || 3600000) - Date.now());
-    setTimeLeft(initialTime);
-
-    const interval = setInterval(() => {
-      const remaining = Math.max(0, (createdAt || Date.now()) + (timerDuration || 3600000) - Date.now());
-      setTimeLeft(remaining);
-      if (remaining <= 0) {
-        clearInterval(interval);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [createdAt, timerDuration]);
 
   const scannedItems = Array.isArray(metadata.lineItems) ? metadata.lineItems : [];
   const itemCount = scannedItems.length;
@@ -68,7 +31,7 @@ export default function StagingCard({
 
   return (
     <div className="staging-box" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      {/* Row 0: Merged Header & Timer */}
+      {/* Row 0: Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-zinc-800)', paddingBottom: '8px', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexWrap: 'wrap' }}>
           <span className="staging-title-tag" style={{ margin: 0, padding: '3px 8px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
@@ -87,32 +50,9 @@ export default function StagingCard({
               {itemCount} {itemCount === 1 ? 'item' : 'items'} · {skuCount} {skuCount === 1 ? 'SKU' : 'SKUs'}
             </span>
           )}
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-            <Clock size={12} style={{ color: timeLeft === 0 ? 'var(--color-rose-500)' : 'var(--color-amber-500)' }} />
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: timeLeft === 0 ? 'var(--color-rose-500)' : 'var(--color-amber-400)' }}>
-              {timeLeft === 0 ? 'Overdue!' : formatTime(timeLeft)}
-            </span>
-          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <button 
-            type="button" 
-            onClick={() => onAdjustTimer(30)}
-            style={{ padding: '3px 6px', fontSize: '0.7rem', border: '1px solid var(--color-zinc-800)', backgroundColor: 'var(--color-zinc-900)', color: 'var(--color-zinc-300)', borderRadius: '4px', cursor: 'pointer' }}
-            title="Add 30 minutes to receipt timer"
-          >
-            +30m
-          </button>
-          <button 
-            type="button" 
-            onClick={onResetTimer}
-            style={{ padding: '3px 6px', fontSize: '0.7rem', border: '1px solid var(--color-zinc-800)', backgroundColor: 'var(--color-zinc-900)', color: 'var(--color-zinc-300)', borderRadius: '4px', cursor: 'pointer' }}
-            title="Reset timer to 60 minutes"
-          >
-            Reset
-          </button>
           <button 
             type="button"
             onClick={onDeleteClick}
@@ -124,24 +64,9 @@ export default function StagingCard({
         </div>
       </div>
 
-      {/* Category & Phase AI Classification Badges */}
+      {/* Category & Phase Badges */}
       {(!metadata.splits || metadata.splits.length === 0) && (
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '-2px', marginBottom: '2px', alignItems: 'center' }}>
-          <span style={{
-            fontSize: '0.63rem',
-            padding: '2px 7px',
-            borderRadius: '4px',
-            fontWeight: 700,
-            backgroundColor: 'rgba(16, 185, 129, 0.12)',
-            color: '#34d399',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '3px'
-          }}>
-            <Sparkles size={10} style={{ color: '#34d399' }} />
-            98% High Precision AI
-          </span>
           <span style={{ 
             fontSize: '0.65rem', 
             padding: '3px 8px', 
