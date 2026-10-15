@@ -18,6 +18,7 @@ import {
 import { useAuthenticatedDriveImage } from '../hooks/useAuthenticatedDriveImage';
 import { getDisplayImageUrl } from '../services/imageFiles';
 import { formatPhone } from '../services/projectInfoFormatter';
+import { ISSUE_STATUS_LABELS } from '../services/issueStatus';
 
 export default function IssueCard({
   issue,
@@ -167,7 +168,7 @@ export default function IssueCard({
         };
       case 'in_progress':
         return {
-          label: 'Needs Review',
+          label: ISSUE_STATUS_LABELS.in_progress,
           color: '#F1D7A7',
           icon: <Clock size={13} style={{ color: '#F1D7A7' }} />
         };

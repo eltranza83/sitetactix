@@ -171,3 +171,11 @@ test('formatPhone shows US numbers as (956) 821-2514 and leaves anything else as
   assert.equal(formatPhone(''), '');
   assert.equal(formatPhone(null), '');
 });
+
+test('punch status names: the saved in_progress value shows as "Fix submitted"', async () => {
+  const { issueStatusLabel } = await import('../src/services/issueStatus.js');
+  assert.equal(issueStatusLabel('open'), 'Open');
+  assert.equal(issueStatusLabel('in_progress'), 'Fix submitted');
+  assert.equal(issueStatusLabel('resolved'), 'Resolved');
+  assert.equal(issueStatusLabel(undefined), 'Open');
+});

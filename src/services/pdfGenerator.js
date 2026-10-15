@@ -1,5 +1,6 @@
 import { formatPhone, getProjectPacketInfo } from './projectInfoFormatter.js';
 import { hasFloorPlanPin } from './floorPlanPin.js';
+import { issueStatusLabel } from './issueStatus.js';
 
 const ADEPEC_GOLD = [197, 160, 89];
 const ADEPEC_DARK = [10, 10, 10];
@@ -240,7 +241,7 @@ export async function generateIssuePacketPDF({
   pdf.text(titleLines.slice(0, 2), margin, currentY);
 
   const priority = titleCase(issue?.priority || 'open');
-  const status = titleCase(issue?.status || 'open');
+  const status = issueStatusLabel(issue?.status);
   drawBadge(pdf, pageWidth - margin - 27, currentY - 1, priority, issue?.priority === 'high' ? ROSE_500 : ADEPEC_GOLD);
   currentY += titleLines.length > 1 ? 14 : 10;
 

@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, Plus, RefreshCw } from 'lucide-react';
 import IssueCard from './IssueCard';
 import IssueFormModal from './IssueFormModal';
 import { TRADE_SECTIONS_CONFIG } from '../services/editFormHelpers';
+import { ISSUE_STATUS_LABELS } from '../services/issueStatus';
 
 export default function DashboardPunchList({
   issuesState,
@@ -106,7 +107,7 @@ export default function DashboardPunchList({
           <span style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-zinc-100)' }}>{counts.open}</span>
         </div>
 
-        {/* In Progress widget */}
+        {/* Fix submitted widget */}
         <div style={{
           backgroundColor: 'var(--color-zinc-900)',
           border: '1px solid var(--color-zinc-800)',
@@ -118,7 +119,7 @@ export default function DashboardPunchList({
           gap: '4px',
           borderLeft: '4px solid #F1D7A7'
         }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-zinc-400)', fontWeight: 500 }}>In Progress</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-zinc-400)', fontWeight: 500 }}>{ISSUE_STATUS_LABELS.in_progress}</span>
           <span style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-zinc-100)' }}>{counts.inProgress}</span>
         </div>
 
@@ -187,9 +188,9 @@ export default function DashboardPunchList({
               flex: 1
             }}
           >
-            <option value="all-active">Active Issues (Open/Progress)</option>
+            <option value="all-active">Active (Open + Fix submitted)</option>
             <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
+            <option value="in_progress">{ISSUE_STATUS_LABELS.in_progress}</option>
             <option value="resolved">Resolved</option>
             <option value="all">Show All (Incl. Resolved)</option>
           </select>
