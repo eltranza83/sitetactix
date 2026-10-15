@@ -160,3 +160,14 @@ test('dropEmptySplits removes $0 splits with no items, but never empties the lis
   const allEmpty = [{ id: 'x', amount: 0, items: [] }, { id: 'y', amount: '0.00', items: [] }];
   assert.equal(dropEmptySplits(allEmpty), allEmpty);
 });
+
+test('formatPhone shows US numbers as (956) 821-2514 and leaves anything else as typed', async () => {
+  const { formatPhone } = await import('../src/services/projectInfoFormatter.js');
+  assert.equal(formatPhone('19568212514'), '(956) 821-2514');
+  assert.equal(formatPhone('9568212514'), '(956) 821-2514');
+  assert.equal(formatPhone('+1 956-821-2514'), '(956) 821-2514');
+  assert.equal(formatPhone('(956) 821-2514'), '(956) 821-2514');
+  assert.equal(formatPhone('821-2514'), '821-2514');
+  assert.equal(formatPhone(''), '');
+  assert.equal(formatPhone(null), '');
+});

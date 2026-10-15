@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuthenticatedDriveImage } from '../hooks/useAuthenticatedDriveImage';
 import { getDisplayImageUrl } from '../services/imageFiles';
+import { formatPhone } from '../services/projectInfoFormatter';
 
 export default function IssueCard({
   issue,
@@ -488,7 +489,7 @@ export default function IssueCard({
               </div>
               {(contractorName || phoneNumber) && (
                 <div>
-                  Assigned: <strong style={{ color: 'var(--color-amber-400)' }}>{contractorName || 'N/A'}</strong> {phoneNumber ? `(${phoneNumber})` : ''}
+                  Assigned: <strong style={{ color: 'var(--color-amber-400)' }}>{contractorName || 'N/A'}</strong> {phoneNumber ? `· ${formatPhone(phoneNumber)}` : ''}
                 </div>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem', color: 'var(--color-zinc-400)', flexWrap: 'wrap', marginTop: '3px' }}>
@@ -742,7 +743,7 @@ export default function IssueCard({
               </div>
               {(contractorName || phoneNumber) && (
                 <div>
-                  Assigned: <strong style={{ color: 'var(--color-amber-400)' }}>{contractorName || 'N/A'}</strong> {phoneNumber ? `(${phoneNumber})` : ''}
+                  Assigned: <strong style={{ color: 'var(--color-amber-400)' }}>{contractorName || 'N/A'}</strong> {phoneNumber ? `· ${formatPhone(phoneNumber)}` : ''}
                 </div>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem', color: 'var(--color-zinc-400)', flexWrap: 'wrap', marginTop: '3px' }}>

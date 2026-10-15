@@ -57,3 +57,12 @@ export function getProjectPacketInfo(projectInfo, projectName, selectedFolderNam
 export function cleanNumberInput(value) {
   return String(value ?? '').replace(/[^\d.,]/g, '');
 }
+
+/** US phone numbers for display: "19568212514" -> "(956) 821-2514". Anything else is shown as typed. */
+export function formatPhone(value) {
+  const text = String(value ?? '').trim();
+  let digits = text.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+  if (digits.length !== 10) return text;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}

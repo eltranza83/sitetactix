@@ -1,4 +1,4 @@
-import { getProjectPacketInfo } from './projectInfoFormatter.js';
+import { formatPhone, getProjectPacketInfo } from './projectInfoFormatter.js';
 import { hasFloorPlanPin } from './floorPlanPin.js';
 
 const ADEPEC_GOLD = [197, 160, 89];
@@ -280,7 +280,7 @@ export async function generateIssuePacketPDF({
   addMetaRow(pdf, 'Category', formatIssueLabel(issue?.category), col1, currentY + 11);
   addMetaRow(pdf, 'Phase', issue?.tradePhase || 'N/A', col2, currentY + 11);
   addMetaRow(pdf, 'Assigned', issue?.contractorName || 'N/A', col3, currentY + 11);
-  addMetaRow(pdf, 'Phone', issue?.phoneNumber || 'N/A', col1, currentY + 29);
+  addMetaRow(pdf, 'Phone', formatPhone(issue?.phoneNumber) || 'N/A', col1, currentY + 29);
   addMetaRow(pdf, 'Created', formatIssueDate(issue?.createdAt), col2, currentY + 29);
   addMetaRow(
     pdf,
