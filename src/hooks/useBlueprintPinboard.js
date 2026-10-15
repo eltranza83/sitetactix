@@ -12,6 +12,7 @@ import {
 } from '../services/blueprintDrive';
 import { normalizeZoomScale } from '../services/blueprintViewport';
 import { confirmAction } from '../services/confirmAction';
+import { MAX_PAGES_SHOWN, isPdfFile, openPdf, renderPageAsImageFile, renderPageThumbnail } from '../services/pdfPages';
 
 const DEFAULT_PIN_FORM = {
   tradeCategory: 'Mechanicals_&_Utilities',
@@ -64,6 +65,16 @@ export function useBlueprintPinboard({
   const [loadingAlbumPhotos, setLoadingAlbumPhotos] = useState(false);
   const [uploadingAlbumPhoto, setUploadingAlbumPhoto] = useState(false);
   const [fullscreenAlbumPhoto, setFullscreenAlbumPhoto] = useState(null);
+  // Choosing the floor plan page of a plan PDF: { fileName, pageCount, shownCount, thumbnails, status, pickedPage }
+  const [pdfPicker, setPdfPicker] = useState(null);
+  const pdfRef = useRef(null);
+  const pdfOpenCountRef = useRef(0); // a PDF that finishes opening after Cancel is thrown away
+
+  // Leaving the screen frees the open PDF
+  useEffect(() => () => {
+    pdfOpenCountRef.current += 1;
+    pdfRef.current?.destroy();
+  }, []);
 
   const fileInputRef = useRef(null);
   const blueprintInputRef = useRef(null);
@@ -177,15 +188,7 @@ export function useBlueprintPinboard({
     }
   };
 
-  const handleUploadBlueprint = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setError(getValidationErrorMessage('Please upload your floor plan as a standard image (PNG, JPEG, WebP, or SVG). PDF support is coming soon.'));
-      return;
-    }
-
+  const uploadBlueprintImage = async (file) => {
     setLoading(true);
     setError(null);
 
@@ -206,6 +209,96 @@ export function useBlueprintPinboard({
     } finally {
       setLoading(false);
     }
+  };
+
+  const closePdfPicker = () => {
+    pdfOpenCountRef.current += 1;
+    pdfRef.current?.destroy();
+    pdfRef.current = null;
+    setPdfPicker(null);
+  };
+
+  // Turns one PDF page into an image and saves it as the floor plan.
+  // On failure, a multi-page PDF goes back to its page list; a single page has nothing else to pick.
+  const convertPdfPage = async (pdf, fileName, pageNumber, statusOnFail) => {
+    setError(null);
+    setPdfPicker(prev => (prev ? { ...prev, status: 'converting', pickedPage: pageNumber } : prev));
+    try {
+      const imageFile = await renderPageAsImageFile(pdf, pageNumber, fileName);
+      closePdfPicker();
+      await uploadBlueprintImage(imageFile);
+    } catch (err) {
+      console.error('Could not turn the PDF page into an image:', err);
+      setError('Could not turn that page into an image. Try another page, or save the floor plan as a picture.');
+      setPdfPicker(prev => (prev ? { ...prev, status: statusOnFail } : prev));
+    }
+  };
+
+  const handlePickPdfPage = (pageNumber) => {
+    if (!pdfRef.current) return;
+    convertPdfPage(pdfRef.current, pdfPicker?.fileName, pageNumber, 'ready');
+  };
+
+  const openPlanPdf = async (file) => {
+    const openCount = ++pdfOpenCountRef.current;
+    setError(null);
+    setPdfPicker({ fileName: file.name, pageCount: 0, shownCount: 0, thumbnails: [], status: 'opening', pickedPage: null });
+    let pdf;
+    try {
+      pdf = await openPdf(file);
+    } catch (err) {
+      console.error('Could not open the PDF:', err);
+      if (openCount !== pdfOpenCountRef.current) return;
+      setError('Could not open that PDF. If it has a password, save the floor plan page as a picture instead.');
+      setPdfPicker(prev => (prev ? { ...prev, status: 'failed' } : prev));
+      return;
+    }
+    if (openCount !== pdfOpenCountRef.current) {
+      pdf.destroy();
+      return;
+    }
+    pdfRef.current = pdf;
+    const shownCount = Math.min(pdf.numPages, MAX_PAGES_SHOWN);
+
+    // One page: no question to ask
+    if (pdf.numPages === 1) {
+      setPdfPicker(prev => ({ ...prev, pageCount: 1, shownCount: 1 }));
+      await convertPdfPage(pdf, file.name, 1, 'failed');
+      return;
+    }
+
+    setPdfPicker(prev => ({ ...prev, pageCount: pdf.numPages, shownCount, status: 'ready' }));
+    for (let pageNumber = 1; pageNumber <= shownCount; pageNumber++) {
+      if (pdfRef.current !== pdf) return; // picker closed
+      try {
+        const thumbnail = await renderPageThumbnail(pdf, pageNumber);
+        if (pdfRef.current !== pdf) return;
+        setPdfPicker(prev => {
+          if (!prev) return prev;
+          const thumbnails = [...prev.thumbnails];
+          thumbnails[pageNumber - 1] = thumbnail;
+          return { ...prev, thumbnails };
+        });
+      } catch (err) {
+        console.warn(`Could not preview page ${pageNumber}:`, err);
+      }
+    }
+  };
+
+  const handleUploadBlueprint = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = ''; // picking the same file again still works
+    if (!file) return;
+
+    if (isPdfFile(file)) {
+      await openPlanPdf(file);
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setError(getValidationErrorMessage('Please pick the floor plan as a PDF or a picture (PNG, JPEG, WebP).'));
+      return;
+    }
+    await uploadBlueprintImage(file);
   };
 
   const handleCanvasClick = (e) => {
@@ -435,6 +528,9 @@ export function useBlueprintPinboard({
     handleToggleAddMode,
     handleUploadAlbumPhoto,
     handleUploadBlueprint,
+    pdfPicker,
+    handlePickPdfPage,
+    closePdfPicker,
     setActiveAlbumPhase,
     setExpandedCategory,
     setFormData,

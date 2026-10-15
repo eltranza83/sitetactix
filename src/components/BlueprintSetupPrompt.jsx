@@ -10,7 +10,7 @@ export default function BlueprintSetupPrompt({ blueprintInputRef, onUploadBluepr
       <div style={{ textAlign: 'center' }}>
         <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '6px' }}>No Floor Plan Linked</h3>
         <p style={{ fontSize: '0.78rem', color: 'var(--color-zinc-400)', maxWidth: '280px', margin: '0 auto', lineHeight: 1.4 }}>
-          Link your JPEG or PNG house blueprint. Drop pins on-site to log open-wall structural photos, HVAC duct layouts, and plumbing manifold runs.
+          Pick the house plans as a PDF (you choose the floor plan page) or a picture. Drop pins on-site to log open-wall structural photos, HVAC duct layouts, and plumbing manifold runs.
         </p>
       </div>
       <button
@@ -18,13 +18,13 @@ export default function BlueprintSetupPrompt({ blueprintInputRef, onUploadBluepr
         className="btn btn-primary"
         style={{ width: 'auto', padding: '10px 20px', fontSize: '0.85rem' }}
       >
-        Select Blueprint Image
+        Choose Plan (PDF or Picture)
       </button>
       <input
         type="file"
         ref={blueprintInputRef}
         onChange={onUploadBlueprint}
-        accept="image/*"
+        accept="application/pdf,image/*"
         style={{ display: 'none' }}
       />
     </div>

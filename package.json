@@ -1,7 +1,7 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.13.10",
+  "version": "1.14.0",
   "releaseName": "Subdivision on Notion pages",
   "type": "module",
   "scripts": {
@@ -19,6 +19,7 @@
     "firebase": "^13.0.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.55.0",
+    "pdfjs-dist": "^6.3.289",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
