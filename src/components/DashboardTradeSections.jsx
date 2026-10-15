@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
-import { categoryRank, phaseHasSub } from '../config/tradeCategories.js';
+import { categoryRank } from '../config/tradeCategories.js';
 import { formatMoney, parseMoney as parseCurrencyNumber } from '../services/money.js';
 
 const safeFormat = (val) => formatMoney(val, { cents: 'auto' });
@@ -249,9 +249,9 @@ export default function DashboardTradeSections({
                         cleanPayee.toLowerCase().endsWith('payee') ||
                         cleanPayee.toLowerCase() === `${cleanPhase.toLowerCase()} payee`;
 
+                      // Only a sub with a contract is named; phases bought as material show no label
                       const isAssigned = !isPlaceholder;
-                      const needsPayee = isAssigned || phaseHasSub(cleanPhase);
-                      const displayPayee = isAssigned ? cleanPayee : (needsPayee ? 'Payee - Unassigned' : null);
+                      const displayPayee = isAssigned ? cleanPayee : null;
 
                       return (
                         <div
@@ -272,7 +272,7 @@ export default function DashboardTradeSections({
                           }}
                           className="project-profile-row"
                         >
-                          {/* Row 1: Phase Name on Left • Payee Status on Right */}
+                          {/* Row 1: Phase name on the left, the sub (if any) on the right */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', width: '100%' }}>
                             <span style={{
                               fontFamily: 'var(--font-sans)',
@@ -288,10 +288,9 @@ export default function DashboardTradeSections({
                             </span>
                             {displayPayee && (
                               <span style={{
-                                fontWeight: isAssigned ? 600 : 400,
-                                color: isAssigned ? 'var(--st-gold)' : 'var(--st-muted)',
+                                fontWeight: 600,
+                                color: 'var(--st-gold)',
                                 fontSize: '0.72rem',
-                                fontStyle: isAssigned ? 'normal' : 'italic',
                                 flexShrink: 0
                               }}>
                                 {displayPayee}
