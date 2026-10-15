@@ -260,9 +260,17 @@ export default function App() {
           <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--st-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {activeProject ? activeProject.name : 'Select Project'}
           </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--st-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {selectedFolder ? selectedFolder.name : 'No folder set'}
-          </div>
+          {/* Second line: the subdivision, the folder only when its name differs, or a missing-folder warning */}
+          {(() => {
+            const detail = !selectedFolder
+              ? 'No folder set'
+              : (activeProject?.subdivision || (selectedFolder.name !== activeProject?.name ? selectedFolder.name : ''));
+            return detail ? (
+              <div style={{ fontSize: '0.72rem', color: 'var(--st-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {detail}
+              </div>
+            ) : null;
+          })()}
         </div>
 
         <nav className="studio-nav">

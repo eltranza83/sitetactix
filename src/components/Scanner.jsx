@@ -708,7 +708,7 @@ export default function Scanner({ onDataExtracted, onError }) {
         <div className="settings-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '16px' }}>
           <div className="spinner"></div>
           <div style={{ fontWeight: 600, color: 'var(--color-zinc-100)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={18} className="logo-icon" style={{ animation: 'pulse 1.5s infinite ease-in-out' }} style={{ color: 'var(--color-amber-500)' }} />
+            <Sparkles size={18} className="logo-icon" style={{ animation: 'pulse 1.5s infinite ease-in-out', color: 'var(--color-amber-500)' }} />
             {statusMessage}
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--color-zinc-500)', textAlign: 'center', maxWidth: '280px' }}>
@@ -721,11 +721,6 @@ export default function Scanner({ onDataExtracted, onError }) {
           style={{ height: '320px', cursor: 'default', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '24px' }}
           onClick={(e) => e.stopPropagation()} // prevent clicking background
         >
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-            <div className="scan-title">Capture Invoice or Check</div>
-            <div className="scan-subtitle">Choose how to scan your document:</div>
-          </div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '280px', margin: '0 auto' }}>
             {/* Take Photo Button - triggers WebRTC camera */}
             <button 
@@ -764,11 +759,6 @@ export default function Scanner({ onDataExtracted, onError }) {
                 }}
               />
             </div>
-          </div>
-
-          <div style={{ display: 'flex', alignSelf: 'center', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--color-zinc-400)', backgroundColor: 'var(--color-zinc-900)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--color-zinc-800)' }}>
-            <Sparkles size={12} style={{ color: 'var(--color-amber-500)' }} />
-            Gemini AI Auto-OCR Processing Active
           </div>
         </div>
       )}

@@ -986,16 +986,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-color: var(--color-zinc-700);
   background-color: rgba(255, 255, 255, 0.01);
 }
-.scan-title {
-  font-weight: 600;
-  font-size: 1.1rem;
-}
-
-.scan-subtitle {
-  font-size: 0.85rem;
-  color: var(--color-zinc-500);
-}
-
 /* Camera UI wrapper */
 .camera-container {
   display: flex;
