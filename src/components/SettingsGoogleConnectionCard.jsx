@@ -44,6 +44,10 @@ export default function SettingsGoogleConnectionCard({
         <div>
           <div style={{ fontSize: '0.75rem', color: 'var(--color-zinc-500)', fontWeight: 600 }}>SIGNED IN AS</div>
           <div style={{ fontWeight: 600, color: 'var(--color-zinc-100)', fontSize: '0.9rem' }}>{googleUser?.name || 'Google User'}</div>
+          {/* The account matters: receipts, folders and Sheets belong to it */}
+          {googleUser?.email && (
+            <div style={{ fontSize: '0.78rem', color: 'var(--color-zinc-400)', overflowWrap: 'anywhere' }}>{googleUser.email}</div>
+          )}
         </div>
         <button onClick={onSignOut} className="btn btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: '0.8rem' }}>
           <LogOut size={14} /> Sign Out

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, ExternalLink, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, ExternalLink, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 
 export default function SettingsProjectProfilesCard({
   activeProject,
@@ -96,7 +96,23 @@ export default function SettingsProjectProfilesCard({
                       }}>
                         Folder: {project.folderName}
                       </div>
-                      <div style={{ marginTop: '4px', fontSize: '0.75rem' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ marginTop: '4px', fontSize: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }} onClick={(e) => e.stopPropagation()}>
+                        {/* The house's books: one tap to open them, and a warning when none is linked */}
+                        {project.spreadsheetId ? (
+                          <a
+                            href={`https://docs.google.com/spreadsheets/d/${encodeURIComponent(project.spreadsheetId)}/edit`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={project.spreadsheetName || 'Google Sheet'}
+                            style={{ color: 'var(--color-emerald-500)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <ExternalLink size={12} /> Sheet
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--color-amber-500)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertTriangle size={12} /> No Sheet linked
+                          </span>
+                        )}
                         {project.notionPageUrl ? (
                           <a
                             href={project.notionPageUrl}
