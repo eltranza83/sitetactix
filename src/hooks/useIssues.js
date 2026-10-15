@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { loadIssuesVault, saveIssuesVault, uploadIssuePhoto, uploadIssueProofPhoto, mergeIssues, mergeActivityHistories } from '../services/issuesDrive';
 import { getDriveErrorMessage } from '../services/appErrors';
 import { fileToBase64 } from '../services/imageFiles';
+import { pinCoordinate } from '../services/floorPlanPin';
 
 const OFFLINE_QUEUE_KEY = 'jobscan_offline_issues_queue';
 const CACHED_ISSUES_PREFIX = 'jobscan_cached_issues_';
@@ -384,8 +385,8 @@ export function useIssues({ googleToken, activeProject }) {
       activityHistory: updates.activityHistory !== undefined
         ? updates.activityHistory
         : (Array.isArray(existingIssue.activityHistory) ? existingIssue.activityHistory : []),
-      floorPlanX: Number.isFinite(Number(updates.floorPlanX)) ? updates.floorPlanX : existingIssue.floorPlanX,
-      floorPlanY: Number.isFinite(Number(updates.floorPlanY)) ? updates.floorPlanY : existingIssue.floorPlanY,
+      floorPlanX: pinCoordinate(updates.floorPlanX) ?? existingIssue.floorPlanX,
+      floorPlanY: pinCoordinate(updates.floorPlanY) ?? existingIssue.floorPlanY,
       floorPlanSnapshotUrl: updates.floorPlanSnapshotUrl || existingIssue.floorPlanSnapshotUrl || '',
       floorPlanSnapshotFileId: updates.floorPlanSnapshotFileId || existingIssue.floorPlanSnapshotFileId || ''
     };

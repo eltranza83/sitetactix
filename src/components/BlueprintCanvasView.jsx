@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, MapPin, RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import BlueprintSelectedPinCard from './BlueprintSelectedPinCard';
 import IssueCard from './IssueCard';
+import { hasFloorPlanPin } from '../services/floorPlanPin';
 
 function getIssueMarkerColor(issue) {
   if (issue.status === 'resolved') return '#34d399';
@@ -11,7 +12,7 @@ function getIssueMarkerColor(issue) {
 }
 
 function isLocatedIssue(issue) {
-  return !issue?.deletedAt && Number.isFinite(Number(issue.floorPlanX)) && Number.isFinite(Number(issue.floorPlanY));
+  return !issue?.deletedAt && hasFloorPlanPin(issue);
 }
 
 export default function BlueprintCanvasView({

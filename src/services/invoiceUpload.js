@@ -56,6 +56,7 @@ export function buildHistoryLogs(metadata, { idPrefix, link, draftId = null, syn
   } : {});
 
   if (metadata.splits && metadata.splits.length > 0) {
+    // A $0 split is not uploaded (see the sync loop), so it gets no History entry either
     return metadata.splits.map((split, index) => ({
       id: `${idPrefix}_split_${index}`,
       dateLogged,
@@ -69,7 +70,7 @@ export function buildHistoryLogs(metadata, { idPrefix, link, draftId = null, syn
       tradePhase: split.tradePhase || metadata.tradePhase,
       ...(draftId ? { lotName: split.lotNumber || metadata.lotNumber || '' } : {}),
       ...checkFields(index)
-    }));
+    })).filter((_, index) => (parseFloat(metadata.splits[index].amount) || 0) > 0);
   }
 
   return [{

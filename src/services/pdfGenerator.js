@@ -1,4 +1,5 @@
 import { getProjectPacketInfo } from './projectInfoFormatter.js';
+import { hasFloorPlanPin } from './floorPlanPin.js';
 
 const ADEPEC_GOLD = [197, 160, 89];
 const ADEPEC_DARK = [10, 10, 10];
@@ -203,6 +204,7 @@ async function addImageSection(pdf, { title, blob, x, y, width, height, emptyTex
 export async function generateIssuePacketPDF({
   issue,
   projectName = '',
+  subdivision = '',
   selectedFolderName = '',
   projectInfo = null,
   issuePhotoBlob = null,
@@ -228,7 +230,7 @@ export async function generateIssuePacketPDF({
   });
 
   await drawAdepecHeader(pdf, 'PUNCH ISSUE PACKET', `Generated ${created}`);
-  const packetProject = getProjectPacketInfo(projectInfo, projectName, selectedFolderName);
+  const packetProject = getProjectPacketInfo(projectInfo, projectName, selectedFolderName, subdivision);
 
   let currentY = 48;
   pdf.setFont('helvetica', 'bold');
@@ -283,7 +285,7 @@ export async function generateIssuePacketPDF({
   addMetaRow(
     pdf,
     'Floor Plan',
-    Number.isFinite(Number(issue?.floorPlanX)) && Number.isFinite(Number(issue?.floorPlanY)) ? 'Pin attached' : 'No pin attached',
+    hasFloorPlanPin(issue) ? 'Pin attached' : 'No pin attached',
     col3,
     currentY + 29
   );

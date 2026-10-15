@@ -288,6 +288,7 @@ export default function DashboardPunchList({
           subcontractors={subcontractors}
           projectInfo={projectInfo}
           projectName={activeProject?.name}
+          subdivision={activeProject?.subdivision}
           selectedFolderName={selectedFolderName}
           googleToken={googleToken}
           onSave={handleSaveIssue}
@@ -302,6 +303,7 @@ export default function DashboardPunchList({
           editingIssue={editingIssue}
           projectInfo={projectInfo}
           projectName={activeProject?.name}
+          subdivision={activeProject?.subdivision}
           selectedFolderName={selectedFolderName}
           googleToken={googleToken}
           onSave={handleSaveIssueEdit}

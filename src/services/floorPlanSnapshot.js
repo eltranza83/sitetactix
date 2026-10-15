@@ -1,3 +1,5 @@
+import { pinCoordinate } from './floorPlanPin.js';
+
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -37,9 +39,9 @@ export async function createIssueFloorPlanSnapshotBlob(imageSrc, issue) {
     throw new Error('No floor plan image is available to share.');
   }
 
-  const xPercent = Number(issue?.floorPlanX);
-  const yPercent = Number(issue?.floorPlanY);
-  if (!Number.isFinite(xPercent) || !Number.isFinite(yPercent)) {
+  const xPercent = pinCoordinate(issue?.floorPlanX);
+  const yPercent = pinCoordinate(issue?.floorPlanY);
+  if (xPercent === null || yPercent === null) {
     throw new Error('This issue does not have a floor plan location.');
   }
 

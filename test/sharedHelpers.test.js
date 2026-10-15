@@ -103,3 +103,48 @@ test('getDisplayImageUrl prefers the offline copy, then a Drive thumbnail', () =
   assert.equal(getDisplayImageUrl('', null), '');
   assert.equal(getDisplayImageUrl('https://example.com/a.jpg', null), 'https://example.com/a.jpg');
 });
+
+test('a punch item with no pin (null) is not treated as a pin in the corner', async () => {
+  const { hasFloorPlanPin, pinCoordinate } = await import('../src/services/floorPlanPin.js');
+  assert.equal(hasFloorPlanPin({ floorPlanX: null, floorPlanY: null }), false);
+  assert.equal(hasFloorPlanPin({}), false);
+  assert.equal(hasFloorPlanPin({ floorPlanX: '', floorPlanY: '' }), false);
+  assert.equal(hasFloorPlanPin({ floorPlanX: 42.5, floorPlanY: 18.25 }), true);
+  assert.equal(hasFloorPlanPin({ floorPlanX: 0, floorPlanY: 0 }), true);
+  assert.equal(pinCoordinate(null), null);
+  assert.equal(pinCoordinate('12.5'), 12.5);
+});
+
+test('no file checks pins with a plain number test any more', () => {
+  for (const file of ['src/components/BlueprintCanvasView.jsx', 'src/components/IssueFormModal.jsx', 'src/hooks/useIssues.js',
+    'src/services/floorPlanSnapshot.js', 'src/services/issuePacketShare.js', 'src/services/pdfGenerator.js']) {
+    const source = fs.readFileSync(file, 'utf8');
+    assert.ok(!/isFinite\(Number\([^)]*floorPlan/.test(source), `${file} checks a pin with Number()`);
+  }
+});
+
+test('punch packets use the Subdivision saved on the project', async () => {
+  const { getProjectPacketInfo } = await import('../src/services/projectInfoFormatter.js');
+  const saved = getProjectPacketInfo({}, 'Lot 99 -New Test', '', 'Northwood Trail');
+  assert.equal(saved.subdivision, 'Northwood Trail');
+  assert.equal(saved.lotNumber, 'Lot 99');
+  const guessed = getProjectPacketInfo({}, 'Lot 5 – Northwood Trail', '');
+  assert.equal(guessed.subdivision, '– Northwood Trail');
+});
+
+test('a $0 split gets no History entry (it is never uploaded), and Receipt IDs keep their split number', async () => {
+  const { buildHistoryLogs } = await import('../src/services/invoiceUpload.js');
+  const logs = buildHistoryLogs({
+    vendor: 'Home Depot',
+    date: '2023-10-26',
+    splits: [
+      { amount: '133.40', tradePhase: 'Plumbing Rough-In' },
+      { amount: '0.00', tradePhase: 'Framing Lumber & Truss' },
+      { amount: '23.20', tradePhase: 'Electrical & Lighting' }
+    ]
+  }, { idPrefix: 'x', link: null, draftId: 'draft1' });
+  assert.equal(logs.length, 2);
+  assert.deepEqual(logs.map(l => l.amount), ['133.40', '23.20']);
+  assert.deepEqual(logs.map(l => l.id), ['x_split_0', 'x_split_2']);
+  assert.notEqual(logs[0].receiptId, logs[1].receiptId);
+});

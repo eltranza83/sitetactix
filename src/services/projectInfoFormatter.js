@@ -30,10 +30,13 @@ export function isPlaceholderProjectInfo(projectInfo) {
   );
 }
 
-export function getProjectPacketInfo(projectInfo, projectName, selectedFolderName) {
+/** Project details for punch packets. The Subdivision saved on the project wins over guessing it from the name. */
+export function getProjectPacketInfo(projectInfo, projectName, selectedFolderName, savedSubdivision = '') {
   const sheetProjectName = String(projectInfo?.name || '').trim();
   const fallbackName = String(projectName || selectedFolderName || '').trim();
-  const { subdivision, lotNumber } = splitProjectName(sheetProjectName || fallbackName);
+  const split = splitProjectName(sheetProjectName || fallbackName);
+  const subdivision = String(savedSubdivision || '').trim() || split.subdivision;
+  const { lotNumber } = split;
   const streetAddress = String(projectInfo?.address || '').trim();
   const cityStateZip = String(projectInfo?.cityStateZip || '').trim();
   const fullAddress = [streetAddress, cityStateZip]

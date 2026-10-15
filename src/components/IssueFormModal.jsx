@@ -4,6 +4,7 @@ import { TRADE_SECTIONS_CONFIG } from '../services/editFormHelpers';
 import { getProjectPacketInfo } from '../services/projectInfoFormatter';
 import { useAuthenticatedDriveImage } from '../hooks/useAuthenticatedDriveImage';
 import { compressImage, getDisplayImageUrl } from '../services/imageFiles';
+import { hasFloorPlanPin, pinCoordinate } from '../services/floorPlanPin';
 
 export default function IssueFormModal({
   issues,
@@ -13,13 +14,14 @@ export default function IssueFormModal({
   editingIssue = null,
   projectInfo = null,
   projectName = '',
+  subdivision = '',
   selectedFolderName = '',
   googleToken = null,
   onSave,
   onClose
 }) {
   const isEditing = Boolean(editingIssue);
-  const packetProject = getProjectPacketInfo(projectInfo, projectName, selectedFolderName);
+  const packetProject = getProjectPacketInfo(projectInfo, projectName, selectedFolderName, subdivision);
   const [title, setTitle] = useState(editingIssue?.title || '');
   const [description, setDescription] = useState(editingIssue?.description || '');
   const [category, setCategory] = useState(editingIssue?.category || 'Site_Prep_&_Structure');
@@ -185,10 +187,10 @@ export default function IssueFormModal({
       photoFile,
       floorPlanX: Number.isFinite(initialFloorLocation?.x)
         ? initialFloorLocation.x
-        : (Number.isFinite(Number(editingIssue?.floorPlanX)) ? editingIssue.floorPlanX : null),
+        : pinCoordinate(editingIssue?.floorPlanX),
       floorPlanY: Number.isFinite(initialFloorLocation?.y)
         ? initialFloorLocation.y
-        : (Number.isFinite(Number(editingIssue?.floorPlanY)) ? editingIssue.floorPlanY : null)
+        : pinCoordinate(editingIssue?.floorPlanY)
     });
   };
 
@@ -337,7 +339,7 @@ export default function IssueFormModal({
             </div>
           </div>
 
-          {(initialFloorLocation || Number.isFinite(Number(editingIssue?.floorPlanX))) && (
+          {(initialFloorLocation || hasFloorPlanPin(editingIssue)) && (
             <div style={{
               padding: '10px 12px',
               borderRadius: '8px',

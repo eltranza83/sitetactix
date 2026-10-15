@@ -1,5 +1,6 @@
 import { fetchDriveFileBlob } from './googleDrive';
 import { createIssueFloorPlanSnapshotBlob } from './floorPlanSnapshot';
+import { hasFloorPlanPin } from './floorPlanPin.js';
 
 function dataUrlToBlob(dataUrl) {
   const [meta, base64] = String(dataUrl || '').split(',');
@@ -48,7 +49,7 @@ async function getIssueProofPhotoBlob(issue, googleToken) {
 }
 
 async function getFloorPlanSnapshotBlob(issue, floorPlanImageSrc) {
-  const hasLocation = Number.isFinite(Number(issue?.floorPlanX)) && Number.isFinite(Number(issue?.floorPlanY));
+  const hasLocation = hasFloorPlanPin(issue);
   if (!hasLocation || !floorPlanImageSrc) {
     return null;
   }
@@ -72,6 +73,7 @@ export async function createAndShareIssuePacket({
   googleToken,
   floorPlanImageSrc,
   projectName,
+  subdivision = '',
   selectedFolderName,
   projectInfo = null
 }) {
@@ -85,6 +87,7 @@ export async function createAndShareIssuePacket({
   const pdfBlob = await generateIssuePacketPDF({
     issue,
     projectName,
+    subdivision,
     selectedFolderName,
     projectInfo,
     issuePhotoBlob,

@@ -275,6 +275,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
       googleToken,
       floorPlanImageSrc: pinboard.imageSrc,
       projectName: activeProject?.name,
+      subdivision: activeProject?.subdivision,
       selectedFolderName: selectedFolder?.name,
       projectInfo
     });
@@ -387,6 +388,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
           initialFloorLocation={pendingIssueLocation}
           projectInfo={formProjectInfo}
           projectName={activeProject?.name}
+          subdivision={activeProject?.subdivision}
           selectedFolderName={selectedFolder?.name}
           googleToken={googleToken}
           onSave={handleSaveLocatedIssue}
@@ -401,6 +403,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
           editingIssue={editingIssue}
           projectInfo={formProjectInfo}
           projectName={activeProject?.name}
+          subdivision={activeProject?.subdivision}
           selectedFolderName={selectedFolder?.name}
           googleToken={googleToken}
           onSave={handleSaveIssueEdit}
