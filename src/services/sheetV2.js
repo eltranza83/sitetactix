@@ -339,14 +339,11 @@ export function computeV2Dashboard({ projectInfoRows = [], transactionRows = [],
       contractorPaid: roundCents(paid),
       totalPaid: roundCents(material + labor),
       remainingBalance: roundCents(owed),
-      status: '',
       payments: entry.payments,
       contracts: entry.contracts,
       totalMaterial: material,
       totalLabor: labor,
-      totalSpent: roundCents(material + labor),
-      hasFormulaError: false,
-      formulaErrors: []
+      totalSpent: roundCents(material + labor)
     };
   });
 
@@ -394,9 +391,7 @@ export function computeV2Dashboard({ projectInfoRows = [], transactionRows = [],
         lotCost: budgetLand,
         sqftLiving: info.sqftLiving,
         sqftTotal: info.sqftTotal
-      }),
-      hasFormulaError: false,
-      formulaErrors: []
+      })
     },
     subcontractors,
     categories,

@@ -16,7 +16,6 @@ import DashboardKpiCards from './DashboardKpiCards';
 import DashboardOverpaidNotice from './DashboardOverpaidNotice';
 import DashboardTodayCheck from './DashboardTodayCheck';
 import DashboardCostPerSqFt from './DashboardCostPerSqFt';
-import DashboardPhotoReminders from './DashboardPhotoReminders';
 import DashboardPhotoGallery from './DashboardPhotoGallery';
 import DashboardTradeSections from './DashboardTradeSections';
 import { auditSpreadsheetHealth } from '../services/spreadsheetHealth';
@@ -31,28 +30,12 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
   const [selectedSub, setSelectedSub] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
 
-  // Inspection Photos & Reminders State
+  // Phase photo gallery state
   const [activeGalleryPhase, setActiveGalleryPhase] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [fullscreenPhoto, setFullscreenPhoto] = useState(null);
-
-  const [dismissedReminders, setDismissedReminders] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(`jobscan_dismissed_reminders_${activeProject?.id}`) || '{}');
-    } catch {
-      return {};
-    }
-  });
-
-  const [snoozedReminders, setSnoozedReminders] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(`jobscan_snoozed_reminders_${activeProject?.id}`) || '{}');
-    } catch {
-      return {};
-    }
-  });
 
   // Load photos lazily when active gallery phase opens
   useEffect(() => {
@@ -98,60 +81,6 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
       setUploadingPhoto(false);
     }
   };
-
-  const dismissReminder = (phaseName) => {
-    const updated = { ...dismissedReminders, [phaseName]: true };
-    setDismissedReminders(updated);
-    localStorage.setItem(`jobscan_dismissed_reminders_${activeProject?.id}`, JSON.stringify(updated));
-  };
-
-  const snoozeReminder = (phaseName) => {
-    // Snooze for 24 hours
-    const snoozeUntil = Date.now() + 24 * 60 * 60 * 1000;
-    const updated = { ...snoozedReminders, [phaseName]: snoozeUntil };
-    setSnoozedReminders(updated);
-    localStorage.setItem(`jobscan_snoozed_reminders_${activeProject?.id}`, JSON.stringify(updated));
-  };
-
-  // Get active reminder candidates
-  const getActiveReminders = () => {
-    if (!data?.subcontractors || !Array.isArray(data.subcontractors)) return [];
-
-    // Check if Drywall & Sheetrock is Complete or In Progress
-    const drywallSub = data.subcontractors.find(sub => String(sub?.phase || '').toLowerCase().includes('drywall'));
-    const isDrywallActive = drywallSub &&
-      (String(drywallSub?.status || '').toLowerCase().includes('progress') || String(drywallSub?.status || '').toLowerCase().includes('complete') || String(drywallSub?.status || '').toLowerCase().includes('done'));
-
-    return data.subcontractors.filter(sub => {
-      if (!sub) return false;
-      const status = String(sub.status || '').trim().toLowerCase();
-      const isActive = status.includes('progress') || (status.includes('started') && !status.includes('not'));
-      if (!isActive) return false;
-
-      // If drywall is active/done, silence rough-ins
-      const phaseName = String(sub.phase || '').toLowerCase();
-      if (isDrywallActive) {
-        const isRoughIn = phaseName.includes('plumbing') ||
-          phaseName.includes('electrical') ||
-          phaseName.includes('hvac') ||
-          phaseName.includes('insulation') ||
-          phaseName.includes('framing') ||
-          phaseName.includes('foundation');
-        if (isRoughIn) return false;
-      }
-
-      // Check if user dismissed it permanently
-      if (sub.phase && dismissedReminders[sub.phase]) return false;
-
-      // Check if user snoozed it (and 24 hrs hasn't passed)
-      const snoozeUntil = sub.phase ? (snoozedReminders[sub.phase] || 0) : 0;
-      if (Date.now() < snoozeUntil) return false;
-
-      return true;
-    });
-  };
-
-  const activeReminders = getActiveReminders();
 
   const getPhaseReminderTip = (phaseName) => {
     const name = phaseName.toLowerCase();
@@ -309,18 +238,6 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }, 80);
-  };
-
-  // Status badge styling
-  const getStatusStyle = (status) => {
-    const clean = String(status || '').trim().toLowerCase();
-    if (clean.includes('complete') || clean.includes('done')) {
-      return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981', border: 'rgba(16, 185, 129, 0.3)' };
-    }
-    if (clean.includes('progress') || (clean.includes('started') && !clean.includes('not'))) {
-      return { bg: 'rgba(241, 215, 167, 0.15)', text: '#F1D7A7', border: 'rgba(241, 215, 167, 0.3)' };
-    }
-    return { bg: 'rgba(113, 113, 122, 0.15)', text: '#a1a1aa', border: 'rgba(113, 113, 122, 0.3)' };
   };
 
   if (!activeProject) {
@@ -559,19 +476,10 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
 
           <DashboardCostPerSqFt projectInfo={data?.projectInfo || {}} />
 
-          <DashboardPhotoReminders
-            reminders={activeReminders}
-            getPhaseReminderTip={getPhaseReminderTip}
-            onSnoozeReminder={snoozeReminder}
-            onDismissReminder={dismissReminder}
-            onPhotoUpload={handlePhotoUpload}
-          />
-
           <DashboardContractorSearch
             searchTerm={searchTerm}
             suggestions={suggestions}
             selectedSub={selectedSub}
-            getStatusStyle={getStatusStyle}
             onSearchTermChange={(value) => {
               setSearchTerm(value);
               setSelectedSub(null);

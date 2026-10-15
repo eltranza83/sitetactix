@@ -8,7 +8,6 @@ export default function DashboardContractorSearch({
   searchTerm,
   suggestions,
   selectedSub,
-  getStatusStyle,
   onSearchTermChange,
   onSelectSubcontractor,
   onClearSelection,
@@ -79,7 +78,6 @@ export default function DashboardContractorSearch({
 
       <DashboardContractorDetail
         selectedSub={selectedSub}
-        getStatusStyle={getStatusStyle}
         onViewPhasePhotos={onViewPhasePhotos}
         onClearSelection={onClearSelection}
         onShowToast={onShowToast}
