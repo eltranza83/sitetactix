@@ -323,6 +323,12 @@ export default function Scanner({ onDataExtracted, onError }) {
           const captureErr = 'Failed to capture cropped canvas.';
           if (onError) onError(captureErr);
         }
+      }).catch((err) => {
+        // Without this the "Analyzing document" spinner would never stop
+        console.error('Could not prepare the cropped photo:', err);
+        setLoading(false);
+        setStatusMessage('');
+        if (onError) onError('Could not prepare the cropped photo. Please try again.');
       });
     };
     img.src = croppingImageSrc;

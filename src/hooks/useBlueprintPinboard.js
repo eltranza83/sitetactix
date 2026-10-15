@@ -243,11 +243,12 @@ export function useBlueprintPinboard({
     const fileReaders = files.map((file) => new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     }));
 
     Promise.all(fileReaders).then((results) => {
-      setPhotoPreviews(prev => [...prev, ...results]);
+      setPhotoPreviews(prev => [...prev, ...results.filter(Boolean)]);
     });
   };
 

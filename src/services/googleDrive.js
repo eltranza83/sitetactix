@@ -254,7 +254,9 @@ export async function listProjectSpreadsheets(accessToken, folderId) {
         }
       }
     }
-  } catch {}
+  } catch (err) {
+    console.warn('[googleDrive] Could not search App Folders for the spreadsheet:', err?.message || err);
+  }
 
   return directFiles;
 }

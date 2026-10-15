@@ -117,7 +117,9 @@ export class FirestoreProjectAdapter {
             const norm = normalizeProjectRecord(docSnap.data(), docSnap.id);
             itemsMap.set(norm.id, norm);
           });
-        } catch {}
+        } catch (qErr) {
+          console.warn('[FirestoreProjectAdapter] ownerUid query error:', qErr?.message);
+        }
       }
 
       const items = Array.from(itemsMap.values());
