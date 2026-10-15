@@ -271,6 +271,7 @@ export default function IssueFormModal({
           <div>
             <label className="form-label" htmlFor="issue-title">Title *</label>
             <input
+              autoComplete="off"
               id="issue-title"
               type="text"
               className="form-input"
@@ -284,6 +285,7 @@ export default function IssueFormModal({
           <div>
             <label className="form-label" htmlFor="issue-desc">Description</label>
             <textarea
+              autoComplete="off"
               id="issue-desc"
               className="form-input"
               value={description}
@@ -420,6 +422,7 @@ export default function IssueFormModal({
               <div style={{ flex: 1 }}>
                 <label className="form-label" htmlFor="contractor-name" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Name</label>
                 <input
+                  autoComplete="off"
                   id="contractor-name"
                   type="text"
                   className="form-input"
@@ -431,6 +434,7 @@ export default function IssueFormModal({
               <div style={{ flex: 1 }}>
                 <label className="form-label" htmlFor="contractor-phone" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Phone</label>
                 <input
+                  autoComplete="off"
                   id="contractor-phone"
                   type="tel"
                   className="form-input"

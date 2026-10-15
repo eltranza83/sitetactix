@@ -67,6 +67,7 @@ export default function BlueprintAddPinModal({
             <div>
               <label className="form-label" style={{ fontSize: '0.72rem' }}>Level</label>
               <input
+                autoComplete="off"
                 value={formData.level}
                 onChange={(e) => onFormDataChange(prev => ({ ...prev, level: e.target.value }))}
                 placeholder="1st Floor"
@@ -78,6 +79,7 @@ export default function BlueprintAddPinModal({
             <div>
               <label className="form-label" style={{ fontSize: '0.72rem' }}>Room / Area</label>
               <input
+                autoComplete="off"
                 value={formData.room}
                 onChange={(e) => onFormDataChange(prev => ({ ...prev, room: e.target.value }))}
                 placeholder="Kitchen"
@@ -90,6 +92,7 @@ export default function BlueprintAddPinModal({
           <div>
             <label className="form-label" style={{ fontSize: '0.72rem' }}>Wall / Zone</label>
             <input
+              autoComplete="off"
               value={formData.wall}
               onChange={(e) => onFormDataChange(prev => ({ ...prev, wall: e.target.value }))}
               placeholder="Island wall, west shower wall, garage north wall..."
@@ -101,6 +104,7 @@ export default function BlueprintAddPinModal({
           <div>
             <label className="form-label" style={{ fontSize: '0.72rem' }}>Installation Note (optional)</label>
             <textarea
+              autoComplete="off"
               value={formData.note}
               onChange={(e) => onFormDataChange(prev => ({ ...prev, note: e.target.value }))}
               placeholder="e.g. Master shower hot/cold manifold routing detail..."
