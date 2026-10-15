@@ -115,6 +115,14 @@ export function useInvoiceSync({
     loadStoredAppState().hasUnprocessedUploads
   ));
   const [triggeringSync, setTriggeringSync] = useState(false);
+  // An open "already in the Sheet" question; the sync waits for the answer
+  const [confirmRequest, setConfirmRequest] = useState(null);
+
+  const askConfirm = (request) => new Promise(resolve => setConfirmRequest({ ...request, resolve }));
+  const answerConfirm = (yes) => {
+    confirmRequest?.resolve(yes);
+    setConfirmRequest(null);
+  };
 
   const saveHistory = (newHistory) => {
     setHistory(newHistory);
@@ -185,7 +193,11 @@ export function useInvoiceSync({
 
     setUploadStatusText('Checking for duplicates...');
     const [duplicate] = await findAlreadyInSheet(googleToken, linkedSheetFor(activeProject, targetFolderId), [itemToSync]);
-    if (duplicate && !window.confirm(`${describeSheetMatch(duplicate.match)}\n\nSync it again anyway?`)) {
+    if (duplicate && !(await askConfirm({
+      title: 'Already in the Sheet?',
+      message: `${describeSheetMatch(duplicate.match)}\n\nIf this is the same receipt, cancel and delete the draft.`,
+      confirmLabel: 'Sync anyway'
+    }))) {
       setUploading(null);
       setUploadStatusText('');
       setError(`Not synced: ${describeSheetMatch(duplicate.match)} Delete the draft if it is the same receipt.`);
@@ -341,7 +353,11 @@ export function useInvoiceSync({
       const lines = duplicates.slice(0, 5).map(d => `• ${describeSheetMatch(d.match)}`);
       if (duplicates.length > 5) lines.push(`• and ${duplicates.length - 5} more`);
       const heading = duplicates.length === 1 ? '1 draft looks already synced:' : `${duplicates.length} drafts look already synced:`;
-      if (!window.confirm(`${heading}\n${lines.join('\n')}\n\nSync everything anyway? (Cancel = nothing is synced)`)) {
+      if (!(await askConfirm({
+        title: 'Already in the Sheet?',
+        message: `${heading}\n${lines.join('\n')}\n\nCancel syncs nothing, so you can delete those drafts first.`,
+        confirmLabel: 'Sync everything anyway'
+      }))) {
         setUploading(null);
         setUploadStatusText('');
         setError(`Nothing synced. ${heading} delete those drafts if they are the same receipts, then Sync All again.`);
@@ -572,6 +588,8 @@ export function useInvoiceSync({
     handleSyncAllDrafts,
     handleViewPDF,
     handleClearHistory,
-    handleDeleteHistoryItem
+    handleDeleteHistoryItem,
+    confirmRequest,
+    answerConfirm
   };
 }
