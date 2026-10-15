@@ -8,6 +8,7 @@
  */
 import { buildTransactionRow, parseTransactions } from './sheetV2.js';
 import { formatMoney as money } from './money.js';
+import { normalizeScanDate } from './editFormHelpers.js';
 
 const cents = (value) => Math.round((Number(value) || 0) * 100);
 const text = (value) => String(value ?? '').trim();
@@ -104,6 +105,53 @@ export function findPossibleDuplicates(transactions, todaysReceiptIds) {
     });
   });
   return found;
+}
+
+/**
+ * Before a sync: is this receipt already in the Sheet? Looks for rows with the same payee, the same date
+ * and the same total as the draft. Rows of one earlier receipt (its splits) are added up together, so a
+ * receipt synced before as 4 splits is still found. Rows this same draft wrote are never counted.
+ * Returns { payee, date, amount, rows } for the first match, or null.
+ */
+export function findReceiptInSheet(metadata, transactions, draftId = '') {
+  const splits = Array.isArray(metadata?.splits) && metadata.splits.length > 0 ? metadata.splits : null;
+  const totalCents = splits
+    ? splits.reduce((sum, s) => sum + cents(s.amount), 0)
+    : cents(metadata?.amount);
+  if (totalCents <= 0) return null;
+
+  const firstRow = buildTransactionRow(metadata || {});
+  const payee = text(firstRow[1]).replace(/^'/, '');
+  const date = normalizeScanDate(text(firstRow[0]).replace(/^'/, ''));
+  if (!payee || !date) return null;
+
+  const groups = new Map();
+  (transactions || []).forEach(row => {
+    if (!same(row.payee, payee) || normalizeScanDate(row.date) !== date) return;
+    const base = draftBase(row.receiptId);
+    if (draftId && base === text(draftId)) return;
+    const key = base || `row ${row.rowNumber}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  });
+
+  for (const rows of groups.values()) {
+    const groupCents = rows.reduce((sum, r) => sum + cents(r.material) + cents(r.labor), 0);
+    if (groupCents === totalCents) {
+      return { payee, date, amount: totalCents / 100, rows: rows.map(r => r.rowNumber).sort((a, b) => a - b) };
+    }
+  }
+  return null;
+}
+
+/** "Home Depot $156.60 on 2023-10-26 is already in the Sheet (rows 2-5)." */
+export function describeSheetMatch(match) {
+  if (!match) return '';
+  const rows = match.rows;
+  const where = rows.length === 1
+    ? `row ${rows[0]}`
+    : (rows.every((r, i) => i === 0 || r === rows[i - 1] + 1) ? `rows ${rows[0]}-${rows[rows.length - 1]}` : `rows ${rows.join(', ')}`);
+  return `${match.payee} ${money(match.amount)} on ${match.date} is already in the Sheet (${where}).`;
 }
 
 /** The Sheet's own Dashboard numbers, found by their labels ("Spent to date", "Still owed to subs"). */

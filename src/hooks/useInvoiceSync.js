@@ -14,8 +14,8 @@ import {
 } from '../services/invoiceSyncState';
 import { syncUploadedInvoicesDirectly } from '../services/directSyncService';
 import { isDraftPhaseValid } from '../services/editFormHelpers';
-import { fetchTransactionRows } from '../services/sheetV2';
-import { checkSyncedEntries } from '../services/dailyCheck';
+import { fetchTransactionRows, parseTransactions } from '../services/sheetV2';
+import { checkSyncedEntries, describeSheetMatch, findReceiptInSheet } from '../services/dailyCheck';
 
 /** Reads the Sheet back and marks each synced entry as recorded or not. Never throws (entries stay unchecked). */
 async function checkAgainstSheet(googleToken, spreadsheetId, logs) {
@@ -25,6 +25,23 @@ async function checkAgainstSheet(googleToken, spreadsheetId, logs) {
   } catch (err) {
     console.warn('[useInvoiceSync] Could not check the Sheet after sync:', err?.message || err);
     return logs;
+  }
+}
+
+/**
+ * Drafts that look already recorded in the Sheet (same payee, date and total). Read once per sync.
+ * If the Sheet cannot be read, nothing is flagged and the sync goes on (the check after sync still runs).
+ */
+async function findAlreadyInSheet(googleToken, spreadsheetId, drafts) {
+  if (!googleToken || !spreadsheetId || !drafts.length) return [];
+  try {
+    const transactions = parseTransactions(await fetchTransactionRows(googleToken, spreadsheetId));
+    return drafts
+      .map(item => ({ item, match: findReceiptInSheet(item.metadata, transactions, item.id) }))
+      .filter(entry => entry.match);
+  } catch (err) {
+    console.warn('[useInvoiceSync] Could not check for duplicates before sync:', err?.message || err);
+    return [];
   }
 }
 
@@ -165,6 +182,16 @@ export function useInvoiceSync({
     const targetFolderId = activeProject?.folderId || selectedFolder?.id;
     setError(null);
     setUploading(id);
+
+    setUploadStatusText('Checking for duplicates...');
+    const [duplicate] = await findAlreadyInSheet(googleToken, linkedSheetFor(activeProject, targetFolderId), [itemToSync]);
+    if (duplicate && !window.confirm(`${describeSheetMatch(duplicate.match)}\n\nSync it again anyway?`)) {
+      setUploading(null);
+      setUploadStatusText('');
+      setError(`Not synced: ${describeSheetMatch(duplicate.match)} Delete the draft if it is the same receipt.`);
+      return;
+    }
+
     setUploadStatusText('Uploading PDF...');
 
     let driveUploadResult = null;
@@ -307,6 +334,20 @@ export function useInvoiceSync({
 
     setError(null);
     setUploading('all');
+
+    setUploadStatusText('Checking for duplicates...');
+    const duplicates = await findAlreadyInSheet(googleToken, linkedSheetFor(activeProject, targetFolderId), validPhaseDrafts);
+    if (duplicates.length > 0) {
+      const lines = duplicates.slice(0, 5).map(d => `• ${describeSheetMatch(d.match)}`);
+      if (duplicates.length > 5) lines.push(`• and ${duplicates.length - 5} more`);
+      const heading = duplicates.length === 1 ? '1 draft looks already synced:' : `${duplicates.length} drafts look already synced:`;
+      if (!window.confirm(`${heading}\n${lines.join('\n')}\n\nSync everything anyway? (Cancel = nothing is synced)`)) {
+        setUploading(null);
+        setUploadStatusText('');
+        setError(`Nothing synced. ${heading} delete those drafts if they are the same receipts, then Sync All again.`);
+        return;
+      }
+    }
 
     // Offline / Mock mode
     if (!googleToken || !selectedFolder) {
