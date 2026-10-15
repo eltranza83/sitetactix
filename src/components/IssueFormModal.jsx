@@ -442,37 +442,21 @@ export default function IssueFormModal({
             </div>
           </div>
 
-          {/* Priority & Due Date */}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ flex: 1 }}>
-              <label className="form-label" htmlFor="issue-priority">Priority</label>
-              <select
-                id="issue-priority"
-                className="form-input"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                style={{ appearance: 'auto' }}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-            <div style={{ flex: 1 }}>
-              <label className="form-label" htmlFor="issue-due-date">Target Due Date</label>
-              <input
-                id="issue-due-date"
-                type="date"
-                className="form-input"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
-            </div>
+          {/* Due Date (priority is the Low / Medium / High buttons above) */}
+          <div>
+            <label className="form-label" htmlFor="issue-due-date">Target Due Date</label>
+            <input
+              id="issue-due-date"
+              type="date"
+              className="form-input"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
           </div>
 
-          {/* Photo Attachment Section */}
+          {/* Photo of the problem (the "before" photo; the fix photo is added later with Mark Fixed) */}
           <div>
-            <label className="form-label">Attach Photo Proof</label>
+            <label className="form-label">Photo of the problem</label>
             <input
               type="file"
               ref={fileInputRef}

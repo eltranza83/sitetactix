@@ -270,7 +270,10 @@ export default function DashboardPunchList({
           gap: '8px',
           textAlign: 'center'
         }}>
-          <AlertCircle size={24} style={{ color: 'var(--color-zinc-500)' }} />
+          {/* Green check when there is truly nothing open; a neutral icon when a filter hides items */}
+          {filterCategory !== 'all' || filterStatus !== 'all-active'
+            ? <AlertCircle size={24} style={{ color: 'var(--color-zinc-500)' }} />
+            : <CheckCircle2 size={24} style={{ color: 'var(--color-emerald-500)' }} />}
           <h5 style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-zinc-300)' }}>No issues found</h5>
           <p style={{ fontSize: '0.8rem', color: 'var(--color-zinc-500)', maxWidth: '280px' }}>
             {filterCategory !== 'all' || filterStatus !== 'all-active' 
