@@ -367,6 +367,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
         tradeSectionsConfig={TRADE_SECTIONS_CONFIG}
         photoPreviews={pinboard.photoPreviews}
         savingPin={pinboard.savingPin}
+        error={pinboard.error}
         fileInputRef={pinboard.fileInputRef}
         isEditing={Boolean(pinboard.editingPin)}
         onCategoryChange={pinboard.handleCategoryChange}

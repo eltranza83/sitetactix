@@ -7,6 +7,7 @@ export default function BlueprintAddPinModal({
   tradeSectionsConfig,
   photoPreviews,
   savingPin,
+  error = null,
   fileInputRef,
   isEditing,
   onCategoryChange,
@@ -98,7 +99,7 @@ export default function BlueprintAddPinModal({
           </div>
 
           <div>
-            <label className="form-label" style={{ fontSize: '0.72rem' }}>Installation Note</label>
+            <label className="form-label" style={{ fontSize: '0.72rem' }}>Installation Note (optional)</label>
             <textarea
               value={formData.note}
               onChange={(e) => onFormDataChange(prev => ({ ...prev, note: e.target.value }))}
@@ -154,6 +155,9 @@ export default function BlueprintAddPinModal({
               style={{ display: 'none' }}
             />
           </div>
+
+          {/* Shown here, not behind the pop-up where it could not be seen */}
+          {error && <div className="alert-box alert-error" role="alert" style={{ margin: 0 }}>{error}</div>}
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
             <button

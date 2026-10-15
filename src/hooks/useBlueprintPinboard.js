@@ -260,10 +260,7 @@ export function useBlueprintPinboard({
 
   const handleSavePin = async (e) => {
     e.preventDefault();
-    if (!formData.note.trim()) {
-      setError(getValidationErrorMessage('Please add a brief description of the work.'));
-      return;
-    }
+    // The note is optional: level, room, wall, phase and the photo already describe the pin
 
     setSavingPin(true);
     setError(null);
