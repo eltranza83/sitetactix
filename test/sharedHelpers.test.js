@@ -148,3 +148,15 @@ test('a $0 split gets no History entry (it is never uploaded), and Receipt IDs k
   assert.deepEqual(logs.map(l => l.id), ['x_split_0', 'x_split_2']);
   assert.notEqual(logs[0].receiptId, logs[1].receiptId);
 });
+
+test('dropEmptySplits removes $0 splits with no items, but never empties the list', async () => {
+  const { dropEmptySplits } = await import('../src/services/editFormHelpers.js');
+  const plumbing = { id: 'a', amount: 133.4, items: [{ description: 'PVC' }] };
+  const emptyFraming = { id: 'd', amount: 0, items: [] };
+  const typedByHand = { id: 'e', amount: 25, items: [] };
+  assert.deepEqual(dropEmptySplits([plumbing, emptyFraming, typedByHand]), [plumbing, typedByHand]);
+  const zeroWithItems = { id: 'f', amount: 0, items: [{ description: 'free sample' }] };
+  assert.deepEqual(dropEmptySplits([plumbing, zeroWithItems]), [plumbing, zeroWithItems]);
+  const allEmpty = [{ id: 'x', amount: 0, items: [] }, { id: 'y', amount: '0.00', items: [] }];
+  assert.equal(dropEmptySplits(allEmpty), allEmpty);
+});

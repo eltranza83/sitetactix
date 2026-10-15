@@ -11,6 +11,7 @@ import {
   planSplitsFromLineItems,
   pickSplitForItem,
   recalculateSplits,
+  dropEmptySplits,
   checkLineItemsDiscrepancy,
   getItemsForSplit,
   getItemIndexesForSplit,
@@ -415,10 +416,11 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     
     let finalAmount = parseFloat(formData.amount) || 0;
     let finalSplits = null;
+    let mainFields = {};
     
     if (isSplit) {
       finalAmount = splits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
-      finalSplits = splits.map(s => ({
+      finalSplits = dropEmptySplits(splits.map(s => ({
         id: s.id || `split_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         amount: parseFloat(s.amount) || 0,
         costCategory: s.costCategory,
@@ -428,7 +430,18 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         tradePhase: s.tradePhase || formData.tradePhase,
         items: getItemsForSplit(stagedItem.metadata.lineItems, itemAllocations, s.id),
         itemIndexes: getItemIndexesForSplit(stagedItem.metadata.lineItems, itemAllocations, s.id)
-      }));
+      })));
+      // Only one split left: save it as a normal receipt with that split's lot, category and phase
+      if (finalSplits.length === 1) {
+        const [only] = finalSplits;
+        mainFields = {
+          costCategory: only.costCategory,
+          lotNumber: only.lotNumber,
+          tradeCategory: only.tradeCategory,
+          tradePhase: only.tradePhase
+        };
+        finalSplits = null;
+      }
     }
 
     const scannedLineItems = Array.isArray(stagedItem.metadata.lineItems) ? stagedItem.metadata.lineItems : [];
@@ -436,6 +449,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     onSave({
       metadata: {
         ...formData,
+        ...mainFields,
         amount: finalAmount,
         splits: finalSplits,
         ...(scannedLineItems.length > 0 ? { lineItems: scannedLineItems } : {})

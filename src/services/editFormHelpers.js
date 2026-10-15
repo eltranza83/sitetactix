@@ -168,6 +168,16 @@ export function getItemsForSplit(lineItems, itemAllocations, splitId) {
 }
 
 /**
+ * Splits left at $0 with no items (everything was moved to other splits) are dropped on save.
+ * If every split is empty the list is kept as is, so nothing silently disappears.
+ */
+export function dropEmptySplits(splits) {
+  if (!Array.isArray(splits)) return splits;
+  const kept = splits.filter(s => (parseFloat(s.amount) || 0) !== 0 || (Array.isArray(s.items) && s.items.length > 0));
+  return kept.length > 0 ? kept : splits;
+}
+
+/**
  * Spreads the receipt total over the splits by the prices of the items assigned to each one,
  * and lists those items as each split's description. Amounts or descriptions the user typed
  * by hand (manualAmounts / manualDescriptions, keyed by split id) are kept.
