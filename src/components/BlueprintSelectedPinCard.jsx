@@ -70,9 +70,17 @@ export default function BlueprintSelectedPinCard({
         </button>
       </div>
 
-      <p style={{ fontSize: '0.8rem', color: 'var(--st-text)', lineHeight: 1.4, backgroundColor: 'var(--st-soft)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--st-line)' }}>
-        {pin.note}
-      </p>
+      {/* Where the pin is (level · room · wall), then the note only when one was written */}
+      {[pin.level, pin.room, pin.wall].some(value => String(value || '').trim()) && (
+        <div style={{ fontSize: '0.8rem', color: 'var(--st-text)', fontWeight: 600 }}>
+          {[pin.level, pin.room, pin.wall].map(value => String(value || '').trim()).filter(Boolean).join(' · ')}
+        </div>
+      )}
+      {String(pin.note || '').trim() && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--st-text)', lineHeight: 1.4, backgroundColor: 'var(--st-soft)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--st-line)' }}>
+          {pin.note}
+        </p>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
