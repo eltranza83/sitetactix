@@ -189,15 +189,3 @@ test('no screen asks with the browser pop-up (OK highlighted); all questions use
     .filter(file => /(window\.confirm|[^\w.]confirm)\(/.test(fs.readFileSync(file, 'utf8')));
   assert.deepEqual(offenders, []);
 });
-
-test('floor plan PDFs: detection, image size and file name', async () => {
-  const { isPdfFile, scaleForLongestSide, pageImageName, FULL_PAGE_LONGEST_SIDE } = await import('../src/services/pdfPages.js');
-  assert.equal(isPdfFile({ type: 'application/pdf', name: 'plans.pdf' }), true);
-  assert.equal(isPdfFile({ type: '', name: 'Plans Lot 5.PDF' }), true);
-  assert.equal(isPdfFile({ type: 'image/png', name: 'plan.png' }), false);
-  // A 36x24 in sheet (2592x1728 pt) becomes 4000 px wide
-  assert.equal(Math.round(2592 * scaleForLongestSide(2592, 1728, FULL_PAGE_LONGEST_SIDE)), 4000);
-  assert.equal(Math.round(1728 * scaleForLongestSide(1728, 2592, FULL_PAGE_LONGEST_SIDE)), 2667);
-  assert.equal(pageImageName('Plans Lot 5.pdf', 2), 'Plans Lot 5 - page 2.png');
-  assert.equal(pageImageName('', 1), 'Floor plan - page 1.png');
-});

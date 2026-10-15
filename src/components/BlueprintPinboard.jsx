@@ -5,7 +5,6 @@ import BlueprintAddPinModal from './BlueprintAddPinModal';
 import BlueprintCanvasView from './BlueprintCanvasView';
 import BlueprintFullscreenPhotoModal from './BlueprintFullscreenPhotoModal';
 import BlueprintPhaseAlbums from './BlueprintPhaseAlbums';
-import BlueprintPdfPagePicker from './BlueprintPdfPagePicker';
 import BlueprintSetupPrompt from './BlueprintSetupPrompt';
 import { useIssues } from '../hooks/useIssues';
 import DashboardPunchList from './DashboardPunchList';
@@ -377,12 +376,6 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
         onClearPhoto={pinboard.clearSelectedPhoto}
         onCancel={() => pinboard.setShowAddForm(false)}
         onSave={pinboard.handleSavePin}
-      />
-      <BlueprintPdfPagePicker
-        picker={pinboard.pdfPicker}
-        error={pinboard.pdfPicker ? pinboard.error : null}
-        onPickPage={pinboard.handlePickPdfPage}
-        onCancel={pinboard.closePdfPicker}
       />
       <BlueprintFullscreenPhotoModal
         photo={pinboard.fullscreenAlbumPhoto}
