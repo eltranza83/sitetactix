@@ -16,8 +16,10 @@ window.addEventListener('vite:preloadError', (event) => {
 // Register service worker for production PWA support with loop-safe reload.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   let refreshing = false;
+  // On a first visit there is no old version to replace, so taking control needs no reload
+  const hadController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
+    if (refreshing || !hadController) return;
     const lastReload = parseInt(sessionStorage.getItem('sitetactix_sw_reload_ts') || '0', 10);
     const now = Date.now();
     // Prevent reload loops: only reload if at least 5 seconds have passed since last reload

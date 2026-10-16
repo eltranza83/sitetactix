@@ -162,9 +162,9 @@ export default function App() {
   useEffect(() => {
     if (!showProjectDropdown) return;
 
+    // The menu and the buttons that open it handle their own taps; anything else closes the menu
     const handleOutsideClick = (e) => {
-      const headerSection = document.querySelector('.header-project-section');
-      if (headerSection && !headerSection.contains(e.target)) {
+      if (!e.target.closest?.('.command-dropdown-menu, .command-project-pill, .studio-active-project-card')) {
         setShowProjectDropdown(false);
       }
     };
@@ -625,7 +625,7 @@ export default function App() {
                   <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-zinc-500)', fontSize: '0.9rem', border: '1px dashed var(--color-zinc-800)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                     <FileText size={24} style={{ color: 'var(--color-zinc-700)' }} />
                     No staged documents. Scanned checks and receipts waiting for sync will appear here.
-                    <button className="btn btn-secondary" onClick={() => setActiveTab('scanner')} style={{ width: 'auto', marginTop: '8px', fontSize: '0.8rem' }}>
+                    <button className="btn btn-secondary" onClick={() => setInvoicesSubTab('scan')} style={{ width: 'auto', marginTop: '8px', fontSize: '0.8rem' }}>
                       Go Scan Document
                     </button>
                   </div>
