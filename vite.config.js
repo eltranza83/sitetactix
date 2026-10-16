@@ -68,7 +68,7 @@ export default defineConfig(({ mode }) => {
 
   const commitSha = getCommitSha();
   const buildLabel = commitSha ? `v${pkg.version} · ${commitSha}` : `v${pkg.version}`;
-  const releaseName = pkg.releaseName || 'Security rules & sync reliability';
+  const releaseName = pkg.releaseName || '';
   process.env.VITE_APP_VERSION = pkg.version;
   process.env.VITE_APP_BUILD_LABEL = buildLabel;
   process.env.VITE_APP_RELEASE_NAME = releaseName;

@@ -12,6 +12,15 @@ export function confirmAction({ title, message = '', confirmLabel = 'Continue' }
   return new Promise(resolve => showDialog({ title, message, confirmLabel, resolve }));
 }
 
+/** Shows a message in the app's own dialog with one OK button (instead of the browser's alert box). */
+export function showMessage({ title, message = '' }) {
+  if (!showDialog) {
+    window.alert([title, message].filter(Boolean).join('\n\n'));
+    return Promise.resolve();
+  }
+  return new Promise(resolve => showDialog({ title, message, confirmLabel: null, resolve }));
+}
+
 /** Used by ConfirmHost only. Returns a function that disconnects it. */
 export function connectConfirmDialog(show) {
   showDialog = show;

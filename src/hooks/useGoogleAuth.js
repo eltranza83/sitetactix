@@ -248,7 +248,6 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
       setGoogleUser(info);
       persistGoogleUser(info);
       setSuccess?.('Successfully signed in with Google!');
-      setTimeout(() => setSuccess?.(null), 3000);
     } catch (err) {
       console.error('Failed to sign in with Google/Firebase:', err);
       setError?.(getFriendlyAuthError(err));
@@ -268,7 +267,6 @@ export function useGoogleAuth({ setError, setSuccess, onSignedOut } = {}) {
     }
     onSignedOut?.();
     setSuccess?.('Signed out of Google account.');
-    setTimeout(() => setSuccess?.(null), 3000);
   };
 
   const handleSessionExpired = useCallback((options = {}) => {

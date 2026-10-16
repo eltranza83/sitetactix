@@ -14,3 +14,14 @@ export function pinCoordinate(value) {
 export function hasFloorPlanPin(issue) {
   return pinCoordinate(issue?.floorPlanX) !== null && pinCoordinate(issue?.floorPlanY) !== null;
 }
+
+/** A punch item placed on the floor plan (not deleted). */
+export function isLocatedIssue(issue) {
+  return !issue?.deletedAt && hasFloorPlanPin(issue);
+}
+
+/** Punch items shown on the floor plan: resolved ones only when the user asks to see them. */
+export function visibleBlueprintIssues(issues, showResolved = false) {
+  const located = (issues || []).filter(isLocatedIssue);
+  return showResolved ? located : located.filter(issue => issue.status !== 'resolved');
+}

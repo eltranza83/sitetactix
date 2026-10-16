@@ -62,6 +62,11 @@ function normalizeImageToJpegDataUrl(source) {
   });
 }
 
+// jsPDF embeds JPEG as is; any other photo type (PNG, WebP) is converted to JPEG first
+async function asJpegDataUrl(dataUrl) {
+  return /^data:image\/jpe?g/i.test(dataUrl) ? dataUrl : await normalizeImageToJpegDataUrl(dataUrl);
+}
+
 function loadImageElement(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -631,7 +636,8 @@ export async function generateDocumentPDF(metadata, imageUrls) {
         pdf.setFontSize(10);
         pdf.text('Source PDF document attached to expense entry in Google Drive.', margin, currentY + 10);
       } else {
-        const dims = await loadImageDimensions(dataUrl);
+        const jpegUrl = await asJpegDataUrl(dataUrl);
+        const dims = await loadImageDimensions(jpegUrl);
         
         // Calculate scaling to preserve aspect ratio within margins
         const scaleX = contentWidth / dims.width;
@@ -642,7 +648,7 @@ export async function generateDocumentPDF(metadata, imageUrls) {
         const imgHeight = dims.height * scale;
         const imgX = margin + (contentWidth - imgWidth) / 2; // Center horizontally
 
-        pdf.addImage(dataUrl, 'JPEG', imgX, currentY, imgWidth, imgHeight, undefined, 'FAST');
+        pdf.addImage(jpegUrl, 'JPEG', imgX, currentY, imgWidth, imgHeight, undefined, 'FAST');
       }
     } catch (e) {
       console.error('Failed to add primary image to PDF:', e);
@@ -711,7 +717,7 @@ export async function generateDocumentPDF(metadata, imageUrls) {
       const p2Y = 30;
       const maxImgHeightP2 = pageHeight - p2Y - margin;
 
-      const dataUrl = imageUrls[1];
+      const dataUrl = await asJpegDataUrl(imageUrls[1]);
       const dims = await loadImageDimensions(dataUrl);
 
       const scaleX = contentWidth / dims.width;

@@ -266,3 +266,55 @@ describe('syncing every lot a receipt went to', () => {
     );
   });
 });
+
+describe('split already in its Sheet, then moved to another lot', () => {
+  let drive;
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    drive = createFakeDrive();
+    globalThis.fetch = drive.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test('a written split keeps the lot it was written to (checked against that Sheet)', async () => {
+    const item = splitDraft([{ amount: 100, lotNumber: 'Lot 99' }, { amount: 50, lotNumber: 'Lot 3' }]);
+    const { result } = await sync(item);
+    drive.files.get(result.uploads['0'].fileId).appProperties.sheetRowWritten = 'true';
+
+    const edited = splitDraft([{ amount: 100, lotNumber: 'Lot 3' }, { amount: 50, lotNumber: 'Lot 3' }]);
+    const retry = await sync({ ...edited, uploads: result.uploads });
+
+    assert.equal(retry.result.uploads['0'].folderId, 'lot99');
+    assert.equal(retry.result.logs[0].folderId, 'lot99');
+  });
+});
+
+describe('deleting a draft', () => {
+  let drive;
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    drive = createFakeDrive();
+    globalThis.fetch = drive.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test('removes its PDFs still waiting in Drive, keeps ones already in the Sheet', async () => {
+    const { discardDraftFiles } = await import('../src/services/invoiceUpload.js');
+    const item = splitDraft([{ amount: 100, lotNumber: 'Lot 99' }, { amount: 50, lotNumber: 'Lot 3' }]);
+    const { result } = await sync(item);
+    drive.files.get(result.uploads['0'].fileId).appProperties.sheetRowWritten = 'true';
+
+    await discardDraftFiles('token', { ...item, uploads: result.uploads });
+
+    assert.equal(drive.files.get(result.uploads['0'].fileId).trashed, false);
+    assert.equal(drive.files.get(result.uploads['1'].fileId).trashed, true);
+  });
+});

@@ -51,7 +51,12 @@ export function createFakeDrive() {
         && (!parent || f.parents.includes(unescapeQuery(parent[1])))
         && (!q.includes(`mimeType='${FOLDER}'`) || f.mimeType === FOLDER)
         && (!q.includes("mimeType contains 'image/'") || String(f.mimeType).startsWith('image/')));
-      return json({ files: list });
+      // Pages like Google: up to pageSize files, then a nextPageToken for the rest
+      const pageSize = Number(u.searchParams.get('pageSize')) || 100;
+      const start = Number(u.searchParams.get('pageToken')) || 0;
+      const page = list.slice(start, start + pageSize);
+      const more = start + pageSize < list.length;
+      return json({ files: page, ...(more ? { nextPageToken: String(start + pageSize) } : {}) });
     }
 
     if (u.pathname === '/drive/v3/files' && method === 'POST') {

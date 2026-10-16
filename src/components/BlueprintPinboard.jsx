@@ -139,6 +139,8 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
   const [selectedIssueId, setSelectedIssueId] = useState(null);
   const [editingIssue, setEditingIssue] = useState(null);
   const [packetProjectInfo, setPacketProjectInfo] = useState(null);
+  // Goes up each time fresh Sheet data is saved, so the sub list below is read again
+  const [dashboardCacheVersion, setDashboardCacheVersion] = useState(0);
 
   const pinboard = useBlueprintPinboard({
     activeProject,
@@ -152,7 +154,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
   // Read subcontractor payee directory from cached dashboard data
   const cachedDashboard = useMemo(
     () => loadCachedDashboard(localStorage, activeProject?.id),
-    [activeProject?.id]
+    [activeProject?.id, dashboardCacheVersion]
   );
   const subcontractors = cachedDashboard?.subcontractors || [];
   const cachedProjectInfo = isPlaceholderProjectInfo(cachedDashboard?.projectInfo)
@@ -232,6 +234,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
       persistDashboardSpreadsheetId(localStorage, activeProject.id, spreadsheetId);
     }
     persistDashboardCache(localStorage, activeProject.id, data);
+    setDashboardCacheVersion(version => version + 1);
     setPacketProjectInfo(data?.projectInfo || null);
 
     return data?.projectInfo || null;
@@ -313,9 +316,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
           albumPhotos={pinboard.albumPhotos}
           expandedCategory={pinboard.expandedCategory}
           googleToken={googleToken}
-          imageSrc={pinboard.imageSrc}
           loadingAlbumPhotos={pinboard.loadingAlbumPhotos}
-          onBackToBlueprint={() => pinboard.setViewMode('blueprint')}
           onExpandCategory={pinboard.setExpandedCategory}
           onPhotoUpload={pinboard.handleUploadAlbumPhoto}
           onSelectAlbumPhase={pinboard.setActiveAlbumPhase}
@@ -348,7 +349,6 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
           onSetZoomScale={pinboard.setZoomScale}
           onToggleIssueAddMode={handleToggleIssueAddMode}
           onToggleAddMode={handleToggleBlueprintAddMode}
-          onUpdateIssueStatus={issuesState.updateIssueStatus}
           onMarkIssueFixed={issuesState.markIssueFixed}
           onVerifyIssue={issuesState.verifyIssue}
           onReopenIssue={issuesState.reopenIssue}
@@ -374,7 +374,6 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
         onCategoryChange={pinboard.handleCategoryChange}
         onFormDataChange={pinboard.setFormData}
         onPhotoSelect={pinboard.handlePhotoSelect}
-        onClearPhoto={pinboard.clearSelectedPhoto}
         onCancel={() => pinboard.setShowAddForm(false)}
         onSave={pinboard.handleSavePin}
       />

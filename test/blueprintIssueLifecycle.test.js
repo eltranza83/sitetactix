@@ -2,15 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { mergeIssues, mergeActivityHistories } from '../src/services/issuesDrive.js';
 
-function isLocatedIssue(issue) {
-  return !issue?.deletedAt && Number.isFinite(Number(issue.floorPlanX)) && Number.isFinite(Number(issue.floorPlanY));
-}
-
-function filterBlueprintIssues(issues, showResolvedIssues = false) {
-  return issues
-    .filter(isLocatedIssue)
-    .filter(issue => showResolvedIssues || (issue.status !== 'resolved' && issue.status !== 'verified_closed'));
-}
+import { isLocatedIssue, visibleBlueprintIssues as filterBlueprintIssues } from '../src/services/floorPlanPin.js';
+import { buildSubShareText } from '../src/services/issueStatus.js';
 
 describe('Loop One: Blueprint Issue-to-Verified-Closeout Lifecycle', () => {
   it('1. Initializes new issues with open status and empty proof/verification fields', () => {
@@ -290,15 +283,7 @@ describe('Loop One: Blueprint Issue-to-Verified-Closeout Lifecycle', () => {
       photoUrl: 'https://drive.google.com/thumbnail?id=abc123xyz'
     };
 
-    const textLines = [
-      `SiteTactix Issue: ${issue.title}`,
-      `Category: ${issue.category?.replace(/_/g, ' ') || 'General'}${issue.tradePhase ? ` (${issue.tradePhase})` : ''}`,
-      issue.contractorName ? `Assigned To: ${issue.contractorName}` : null,
-      issue.dueDate ? `Target Due Date: ${issue.dueDate}` : null,
-      issue.description ? `Details: ${issue.description}` : null,
-      issue.photoUrl ? `Defect Photo: ${issue.photoUrl}` : null,
-      `Please text back a proof photo once completed for verification.`
-    ].filter(Boolean).join('\n');
+    const textLines = buildSubShareText(issue);
 
     assert.match(textLines, /SiteTactix Issue: Move cold water stub-out/);
     assert.match(textLines, /Assigned To: Apex Plumbing/);

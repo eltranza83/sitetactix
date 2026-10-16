@@ -96,7 +96,6 @@ export function useProjects({ googleToken, googleUser, setSuccess } = {}) {
         if (choice.status === 'linked') {
           linkProjectSheetRef.current(project.id, choice.sheet);
           setSuccess?.(`Linked Google Sheet: "${choice.sheet.name}"`);
-          setTimeout(() => setSuccess?.(null), 3500);
         } else if (choice.status === 'choose') {
           setSheetChoice({ projectId: project.id, projectName: project.name, candidates: choice.candidates });
         }
@@ -111,7 +110,6 @@ export function useProjects({ googleToken, googleUser, setSuccess } = {}) {
     if (!sheetChoice || !sheet) return;
     linkProjectSheet(sheetChoice.projectId, sheet);
     setSuccess?.(`Linked Google Sheet: "${sheet.name}"`);
-    setTimeout(() => setSuccess?.(null), 3500);
     setSheetChoice(null);
   };
 
@@ -132,7 +130,6 @@ export function useProjects({ googleToken, googleUser, setSuccess } = {}) {
       persistActiveProject(proj);
 
       setSuccess?.(`Switched active project to: "${proj.name}"`);
-      setTimeout(() => setSuccess?.(null), 2500);
     }
   };
 

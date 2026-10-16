@@ -1,10 +1,5 @@
 import { useState } from 'react';
-import {
-  APP_STORAGE_KEYS,
-  loadStoredAppState,
-  persistHistory,
-  setStoredBoolean
-} from '../services/appStorage';
+import { loadStoredAppState, persistHistory } from '../services/appStorage';
 import { STATUS_MESSAGES, getDriveErrorMessage, isAuthError } from '../services/appErrors';
 import { fetchDriveFileBlob } from '../services/googleDrive';
 import { syncInvoiceDocument } from '../services/invoiceUpload';
@@ -15,7 +10,7 @@ import {
   getHistoryFileId,
   partitionDraftsBySyncResult
 } from '../services/invoiceSyncState';
-import { syncUploadedInvoicesDirectly, syncUploadedInvoicesForFolders } from '../services/directSyncService';
+import { syncUploadedInvoicesForFolders } from '../services/directSyncService';
 import { isDraftPhaseValid } from '../services/editFormHelpers';
 import { fetchTransactionRows, parseTransactions } from '../services/sheetV2';
 import { checkSyncedEntries, describeSheetMatch, findReceiptInSheet } from '../services/dailyCheck';
@@ -141,10 +136,6 @@ export function useInvoiceSync({
   const [uploading, setUploading] = useState(null);
   const [uploadStatusText, setUploadStatusText] = useState('');
   const [history, setHistory] = useState(() => loadStoredAppState().history);
-  const [hasUnprocessedUploads, setHasUnprocessedUploads] = useState(() => (
-    loadStoredAppState().hasUnprocessedUploads
-  ));
-  const [triggeringSync, setTriggeringSync] = useState(false);
 
   const saveHistory = (newHistory) => {
     setHistory(newHistory);
@@ -169,50 +160,6 @@ export function useInvoiceSync({
       driveFileId: first?.fileId || null,
       driveFileLink: first?.link || null
     });
-  };
-
-  const handleTriggerDirectSync = async () => {
-    const targetFolderId = activeProject?.folderId || selectedFolder?.id;
-    if (!targetFolderId) {
-      setError('Please select an active project folder before syncing.');
-      return;
-    }
-    if (!googleToken) {
-      setError('Connect Google Drive to sync with your spreadsheet.');
-      return;
-    }
-    setTriggeringSync(true);
-    setError(null);
-    try {
-      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId, linkedSheetFor(activeProject, targetFolderId));
-      const hasFailures = (result.failed || []).length > 0;
-      setHasUnprocessedUploads(hasFailures);
-      setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasFailures);
-
-      if (hasFailures) {
-        if (result.processedCount > 0) {
-          setSuccess(`Synced ${result.processedCount} invoice(s). Note: ${result.failed.length} file(s) left in Uploads: ${result.failed[0].reason}${growthNoteFor(result)}`);
-        } else {
-          setError(`Could not sync: ${result.failed[0].fileName} - ${result.failed[0].reason}`);
-        }
-      } else {
-        setSuccess(
-          result.processedCount > 0
-            ? `Synced ${result.processedCount} invoice(s) directly to your spreadsheet!${growthNoteFor(result)}`
-            : 'Spreadsheet is up to date!'
-        );
-      }
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      console.error('Direct sync failed:', err);
-      if (isAuthError(err)) {
-        handleSessionExpired();
-      } else {
-        setError(getDriveErrorMessage(err, 'sync spreadsheet'));
-      }
-    } finally {
-      setTriggeringSync(false);
-    }
   };
 
   const handleOneShotSync = async (id) => {
@@ -261,7 +208,6 @@ export function useInvoiceSync({
         addToHistory(driveUploadResult.logs);
         removeStagedItem(id);
         setSuccess(driveUploadResult.successMessage);
-        setTimeout(() => setSuccess(null), 4000);
         return;
       }
 
@@ -276,8 +222,6 @@ export function useInvoiceSync({
 
       if (failure) {
         if (updateStagedItem) updateStagedItem(id, { sheetSyncError: failure });
-        setHasUnprocessedUploads(true);
-        setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, true);
         setError(`PDF saved to Drive, but spreadsheet sync failed: ${failure}. Tap to retry.`);
         return;
       }
@@ -290,8 +234,6 @@ export function useInvoiceSync({
       const oneShotWarning = checkWarning(checkedLogs);
 
       const hasOtherFailures = result.failed.length > 0;
-      setHasUnprocessedUploads(hasOtherFailures);
-      setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasOtherFailures);
 
       if (oneShotWarning) {
         setError(oneShotWarning);
@@ -302,7 +244,6 @@ export function useInvoiceSync({
       } else {
         setSuccess(`Synced directly to spreadsheet & Drive!${growthNoteFor(result)}`);
       }
-      setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
       console.error('One-shot sync failed:', err);
       if (isAuthError(err)) {
@@ -392,7 +333,6 @@ export function useInvoiceSync({
       setSuccess(`Downloaded ${validPhaseDrafts.length} document(s) to device!${note}`);
       setUploading(null);
       setUploadStatusText('');
-      setTimeout(() => setSuccess(null), 4000);
       return;
     }
 
@@ -466,8 +406,6 @@ export function useInvoiceSync({
       }
 
       const hasFailures = result.failed.length > 0 || failedDrafts.length > 0;
-      setHasUnprocessedUploads(hasFailures);
-      setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasFailures);
 
       const phaseNote = invalidPhaseDrafts.length > 0 ? ` ${invalidDesc}` : '';
 
@@ -485,7 +423,6 @@ export function useInvoiceSync({
         const docWord = successfulIds.length === 1 ? 'document' : 'documents';
         setSuccess(`Synced ${successfulIds.length} ${docWord}.${phaseNote}${growthNoteFor(result)}`);
       }
-      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       console.error('Sync all failed:', err);
       if (isAuthError(err)) {
@@ -561,12 +498,7 @@ export function useInvoiceSync({
     uploading,
     uploadStatusText,
     history,
-    hasUnprocessedUploads,
-    triggeringSync,
-    handleTriggerSync: handleTriggerDirectSync,
-    handleTriggerAppsScriptSync: handleTriggerDirectSync,
     handleOneShotSync,
-    handleSyncToDrive: handleOneShotSync,
     handleSyncAllDrafts,
     handleViewPDF,
     handleClearHistory,

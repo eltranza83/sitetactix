@@ -11,10 +11,5 @@ export const AI_CONFIG = {
     backoffFactor: 2,
     jitter: true,
     retryableStatusCodes: [429, 500, 502, 503, 504]
-  },
-
-  generation: {
-    temperature: 0.3,
-    maxOutputTokens: 2048
   }
 };

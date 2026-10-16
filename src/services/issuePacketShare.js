@@ -1,18 +1,7 @@
 import { fetchDriveFileBlob } from './googleDrive';
 import { createIssueFloorPlanSnapshotBlob } from './floorPlanSnapshot';
 import { hasFloorPlanPin } from './floorPlanPin.js';
-
-function dataUrlToBlob(dataUrl) {
-  const [meta, base64] = String(dataUrl || '').split(',');
-  const mimeMatch = meta.match(/data:(.*?);base64/);
-  const mimeType = mimeMatch?.[1] || 'image/jpeg';
-  const raw = window.atob(base64 || '');
-  const bytes = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i += 1) {
-    bytes[i] = raw.charCodeAt(i);
-  }
-  return new Blob([bytes], { type: mimeType });
-}
+import { dataUrlToBlob, downloadBlob } from './imageFiles.js';
 
 function getSafePacketFilename(issue, projectName) {
   const project = String(projectName || 'Project').trim();
@@ -36,18 +25,6 @@ async function getIssuePhotoBlob(issue, googleToken) {
   return null;
 }
 
-async function getIssueProofPhotoBlob(issue, googleToken) {
-  if (issue?.proofPhotoBase64) {
-    return dataUrlToBlob(issue.proofPhotoBase64);
-  }
-
-  if (issue?.proofPhotoFileId && googleToken) {
-    return await fetchDriveFileBlob(googleToken, issue.proofPhotoFileId);
-  }
-
-  return null;
-}
-
 async function getFloorPlanSnapshotBlob(issue, floorPlanImageSrc) {
   const hasLocation = hasFloorPlanPin(issue);
   if (!hasLocation || !floorPlanImageSrc) {
@@ -55,17 +32,6 @@ async function getFloorPlanSnapshotBlob(issue, floorPlanImageSrc) {
   }
 
   return await createIssueFloorPlanSnapshotBlob(floorPlanImageSrc, issue);
-}
-
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 export async function createAndShareIssuePacket({
@@ -77,9 +43,8 @@ export async function createAndShareIssuePacket({
   selectedFolderName,
   projectInfo = null
 }) {
-  const [issuePhotoBlob, issueProofPhotoBlob, floorPlanSnapshotBlob, { generateIssuePacketPDF }] = await Promise.all([
+  const [issuePhotoBlob, floorPlanSnapshotBlob, { generateIssuePacketPDF }] = await Promise.all([
     getIssuePhotoBlob(issue, googleToken),
-    getIssueProofPhotoBlob(issue, googleToken),
     getFloorPlanSnapshotBlob(issue, floorPlanImageSrc),
     import('./pdfGenerator.js')
   ]);
@@ -91,7 +56,6 @@ export async function createAndShareIssuePacket({
     selectedFolderName,
     projectInfo,
     issuePhotoBlob,
-    issueProofPhotoBlob,
     floorPlanSnapshotBlob
   });
 

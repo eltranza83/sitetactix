@@ -198,3 +198,16 @@ test('isGoogleThumbnail accepts only Google thumbnail hosts', async () => {
   assert.equal(isGoogleThumbnail(''), false);
   assert.equal(isGoogleThumbnail(undefined), false);
 });
+
+test('isGoogleThumbnail rejects non-https links', async () => {
+  const { isGoogleThumbnail } = await import('../src/services/imageFiles.js');
+  assert.equal(isGoogleThumbnail('http://lh3.googleusercontent.com/abc=s220'), false);
+});
+
+test('dataUrlToBlob keeps the type and bytes', async () => {
+  const { dataUrlToBlob } = await import('../src/services/imageFiles.js');
+  const blob = dataUrlToBlob(`data:application/pdf;base64,${Buffer.from('%PDF-1.4').toString('base64')}`);
+  assert.equal(blob.type, 'application/pdf');
+  assert.equal(await blob.text(), '%PDF-1.4');
+  assert.equal(dataUrlToBlob('not a data url').type, 'image/jpeg');
+});

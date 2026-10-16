@@ -8,6 +8,29 @@ function escapeDriveQueryString(value) {
   return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
+/**
+ * Every file matching a Drive search, following Google's pages (one page holds up to 100),
+ * so folders with more than 100 items are listed in full.
+ */
+async function listAllDriveFiles(accessToken, query, fields, failMessage, extraParams = '') {
+  const files = [];
+  let pageToken = '';
+  do {
+    const pageParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
+    const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=nextPageToken,files(${fields})&pageSize=100${extraParams}${pageParam}`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!response.ok) {
+      const error = new Error(`${failMessage}: ${await response.text()}`);
+      error.status = response.status;
+      throw error;
+    }
+    const data = await response.json();
+    files.push(...(data.files || []));
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  return files;
+}
+
 function assertDriveFolderParent(parentId, action) {
   if (!parentId) {
     throw new Error(`Could not ${action}. No project folder is selected.`);
@@ -47,23 +70,12 @@ export function getDriveFileMediaUrl(fileId) {
 export async function fetchDriveFileBlob(accessToken, fileId) {
   const response = await authenticatedDriveFetch(accessToken, getDriveFileMediaUrl(fileId));
 
-  if (response.status === 401) {
-    const error = new Error('Google Drive session expired while retrieving file content.');
-    error.status = 401;
-    throw error;
-  }
-
   if (!response.ok) {
     const errText = await response.text();
     throw new Error(`Failed to retrieve file content: ${errText}`);
   }
 
   return await response.blob();
-}
-
-export async function fetchDriveFileAsObjectUrl(accessToken, fileId) {
-  const blob = await fetchDriveFileBlob(accessToken, fileId);
-  return URL.createObjectURL(blob);
 }
 
 /**
@@ -155,22 +167,8 @@ export async function uploadFileToDrive(accessToken, folderId, fileName, mimeTyp
  * Fetch list of folders inside a specific parent folder in Google Drive (defaults to root).
  */
 export async function listFolders(accessToken, parentId = 'root') {
-  const query = `mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
-  const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name)&pageSize=100`;
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Failed to list folders: ${errText}`);
-  }
-
-  const data = await response.json();
-  return data.files || [];
+  const query = `mimeType='application/vnd.google-apps.folder' and '${escapeDriveQueryString(parentId)}' in parents and trashed=false`;
+  return await listAllDriveFiles(accessToken, query, 'id,name', 'Failed to list folders');
 }
 
 /**
@@ -179,11 +177,11 @@ export async function listFolders(accessToken, parentId = 'root') {
 export async function listSpreadsheetsInFolder(accessToken, parentId = 'root') {
   const safeParent = escapeDriveQueryString(parentId);
   const query = `mimeType='application/vnd.google-apps.spreadsheet' and '${safeParent}' in parents and trashed=false`;
-  const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name)&pageSize=100`;
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!response.ok) return [];
-  const data = await response.json();
-  return data.files || [];
+  try {
+    return await listAllDriveFiles(accessToken, query, 'id,name', 'Failed to list spreadsheets');
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -394,11 +392,7 @@ export async function listSubfoldersInFolder(accessToken, parentFolderId) {
   assertDriveFolderParent(parentFolderId, 'list subfolders');
   const safeParentId = escapeDriveQueryString(parentFolderId);
   const query = `mimeType='application/vnd.google-apps.folder' and '${safeParentId}' in parents and trashed=false`;
-  const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name)&pageSize=100`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!res.ok) throw new Error(`Failed to list subfolders: ${await res.text()}`);
-  const data = await res.json();
-  return data.files || [];
+  return await listAllDriveFiles(accessToken, query, 'id,name', 'Failed to list subfolders');
 }
 
 /**
@@ -600,26 +594,13 @@ export async function listPhotosInPhase(accessToken, rootFolderId, categoryName,
     if (!phaseFolderId) return [];
 
     const query = `'${escapeDriveQueryString(phaseFolderId)}' in parents and mimeType contains 'image/' and trashed=false`;
-    const photos = [];
-    let pageToken = '';
-    do {
-      const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=nextPageToken,files(id,name,webViewLink,thumbnailLink)&orderBy=createdTime desc&pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to list files in phase folder');
-      }
-
-      const data = await response.json();
-      photos.push(...(data.files || []));
-      pageToken = data.nextPageToken || '';
-    } while (pageToken);
-
-    return photos;
+    return await listAllDriveFiles(
+      accessToken,
+      query,
+      'id,name,webViewLink,thumbnailLink',
+      'Failed to list files in phase folder',
+      `&orderBy=${encodeURIComponent('createdTime desc')}`
+    );
   } catch (error) {
     console.error('Failed to list photos in phase:', error);
     return [];
@@ -630,7 +611,7 @@ export async function listPhotosInPhase(accessToken, rootFolderId, categoryName,
  * Searches for a specific file by name inside a target Google Drive folder.
  */
 export async function findFileInFolder(accessToken, folderId, fileName) {
-  const query = `'${folderId}' in parents and name='${fileName}' and trashed=false`;
+  const query = `'${escapeDriveQueryString(folderId)}' in parents and name='${escapeDriveQueryString(fileName)}' and trashed=false`;
   const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name,webViewLink)`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -758,17 +739,8 @@ export async function tagDriveFileAppProperties(accessToken, fileId, appProperti
  * Lists all non-trashed files in a Google Drive folder including their description, webViewLink, and appProperties.
  */
 export async function listFilesWithDescriptionInFolder(accessToken, folderId) {
-  const query = `'${folderId}' in parents and trashed=false`;
-  const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,description,webViewLink,appProperties)`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Failed to list files in folder: ${errText}`);
-  }
-  const result = await response.json();
-  return result.files || [];
+  const query = `'${escapeDriveQueryString(folderId)}' in parents and trashed=false`;
+  return await listAllDriveFiles(accessToken, query, 'id,name,mimeType,description,webViewLink,appProperties', 'Failed to list files in folder');
 }
 
 /** The lot's X-Ray Photos folder (punch list and blueprint data live here). */

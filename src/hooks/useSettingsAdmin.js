@@ -109,7 +109,6 @@ export function useSettingsAdmin({ setError, setSuccess }) {
 
       setSuccess(`Generated invite code: ${code}`);
       await fetchInvitesList();
-      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       console.error(err);
       setError('Failed to generate invite code.');
@@ -125,7 +124,6 @@ export function useSettingsAdmin({ setError, setSuccess }) {
       } else {
         await navigator.clipboard.writeText(message);
         setSuccess('Invite details copied to clipboard.');
-        setTimeout(() => setSuccess(null), 4000);
       }
     } catch (err) {
       if (err?.name !== 'AbortError') setError('Failed to share the invite.');
@@ -140,7 +138,6 @@ export function useSettingsAdmin({ setError, setSuccess }) {
       await deleteDoc(doc(db, 'invites', code));
       setSuccess(`Deactivated invite code: ${code}`);
       await fetchInvitesList();
-      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error(err);
       setError('Failed to deactivate invite code.');

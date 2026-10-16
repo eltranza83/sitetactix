@@ -5,8 +5,10 @@ import { connectConfirmDialog } from '../services/confirmAction';
 /**
  * A yes/no question in the app's own style. Cancel is the safe choice: it has the focus
  * (Enter = Cancel), and Escape or a tap outside the box also cancel.
+ * With no confirmLabel it is a plain message with one OK button.
  */
 export default function ConfirmDialog({ title, message, confirmLabel = 'Continue', cancelLabel = 'Cancel', onConfirm, onCancel }) {
+  const isMessage = confirmLabel === null;
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
     document.addEventListener('keydown', onKey);
@@ -29,11 +31,13 @@ export default function ConfirmDialog({ title, message, confirmLabel = 'Continue
         </div>
         <div style={{ fontSize: '0.88rem', lineHeight: 1.5, color: 'var(--st-text)', whiteSpace: 'pre-line' }}>{message}</div>
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-danger" onClick={onConfirm} style={{ width: 'auto', padding: '10px 16px' }}>
-            {confirmLabel}
-          </button>
+          {!isMessage && (
+            <button type="button" className="btn btn-danger" onClick={onConfirm} style={{ width: 'auto', padding: '10px 16px' }}>
+              {confirmLabel}
+            </button>
+          )}
           <button type="button" className="btn btn-primary" onClick={onCancel} autoFocus style={{ width: 'auto', padding: '10px 18px' }}>
-            {cancelLabel}
+            {isMessage ? 'OK' : cancelLabel}
           </button>
         </div>
       </div>

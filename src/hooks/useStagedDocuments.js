@@ -12,6 +12,9 @@ import { normalizeScanDate, buildAutoSplits } from '../services/editFormHelpers'
 import { applyPayeeMatch, loadCachedKnownSubs, persistKnownSubs } from '../services/payeeMatching';
 import { fetchKnownSubs } from '../services/sheetV2';
 import { compressImage, fileToBase64 } from '../services/imageFiles';
+import { confirmAction } from '../services/confirmAction';
+import { discardDraftFiles } from '../services/invoiceUpload';
+import { getDraftUploads } from '../services/invoiceSyncState';
 
 // Known subs from the linked Sheet's Contracts tab (new layout only); the last good list is kept for offline scans
 async function loadKnownSubsForProject(activeProject, googleToken) {
@@ -34,7 +37,6 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
   const [animateBadge, setAnimateBadge] = useState(false);
   const [prevStagedCount, setPrevStagedCount] = useState(0);
   const [editingItemId, setEditingItemId] = useState(null);
-  const [draftToDelete, setDraftToDelete] = useState(null);
 
   useEffect(() => {
     if (stagedItems.length > prevStagedCount) {
@@ -109,7 +111,6 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
 
       saveStagedItems(prev => addDraft(prev, newDraft));
       setSuccess('Check/Invoice scanned and saved to Drafts!');
-      setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
       console.error(err);
       setError(`Failed to save scanned item to drafts: ${err.message}`);
@@ -120,14 +121,27 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
     saveStagedItems(prev => saveDraftEdits(prev, editingItemId, updatedItem));
     setEditingItemId(null);
     setSuccess('Draft updated successfully!');
-    setTimeout(() => setSuccess(null), 3000);
   };
 
-  const handleDeleteStaged = (id) => {
+  const handleDeleteStaged = async (id) => {
     const item = stagedItems.find(candidate => candidate.id === id);
-    if (item) {
-      setDraftToDelete(item);
-    }
+    if (!item) return;
+
+    const description = item.metadata?.description ? `"${item.metadata.description}"` : '';
+    const inDrive = Object.keys(getDraftUploads(item)).length > 0;
+    const driveNote = !inDrive ? ''
+      : googleToken
+        ? 'Its PDF waiting in Drive is removed too, so it is not added to the Sheet later.'
+        : 'Its PDF is still waiting in Drive (Invoice Uploads). Delete it there too, or the next sync adds it to the Sheet.';
+    if (!(await confirmAction({
+      title: 'Discard this draft?',
+      message: [description, driveNote].filter(Boolean).join('\n\n'),
+      confirmLabel: 'Delete'
+    }))) return;
+
+    if (inDrive && googleToken) await discardDraftFiles(googleToken, item);
+    removeStagedItem(item.id);
+    setSuccess('Draft discarded successfully!');
   };
 
   const removeStagedItem = (id) => {
@@ -136,14 +150,6 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
 
   const removeStagedItems = (ids) => {
     saveStagedItems(prev => removeDraftsById(prev, ids));
-  };
-
-  const confirmDeleteDraft = () => {
-    if (!draftToDelete) return;
-    removeStagedItem(draftToDelete.id);
-    setDraftToDelete(null);
-    setSuccess('Draft discarded successfully!');
-    setTimeout(() => setSuccess(null), 2500);
   };
 
   const handleUpdateDraftField = (id, field, value) => {
@@ -159,12 +165,9 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
     animateBadge,
     editingItemId,
     setEditingItemId,
-    draftToDelete,
-    setDraftToDelete,
     handleDataExtracted,
     handleSaveStagedEdits,
     handleDeleteStaged,
-    confirmDeleteDraft,
     handleUpdateDraftField,
     updateStagedItem,
     removeStagedItem,

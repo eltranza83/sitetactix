@@ -12,10 +12,9 @@ describe('Centralized AI Configuration', () => {
     assert.equal(SERVER_AI_CONFIG.reasoningModel, undefined);
   });
 
-  test('retry and generation settings exist for the server routes', () => {
+  test('retry settings exist for the server routes', () => {
     assert.ok(SERVER_AI_CONFIG.retry.maxRetries >= 1);
     assert.ok(SERVER_AI_CONFIG.retry.retryableStatusCodes.includes(429));
-    assert.ok(SERVER_AI_CONFIG.generation.maxOutputTokens > 0);
   });
 });
 

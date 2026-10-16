@@ -23,9 +23,6 @@ export default function EditFormCamera({ videoRef, onCapturePhoto, onStopCamera,
           playsInline
           muted
         />
-        <div className="camera-overlay">
-          <div className="camera-target-box"></div>
-        </div>
       </div>
 
       {zoomInfo && (
