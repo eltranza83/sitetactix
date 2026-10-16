@@ -1,5 +1,5 @@
 import { AI_CONFIG } from './ai-config.js';
-import { fetchWithExponentialBackoff } from './ai-retry.js';
+import { fetchWithBackupModel, geminiUrl } from './ai-retry.js';
 import { sanitizeUpstreamAiError } from './ai-auth.js';
 
 export const DOCUMENT_CORNERS_PROMPT = `
@@ -37,11 +37,9 @@ export const DOCUMENT_CORNERS_SCHEMA = {
 };
 
 export async function generateDocumentCorners({ bytes, mimeType, apiKey, fetchImpl = fetch }) {
-  const model = AI_CONFIG.primaryModel;
-  const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-
-  const response = await fetchWithExponentialBackoff(
-    targetUrl,
+  const response = await fetchWithBackupModel(
+    [AI_CONFIG.primaryModel, AI_CONFIG.backupModel],
+    geminiUrl,
     {
       method: 'POST',
       headers: {

@@ -23,5 +23,8 @@ export function sanitizeUpstreamAiError(status) {
   if (status === 504 || status === 'TIMEOUT') {
     return new HttpError(504, 'AI request timed out while contacting upstream service. Please retry.');
   }
+  if (status === 500 || status === 503) {
+    return new HttpError(502, "Google's AI is busy right now (not a problem with your app). Please try again in a few minutes.");
+  }
   return new HttpError(502, 'AI service is temporarily unavailable. Please retry in a moment.');
 }
