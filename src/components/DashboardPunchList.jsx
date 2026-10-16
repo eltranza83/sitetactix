@@ -22,7 +22,6 @@ export default function DashboardPunchList({
     success,
     addIssue,
     updateIssue,
-    updateIssueStatus,
     softDeleteIssue,
     triggerSync
   } = issuesState;
@@ -213,7 +212,7 @@ export default function DashboardPunchList({
                 backgroundColor: 'var(--color-zinc-900)'
               }}
             >
-              <RefreshCw size={14} className={syncing || loading ? 'spinner' : ''} />
+              <RefreshCw size={14} className={syncing || loading ? 'animate-spin' : ''} />
               <span style={{ fontSize: '0.8rem' }}>Sync</span>
             </button>
           )}
@@ -248,7 +247,6 @@ export default function DashboardPunchList({
               key={issue.id}
               issue={issue}
               googleToken={googleToken}
-              onUpdateStatus={updateIssueStatus}
               onDelete={softDeleteIssue}
               onEdit={setEditingIssue}
               onSendPacket={onSendIssuePacket}

@@ -1162,7 +1162,7 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
                       {stagedItem.metadata.lineItems.map((item, idx) => {
                         const allocatedSplitId = itemAllocations[idx];
                         return (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-zinc-950)', border: '1px solid var(--color-zinc-850)', padding: '8px 10px', borderRadius: '6px', gap: '10px' }}>
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-zinc-950)', border: '1px solid var(--color-zinc-800)', padding: '8px 10px', borderRadius: '6px', gap: '10px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
                               <span style={{ fontSize: '0.74rem', color: 'var(--color-zinc-200)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }} title={item.description}>
                                 {item.description}

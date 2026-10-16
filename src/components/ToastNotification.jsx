@@ -1,14 +1,24 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CheckCircle2, AlertCircle, X } from 'lucide-react';
 
-export default function ToastNotification({ message, type = 'success', onClose, duration = 3500 }) {
+/** How long a message stays: longer messages get more reading time (3.5 to 8 seconds). */
+export function toastDuration(message) {
+  return Math.min(8000, Math.max(3500, String(message || '').length * 45));
+}
+
+export default function ToastNotification({ message, type = 'success', onClose, duration }) {
+  // The timer restarts only for a new message, not every time the screen updates
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const shownFor = duration || toastDuration(message);
+
   useEffect(() => {
     if (!message) return;
     const timer = setTimeout(() => {
-      onClose();
-    }, duration);
+      onCloseRef.current?.();
+    }, shownFor);
     return () => clearTimeout(timer);
-  }, [message, duration, onClose]);
+  }, [message, shownFor]);
 
   if (!message) return null;
 

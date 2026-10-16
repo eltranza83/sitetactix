@@ -190,22 +190,34 @@ export default function Scanner({ onDataExtracted, onError }) {
     });
   };
 
-  const handleMouseMove = (e) => {
-    if (activeHandle === null) return;
-    handleMove(e.clientX, e.clientY);
-  };
-
   const handleTouchMove = (e) => {
     if (activeHandle === null || e.touches.length === 0) return;
     handleMove(e.touches[0].clientX, e.touches[0].clientY);
   };
 
-  const handleMouseUp = () => {
+  const handleTouchEnd = () => {
     setActiveHandle(null);
   };
 
-  const handleTouchEnd = () => {
-    setActiveHandle(null);
+  // A corner dragged with the mouse keeps following it past the photo's edge until the button is let go
+  useEffect(() => {
+    if (activeHandle === null) return;
+    const onMove = (e) => handleMove(e.clientX, e.clientY);
+    const onUp = () => setActiveHandle(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    // Attached once per drag (handleMove reads the corner being dragged from this render)
+  }, [activeHandle]);
+
+  // A photo that will not open must not leave the spinner running
+  const failImageLoad = () => {
+    setLoading(false);
+    setStatusMessage('');
+    if (onError) onError('Could not open this photo. Please try another one.');
   };
 
   const handleRotateImage = () => {
@@ -244,6 +256,7 @@ export default function Scanner({ onDataExtracted, onError }) {
         }
       }, 'image/jpeg', 0.85);
     };
+    img.onerror = failImageLoad;
     img.src = croppingImageSrc;
   };
 
@@ -274,6 +287,7 @@ export default function Scanner({ onDataExtracted, onError }) {
         if (onError) onError('Failed to prepare the photo.');
       }
     };
+    img.onerror = failImageLoad;
     img.src = croppingImageSrc;
   };
 
@@ -331,6 +345,7 @@ export default function Scanner({ onDataExtracted, onError }) {
         if (onError) onError('Could not prepare the cropped photo. Please try again.');
       });
     };
+    img.onerror = failImageLoad;
     img.src = croppingImageSrc;
   };
 
@@ -568,8 +583,6 @@ export default function Scanner({ onDataExtracted, onError }) {
               touchAction: 'none',
               maxWidth: '100%'
             }}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
@@ -674,9 +687,6 @@ export default function Scanner({ onDataExtracted, onError }) {
             playsInline
             muted
           />
-          <div className="camera-overlay">
-            <div className="camera-target-box"></div>
-          </div>
         </div>
 
         {zoomInfo && (

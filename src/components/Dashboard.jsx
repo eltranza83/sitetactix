@@ -315,7 +315,7 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
           style={{ width: 'auto', padding: '6px 10px', height: '32px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}
           disabled={loading}
         >
-          <RefreshCw size={12} className={loading ? 'spin' : ''} />
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
           {loading ? STATUS_MESSAGES.refreshing : STATUS_MESSAGES.refresh}
         </button>
       </div>

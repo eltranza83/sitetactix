@@ -11,7 +11,6 @@ export const APP_STORAGE_KEYS = {
   activeProjectId: 'jobscan_active_project_id',
   history: 'jobscan_history',
   stagedItems: 'jobscan_staged_items',
-  hasUnprocessedUploads: 'jobscan_has_unprocessed_uploads',
   authorizedEmail: 'jobscan_authorized_email',
   invited: 'jobscan_invited',
 };
@@ -71,7 +70,6 @@ export function loadStoredAppState() {
     activeProject,
     history: getStoredJson(APP_STORAGE_KEYS.history, []),
     stagedItems: getStoredJson(APP_STORAGE_KEYS.stagedItems, []),
-    hasUnprocessedUploads: getStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads),
   };
 }
 

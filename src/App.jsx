@@ -114,12 +114,9 @@ export default function App() {
     animateBadge,
     editingItemId,
     setEditingItemId,
-    draftToDelete,
-    setDraftToDelete,
     handleDataExtracted,
     handleSaveStagedEdits,
     handleDeleteStaged,
-    confirmDeleteDraft,
     handleUpdateDraftField,
     updateStagedItem,
     removeStagedItem,
@@ -128,7 +125,8 @@ export default function App() {
     activeProject,
     googleToken,
     setError,
-    setSuccess
+    setSuccess,
+    onSessionExpired: handleSessionExpired
   });
   const {
     uploading,
@@ -893,75 +891,6 @@ export default function App() {
         </div>
       )}
 
-      {draftToDelete && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1300,
-          padding: '20px',
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div className="settings-card" style={{
-            width: '100%',
-            maxWidth: '320px',
-            backgroundColor: 'var(--color-zinc-950)',
-            border: '1px solid var(--color-zinc-800)',
-            borderRadius: '12px',
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-            borderTop: '4px solid var(--color-rose-500)'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <h4 style={{ 
-                fontWeight: 700, 
-                fontSize: '1.05rem', 
-                color: 'var(--color-zinc-100)',
-                fontFamily: 'var(--font-serif)',
-                marginBottom: '8px'
-              }}>
-                Discard Draft
-              </h4>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-zinc-400)', lineHeight: '1.4' }}>
-                Are you sure you want to delete this draft?
-                {draftToDelete.metadata?.description && (
-                  <span style={{ display: 'block', marginTop: '6px', fontWeight: 600, color: 'var(--color-zinc-200)' }}>
-                    "{draftToDelete.metadata.description}"
-                  </span>
-                )}
-              </p>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => setDraftToDelete(null)}
-                style={{ padding: '8px 12px', fontSize: '0.85rem', flex: 1 }}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-danger" 
-                onClick={confirmDeleteDraft}
-                style={{ padding: '8px 12px', fontSize: '0.85rem', flex: 1, backgroundColor: 'var(--color-rose-600)' }}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       </div>
     </div>
   );

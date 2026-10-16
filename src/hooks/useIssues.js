@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { getStoredJson } from '../services/appStorage';
 import { loadIssuesVault, saveIssuesVault, uploadIssuePhoto, uploadIssueProofPhoto, mergeIssues, mergeActivityHistories } from '../services/issuesDrive';
 import { getDriveErrorMessage } from '../services/appErrors';
-import { fileToBase64 } from '../services/imageFiles';
+import { dataUrlToBlob, fileToBase64 } from '../services/imageFiles';
 import { pinCoordinate } from '../services/floorPlanPin';
 
 const OFFLINE_QUEUE_KEY = 'jobscan_offline_issues_queue';
@@ -14,17 +15,6 @@ function appendActivityHistoryEvent(history = [], newEvent) {
 }
 
 // Helper to convert Base64 to Blob (for uploading when going online)
-function base64ToBlob(base64Str, mimeType) {
-  const parts = base64Str.split(';base64,');
-  const raw = window.atob(parts[1] || parts[0]);
-  const rawLength = raw.length;
-  const u8arr = new Uint8Array(rawLength);
-  for (let i = 0; i < rawLength; ++i) {
-    u8arr[i] = raw.charCodeAt(i);
-  }
-  return new Blob([u8arr], { type: mimeType });
-}
-
 export function useIssues({ googleToken, activeProject }) {
   const [issues, setIssues] = useState([]);
   const [contacts, setContacts] = useState({});
@@ -38,6 +28,8 @@ export function useIssues({ googleToken, activeProject }) {
   const offlineQueueKey = `${OFFLINE_QUEUE_KEY}_${projectId}`;
   const cacheKey = `${CACHED_ISSUES_PREFIX}_${projectId}`;
   const contactsCacheKey = `jobscan_cached_contacts_${projectId}`;
+  const currentProjectIdRef = useRef(projectId);
+  currentProjectIdRef.current = projectId;
 
   // Get local queue
   const getOfflineQueue = () => {
@@ -46,6 +38,15 @@ export function useIssues({ googleToken, activeProject }) {
     } catch {
       return [];
     }
+  };
+
+  // Changes the on-screen list (and its offline copy) from the latest list, never a stale one
+  const updateLocalIssues = (change) => {
+    setIssues(prev => {
+      const next = change(prev);
+      localStorage.setItem(cacheKey, JSON.stringify(next));
+      return next;
+    });
   };
 
   // Save local queue
@@ -76,6 +77,7 @@ export function useIssues({ googleToken, activeProject }) {
       return;
     }
 
+    const loadingFor = projectId;
     setLoading(true);
     setError(null);
     try {
@@ -83,6 +85,8 @@ export function useIssues({ googleToken, activeProject }) {
         googleToken,
         activeProject.folderId
       );
+      // Another project was opened while this one loaded: do not show its punch list there
+      if (currentProjectIdRef.current !== loadingFor) return;
       setIssuesDataFileId(fileId);
       setContacts(remoteContacts || {});
       localStorage.setItem(contactsCacheKey, JSON.stringify(remoteContacts || {}));
@@ -96,13 +100,15 @@ export function useIssues({ googleToken, activeProject }) {
         localStorage.setItem(cacheKey, JSON.stringify(remoteList));
       }
     } catch (err) {
+      // Another project was opened meanwhile: its own load shows its own list
+      if (currentProjectIdRef.current !== loadingFor) return;
       console.error(err);
       setError(getDriveErrorMessage(err, 'load issues from Google Drive'));
       // Fallback to cache on error
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) setIssues(JSON.parse(cached));
-      const cachedContacts = localStorage.getItem(contactsCacheKey);
-      if (cachedContacts) setContacts(JSON.parse(cachedContacts));
+      const cached = getStoredJson(cacheKey, null);
+      if (cached) setIssues(cached);
+      const cachedContacts = getStoredJson(contactsCacheKey, null);
+      if (cachedContacts) setContacts(cachedContacts);
     } finally {
       setLoading(false);
     }
@@ -127,8 +133,8 @@ export function useIssues({ googleToken, activeProject }) {
       for (const op of queue) {
         if ((op.type === 'CREATE' || op.type === 'UPDATE') && op.payload.photoBase64 && !op.payload.photoUrl) {
           try {
-            const mimeType = op.payload.photoBase64.match(/:(.*?);/)[1] || 'image/jpeg';
-            const blob = base64ToBlob(op.payload.photoBase64, mimeType);
+            const blob = dataUrlToBlob(op.payload.photoBase64);
+            const mimeType = blob.type;
             const fileObj = new File([blob], `offline_issue_photo.jpg`, { type: mimeType });
 
             const uploadResult = await uploadIssuePhoto(googleToken, activeProject.folderId, fileObj);
@@ -294,9 +300,7 @@ export function useIssues({ googleToken, activeProject }) {
       updatedAt: new Date(timestamp).toISOString(),
       deletedAt: null
     };
-    const updatedList = [...issues, localNewIssue];
-    setIssues(updatedList);
-    localStorage.setItem(cacheKey, JSON.stringify(updatedList));
+    updateLocalIssues(list => [...list, localNewIssue]);
 
     // Cache the base64 photo locally on this device permanently
     if (photoBase64) {
@@ -401,7 +405,7 @@ export function useIssues({ googleToken, activeProject }) {
     const queue = [...getOfflineQueue(), newOp];
     saveOfflineQueue(queue);
 
-    const updatedList = issues.map(issue => {
+    const applyChange = (list) => list.map(issue => {
       if (issue.id === id) {
         return {
           ...issue,
@@ -411,8 +415,7 @@ export function useIssues({ googleToken, activeProject }) {
       }
       return issue;
     });
-    setIssues(updatedList);
-    localStorage.setItem(cacheKey, JSON.stringify(updatedList));
+    updateLocalIssues(applyChange);
 
     if (photoBase64) {
       try {
@@ -548,46 +551,6 @@ export function useIssues({ googleToken, activeProject }) {
     });
   };
 
-  // Update status action
-  const updateIssueStatus = async (id, status) => {
-    setError(null);
-    const timestamp = Date.now();
-    const newOp = {
-      type: 'UPDATE_STATUS',
-      id,
-      payload: { status },
-      timestamp
-    };
-
-    // Update queue
-    const queue = [...getOfflineQueue(), newOp];
-    saveOfflineQueue(queue);
-
-    // Optimistic local state update
-    const updatedList = issues.map(i => {
-      if (i.id === id) {
-        return {
-          ...i,
-          status,
-          updatedAt: new Date(timestamp).toISOString()
-        };
-      }
-      return i;
-    });
-    setIssues(updatedList);
-    localStorage.setItem(cacheKey, JSON.stringify(updatedList));
-
-    // Try sync
-    if (googleToken && activeProject?.folderId) {
-      try {
-        const { issues: latestRemote } = await loadIssuesVault(googleToken, activeProject.folderId);
-        await processAndSyncQueue(latestRemote, issuesDataFileId);
-      } catch {
-        // Remains in queue
-      }
-    }
-  };
-
   // Soft delete action
   const softDeleteIssue = async (id) => {
     setError(null);
@@ -603,7 +566,7 @@ export function useIssues({ googleToken, activeProject }) {
     saveOfflineQueue(queue);
 
     // Optimistic local state update
-    const updatedList = issues.map(i => {
+    const applyChange = (list) => list.map(i => {
       if (i.id === id) {
         return {
           ...i,
@@ -613,8 +576,7 @@ export function useIssues({ googleToken, activeProject }) {
       }
       return i;
     });
-    setIssues(updatedList);
-    localStorage.setItem(cacheKey, JSON.stringify(updatedList));
+    updateLocalIssues(applyChange);
 
     // Try sync
     if (googleToken && activeProject?.folderId) {
@@ -641,7 +603,6 @@ export function useIssues({ googleToken, activeProject }) {
     success,
     addIssue,
     updateIssue,
-    updateIssueStatus,
     markIssueFixed,
     verifyIssue,
     reopenIssue,

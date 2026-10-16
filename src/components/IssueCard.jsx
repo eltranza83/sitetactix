@@ -18,13 +18,12 @@ import {
 import { useAuthenticatedDriveImage } from '../hooks/useAuthenticatedDriveImage';
 import { getDisplayImageUrl } from '../services/imageFiles';
 import { formatPhone } from '../services/projectInfoFormatter';
-import { ISSUE_STATUS_LABELS } from '../services/issueStatus';
-import { confirmAction } from '../services/confirmAction';
+import { ISSUE_STATUS_LABELS, buildSubShareText } from '../services/issueStatus';
+import { confirmAction, showMessage } from '../services/confirmAction';
 
 export default function IssueCard({
   issue,
   googleToken = null,
-  onUpdateStatus,
   onDelete,
   onEdit,
   onSendPacket,
@@ -192,22 +191,14 @@ export default function IssueCard({
       await onSendPacket(issue);
     } catch (err) {
       console.error('Failed to prepare issue packet:', err);
-      alert(err?.message || 'Could not create the issue packet PDF.');
+      showMessage({ title: 'Could not make the PDF', message: err?.message || 'Please try again.' });
     } finally {
       setPreparingPacket(false);
     }
   };
 
   const handleShareWithSub = async () => {
-    const textLines = [
-      `SiteTactix Issue: ${title}`,
-      `Category: ${category?.replace(/_/g, ' ') || 'General'}${tradePhase ? ` (${tradePhase})` : ''}`,
-      contractorName ? `Assigned To: ${contractorName}` : null,
-      dueDate ? `Target Due Date: ${dueDateFormatted || dueDate}` : null,
-      description ? `Details: ${description}` : null,
-      photoUrl ? `Defect Photo: ${photoUrl}` : null,
-      `Please text back a proof photo once completed for verification.`
-    ].filter(Boolean).join('\n');
+    const textLines = buildSubShareText(issue, dueDateFormatted);
 
     try {
       if (navigator.clipboard) {
@@ -232,18 +223,14 @@ export default function IssueCard({
   const handleSubmitProof = async () => {
     setSubmittingProof(true);
     try {
-      if (onMarkFixed) {
-        await onMarkFixed(id, { proofPhotoFile: proofFile, proofNotes });
-      } else if (onUpdateStatus) {
-        await onUpdateStatus(id, 'in_progress');
-      }
+      await onMarkFixed(id, { proofPhotoFile: proofFile, proofNotes });
       setShowFixForm(false);
       setProofFile(null);
       setProofPreview(null);
       setProofNotes('');
     } catch (err) {
       console.error('Failed to submit proof photo:', err);
-      alert('Failed to save proof photo.');
+      showMessage({ title: 'Could not save the fix photo', message: err?.message || 'Please try again.' });
     } finally {
       setSubmittingProof(false);
     }
@@ -260,37 +247,29 @@ export default function IssueCard({
 
   const executeVerification = async (inspectionNote = '') => {
     try {
-      if (onVerify) {
-        await onVerify(id, { verifiedBy: 'Builder', inspectionNote });
-      } else if (onUpdateStatus) {
-        await onUpdateStatus(id, 'resolved');
-      }
+      await onVerify(id, { verifiedBy: 'Builder', inspectionNote });
       setShowInspectionPrompt(false);
       setInspectionRecordText('');
     } catch (err) {
       console.error('Failed to verify issue:', err);
-      alert(err?.message || 'Failed to verify issue.');
+      showMessage({ title: 'Could not verify this item', message: err?.message || 'Please try again.' });
     }
   };
 
   const handleConfirmReopen = async () => {
     const trimmedReason = reopenReasonText.trim();
     if (!trimmedReason) {
-      alert('Please provide an explanatory note stating why the fix is rejected.');
+      showMessage({ title: 'Add a reason', message: 'Write why the fix is rejected before reopening the item.' });
       return;
     }
 
     try {
-      if (onReopen) {
-        await onReopen(id, { reason: trimmedReason });
-      } else if (onUpdateStatus) {
-        await onUpdateStatus(id, 'open');
-      }
+      await onReopen(id, { reason: trimmedReason });
       setShowReopenPrompt(false);
       setReopenReasonText('');
     } catch (err) {
       console.error('Failed to reopen issue:', err);
-      alert(err?.message || 'Failed to reopen issue.');
+      showMessage({ title: 'Could not reopen this item', message: err?.message || 'Please try again.' });
     }
   };
 

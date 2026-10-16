@@ -2,17 +2,13 @@ import React from 'react';
 import { AlertTriangle, MapPin, RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import BlueprintSelectedPinCard from './BlueprintSelectedPinCard';
 import IssueCard from './IssueCard';
-import { hasFloorPlanPin } from '../services/floorPlanPin';
+import { isLocatedIssue, visibleBlueprintIssues } from '../services/floorPlanPin';
 
 function getIssueMarkerColor(issue) {
   if (issue.status === 'resolved') return '#34d399';
   if (issue.status === 'in_progress') return '#F1D7A7';
   if (issue.priority === 'high') return '#ef4444';
   return '#f87171';
-}
-
-function isLocatedIssue(issue) {
-  return !issue?.deletedAt && hasFloorPlanPin(issue);
 }
 
 export default function BlueprintCanvasView({
@@ -35,7 +31,6 @@ export default function BlueprintCanvasView({
   onSetZoomScale,
   onToggleIssueAddMode,
   onToggleAddMode,
-  onUpdateIssueStatus,
   onMarkIssueFixed,
   onVerifyIssue,
   onReopenIssue,
@@ -49,7 +44,7 @@ export default function BlueprintCanvasView({
   const activeDropMode = isIssueAddMode ? 'issue' : isAddMode ? 'xray' : null;
   const allLocatedIssues = issues.filter(isLocatedIssue);
   const resolvedIssuesCount = allLocatedIssues.filter(i => i.status === 'resolved').length;
-  const locatedIssues = showResolvedIssues ? allLocatedIssues : allLocatedIssues.filter(i => i.status !== 'resolved');
+  const locatedIssues = visibleBlueprintIssues(issues, showResolvedIssues);
   const frameBorderColor = activeDropMode === 'issue'
     ? 'rgba(248, 113, 113, 0.82)'
     : activeDropMode === 'xray'
@@ -103,7 +98,6 @@ export default function BlueprintCanvasView({
           >
             <AlertTriangle
               size={14}
-              className={isIssueAddMode ? 'animate-pulse' : ''}
               style={{ color: isIssueAddMode ? '#fff' : '#f87171' }}
             />
             <span className="blueprint-action-label">
@@ -134,7 +128,6 @@ export default function BlueprintCanvasView({
           >
             <MapPin
               size={14}
-              className={isAddMode ? 'animate-pulse' : ''}
               style={{ color: isAddMode ? '#000' : '#34d399' }}
             />
             <span className="blueprint-action-label">
@@ -295,7 +288,6 @@ export default function BlueprintCanvasView({
                     transition: 'all 0.15s ease',
                     padding: 0
                   }}
-                  className={isSelected ? '' : 'animate-pulse'}
                   title={pin.phase || 'Pin'}
                 >
                   <MapPin size={14} style={{ color: '#10b981', strokeWidth: 2.6 }} />
@@ -392,7 +384,6 @@ export default function BlueprintCanvasView({
         <IssueCard
           issue={selectedIssue}
           googleToken={googleToken}
-          onUpdateStatus={onUpdateIssueStatus}
           onDelete={onDeleteIssue}
           onEdit={onEditIssue}
           onSendPacket={onSendIssuePacket}

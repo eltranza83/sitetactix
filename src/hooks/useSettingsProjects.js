@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { createProjectFolder, listProjectFolders, listFolderSpreadsheets } from '../services/settingsDrive';
-import { listProjectSpreadsheets } from '../services/googleDrive';
+import { createFolder, listFolders, listProjectSpreadsheets, listSpreadsheetsInFolder } from '../services/googleDrive';
 import { getDriveErrorMessage, getFolderErrorMessage, getValidationErrorMessage } from '../services/appErrors';
 import { toCanonicalProjectId } from '../services/projectIds';
 import { saveUserProject, deleteUserProject } from '../services/projectService';
@@ -79,8 +78,8 @@ export function useSettingsProjects({
     setError(null);
     try {
       const [folderList, sheetList] = await Promise.all([
-        listProjectFolders(googleToken, parentId),
-        listFolderSpreadsheets(googleToken, parentId).catch(() => [])
+        listFolders(googleToken, parentId),
+        listSpreadsheetsInFolder(googleToken, parentId).catch(() => [])
       ]);
       setFolders(folderList);
       setFolderSheets(sheetList);
@@ -236,7 +235,6 @@ export function useSettingsProjects({
       setSuccess(result.existing
         ? `"${project.name}" already had a Notion page. It's linked now.`
         : `Notion page made for "${project.name}"${finishes}.`);
-      setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
       console.error(err);
       setSuccess(null);
@@ -322,7 +320,6 @@ export function useSettingsProjects({
         setError(`Project "${updatedProj.name}" updated, but its subdivision was not changed (Notion: ${notionError}) Please try again.`);
       } else {
         setSuccess(`Project "${updatedProj.name}" updated successfully!`);
-        setTimeout(() => setSuccess(null), 3000);
       }
       return;
     }
@@ -436,7 +433,6 @@ export function useSettingsProjects({
 
     setSuccess(`Project "${projectToDelete.name}" deleted.`);
     setProjectToDelete(null);
-    setTimeout(() => setSuccess(null), 2500);
   };
 
   const handleCreateFolder = async (e) => {
@@ -446,7 +442,7 @@ export function useSettingsProjects({
     setError(null);
     setSuccess(null);
     try {
-      await createProjectFolder(
+      await createFolder(
         googleToken,
         newFolderName.trim(),
         currentParentId === 'root' ? null : currentParentId
@@ -477,7 +473,6 @@ export function useSettingsProjects({
     }
     setShowFolderPickerModal(false);
     setSuccess(`Linked folder: "${folder.name}"`);
-    setTimeout(() => setSuccess(null), 2500);
   };
 
   const handleUseCurrentFolder = () => {

@@ -73,7 +73,6 @@ test('loadStoredAppState builds selected folder and arrays from local storage', 
   localStorage.setItem(APP_STORAGE_KEYS.folderName, 'Project Folder');
   setStoredJson(APP_STORAGE_KEYS.projects, [{ id: 'p1' }]);
   setStoredJson(APP_STORAGE_KEYS.history, [{ id: 'h1' }]);
-  setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, true);
 
   const state = loadStoredAppState();
 
@@ -81,7 +80,6 @@ test('loadStoredAppState builds selected folder and arrays from local storage', 
   assert.deepEqual(state.selectedFolder, { id: 'folder-1', name: 'Project Folder' });
   assert.deepEqual(state.projects, [{ id: 'p1' }]);
   assert.deepEqual(state.history, [{ id: 'h1' }]);
-  assert.equal(state.hasUnprocessedUploads, true);
 });
 
 test('loadStoredAppState sanitizes projects', () => {

@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.5",
-  "releaseName": "Offline and navigation fixes",
+  "version": "1.14.6",
+  "releaseName": "Small fixes and cleanup",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -8,18 +8,7 @@ import {
   uploadFileToDrive
 } from './googleDrive.js';
 import { getDraftUploads } from './invoiceSyncState.js';
-
-function dataURLtoBlob(dataUrl) {
-  const arr = dataUrl.split(',');
-  const mime = arr[0].match(/:(.*?);/)[1];
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new Blob([u8arr], { type: mime });
-}
+import { dataUrlToBlob, downloadBlob } from './imageFiles.js';
 
 export function buildInvoiceFileName(metadata) {
   const lot = (metadata.lotNumber || 'No_Lot').trim();
@@ -109,15 +98,6 @@ export function buildHistoryLogs(metadata, { idPrefix, link, draftId = null, syn
   }];
 }
 
-function downloadPdf(pdfBlob, fileName) {
-  const url = URL.createObjectURL(pdfBlob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 async function buildPdfBlob(item, generateDocumentPDF) {
   const { metadata, mainImageBase64, secondaryImageBase64 } = item;
   const images = [];
@@ -125,7 +105,7 @@ async function buildPdfBlob(item, generateDocumentPDF) {
   if (secondaryImageBase64) images.push(secondaryImageBase64);
 
   if (mainImageBase64 && mainImageBase64.startsWith('data:application/pdf')) {
-    return { pdfBlob: dataURLtoBlob(mainImageBase64), images };
+    return { pdfBlob: dataUrlToBlob(mainImageBase64, 'application/pdf'), images };
   }
 
   return {
@@ -264,8 +244,11 @@ async function putReceiptFile(googleToken, unit, previous, signature, makePdf) {
         folderId: unit.folderId,
         signature
       };
-      // Already in the Sheet: never touched again (the check after sync flags a later edit)
-      if (info.appProperties?.sheetRowWritten === 'true') return { ...kept, signature: previous.signature || signature };
+      // Already in the Sheet: never touched again (the check after sync flags a later edit).
+      // It stays with the lot it was written to, even if the split's lot was changed since.
+      if (info.appProperties?.sheetRowWritten === 'true') {
+        return { ...kept, folderId: previous.folderId || unit.folderId, signature: previous.signature || signature };
+      }
       const parents = info.parents || [];
       const inPlace = parents.includes(uploadsFolder);
       if (inPlace && previous.signature === signature) return kept;
@@ -287,14 +270,23 @@ async function putReceiptFile(googleToken, unit, previous, signature, makePdf) {
 }
 
 /** Removes a file left from a split that no longer exists (only while its Sheet row is not written). */
+// Removes a receipt file still waiting in Invoice Uploads (a file whose Sheet row is written stays).
+// Throws when Drive cannot be reached: a file left there would be added to the Sheet by the next sync.
 async function discardReceiptFile(googleToken, upload) {
-  try {
-    const info = await getDriveFileInfo(googleToken, upload.fileId);
-    if (info && !info.trashed && info.appProperties?.sheetRowWritten !== 'true') {
-      await trashDriveFile(googleToken, upload.fileId);
-    }
-  } catch (err) {
-    console.warn('[invoiceUpload] Could not remove a file from a removed split:', err?.message || err);
+  const info = await getDriveFileInfo(googleToken, upload.fileId);
+  if (info && !info.trashed && info.appProperties?.sheetRowWritten !== 'true') {
+    await trashDriveFile(googleToken, upload.fileId);
+  }
+}
+
+/**
+ * A deleted draft's PDFs still waiting in Invoice Uploads would be added to the Sheet by the
+ * next sync: remove them (files whose Sheet row is already written are kept). Throws if any
+ * could not be removed, so the draft is kept and the user can try again.
+ */
+export async function discardDraftFiles(googleToken, draft) {
+  for (const upload of Object.values(getDraftUploads(draft))) {
+    if (upload?.fileId) await discardReceiptFile(googleToken, upload);
   }
 }
 
@@ -315,7 +307,7 @@ export async function syncInvoiceDocument({
   const isOfflineMode = !googleToken || !selectedFolder;
   if (isOfflineMode) {
     const { pdfBlob } = await buildPdfBlob(item, generateDocumentPDF);
-    downloadPdf(pdfBlob, buildInvoiceFileName(metadata));
+    downloadBlob(pdfBlob, buildInvoiceFileName(metadata));
     return {
       logs: buildHistoryLogs(metadata, { idPrefix: Date.now().toString(), link: null }),
       hasDriveUpload: false,
@@ -339,11 +331,13 @@ export async function syncInvoiceDocument({
 
   const unitKeys = new Set(units.map(unit => unit.key));
   const removedKeys = Object.keys(uploads).filter(key => !unitKeys.has(key));
+  // A removed split's file must be gone before any Sheet sync, or that sync would write it:
+  // if Drive cannot remove it, stop here (the draft still lists it, so a retry removes it)
   for (const key of removedKeys) {
     if (uploads[key]?.fileId) await discardReceiptFile(googleToken, uploads[key]);
     delete uploads[key];
+    onUploaded?.({ ...uploads });
   }
-  if (removedKeys.length > 0) onUploaded?.({ ...uploads });
 
   const first = uploads[units[0].key];
   return {

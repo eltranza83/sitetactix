@@ -71,6 +71,7 @@ export function useBlueprintPinboard({
   const imageContainerRef = useRef(null);
   const albumFileInputRef = useRef(null);
   const imageSrcRef = useRef(null);
+  const loadCountRef = useRef(0);
 
   const clearBlueprintImage = () => {
     if (imageSrcRef.current) {
@@ -81,6 +82,7 @@ export function useBlueprintPinboard({
   };
 
   const loadBlueprintData = async () => {
+    const loadId = ++loadCountRef.current;
     setLoading(true);
     setError(null);
     setSelectedPin(null);
@@ -89,6 +91,8 @@ export function useBlueprintPinboard({
 
     try {
       const data = await loadBlueprintVault(googleToken, selectedFolder.id);
+      // Another project was opened while this one loaded: its floor plan must not show there
+      if (loadId !== loadCountRef.current) return;
       const safeData = data || {};
       setBlueprintDataFileId(safeData.blueprintDataFileId || null);
       setBlueprintFileId(safeData.blueprintFileId || null);
@@ -100,10 +104,11 @@ export function useBlueprintPinboard({
         setImageSrc(localUrl);
       }
     } catch (err) {
+      if (loadId !== loadCountRef.current) return;
       console.error(err);
       setError(getDriveErrorMessage(err, 'retrieve blueprint data from Google Drive'));
     } finally {
-      setLoading(false);
+      if (loadId === loadCountRef.current) setLoading(false);
     }
   };
 
@@ -428,7 +433,6 @@ export function useBlueprintPinboard({
     uploadingAlbumPhoto,
     viewMode,
     zoomScale,
-    clearSelectedPhoto,
     handleCanvasClick,
     handleCategoryChange,
     handleDeletePin,

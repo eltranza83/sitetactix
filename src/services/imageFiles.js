@@ -65,10 +65,35 @@ export function compressSitePhoto(file) {
  */
 export function isGoogleThumbnail(link) {
   try {
-    return new URL(link).hostname.endsWith('.googleusercontent.com');
+    const url = new URL(link);
+    return url.protocol === 'https:' && url.hostname.endsWith('.googleusercontent.com');
   } catch {
     return false;
   }
+}
+
+/** Turns a data: URL (a photo or PDF kept on the phone) back into a file blob. */
+export function dataUrlToBlob(dataUrl, fallbackType = 'image/jpeg') {
+  const [meta = '', base64 = ''] = String(dataUrl || '').split(',');
+  const mimeType = meta.match(/^data:(.*?);base64$/)?.[1] || fallbackType;
+  const raw = atob(base64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) {
+    bytes[i] = raw.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mimeType });
+}
+
+/** Saves a file to the device (the link is kept briefly so slower phones, like iPhones, finish first). */
+export function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 /** Reads a file as a data: URL (kept on the phone for offline use). */

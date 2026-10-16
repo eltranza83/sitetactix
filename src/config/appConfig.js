@@ -1,8 +1,9 @@
 const ENV = import.meta.env || {};
 
-export const APP_VERSION = ENV.VITE_APP_VERSION || '1.10.2';
+// Set at build time from package.json (vite.config.js); the fallbacks only show in tests
+export const APP_VERSION = ENV.VITE_APP_VERSION || 'dev';
 export const APP_BUILD_LABEL = ENV.VITE_APP_BUILD_LABEL || `v${APP_VERSION}`;
-export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || 'Scans wait longer and retry';
+export const APP_RELEASE_NAME = ENV.VITE_APP_RELEASE_NAME || '';
 
 // Google Sheet copied for each new project: the master "SiteTactix Templates" Sheet in the owner's Drive
 export const TEMPLATE_SHEET_ID = String(ENV.VITE_TEMPLATE_SHEET_ID || '1Lrxya8aLaVoVYVyyjT51PDT25DcCa46yvENWdFEJxhA').trim();
