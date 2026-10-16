@@ -13,6 +13,7 @@ import { applyPayeeMatch, loadCachedKnownSubs, persistKnownSubs } from '../servi
 import { fetchKnownSubs } from '../services/sheetV2';
 import { compressImage, fileToBase64 } from '../services/imageFiles';
 import { confirmAction } from '../services/confirmAction';
+import { isAuthError } from '../services/appErrors';
 import { discardDraftFiles } from '../services/invoiceUpload';
 import { getDraftUploads } from '../services/invoiceSyncState';
 
@@ -32,7 +33,7 @@ async function loadKnownSubsForProject(activeProject, googleToken) {
   }
 }
 
-export function useStagedDocuments({ activeProject, googleToken = null, setError, setSuccess }) {
+export function useStagedDocuments({ activeProject, googleToken = null, setError, setSuccess, onSessionExpired = null }) {
   const [stagedItems, setStagedItems] = useState(() => loadStoredAppState().stagedItems);
   const [animateBadge, setAnimateBadge] = useState(false);
   const [prevStagedCount, setPrevStagedCount] = useState(0);
@@ -139,7 +140,19 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
       confirmLabel: 'Delete'
     }))) return;
 
-    if (inDrive && googleToken) await discardDraftFiles(googleToken, item);
+    if (inDrive && googleToken) {
+      try {
+        await discardDraftFiles(googleToken, item);
+      } catch (err) {
+        // The PDF is still waiting in Drive: keep the draft, or the next sync would add a deleted receipt
+        if (isAuthError(err)) {
+          onSessionExpired?.();
+        } else {
+          setError(`Draft kept: its PDF could not be removed from Drive (${err?.message || 'no connection'}). Try again with signal.`);
+        }
+        return;
+      }
+    }
     removeStagedItem(item.id);
     setSuccess('Draft discarded successfully!');
   };

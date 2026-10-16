@@ -13,6 +13,7 @@ export function createFakeDrive() {
   let nextId = 0;
   let mediaUploadsToFail = [];
   let mediaUploadCount = 0;
+  const failingRequests = [];
 
   const add = (meta) => {
     const id = meta.id || `f${++nextId}`;
@@ -30,6 +31,9 @@ export function createFakeDrive() {
     const u = new URL(url);
     const method = options.method || 'GET';
     calls.push({ method, path: u.pathname, search: u.search });
+    if (failingRequests.some(fails => fails({ method, path: u.pathname, body: options.body }))) {
+      return new Response('Google is unavailable', { status: 503 });
+    }
 
     if (u.pathname.startsWith('/upload/drive/v3/files/')) {
       mediaUploadCount++;
@@ -95,6 +99,17 @@ export function createFakeDrive() {
       mediaUploadsToFail.push(mediaUploadCount + nth);
     },
     mediaUploads: () => mediaUploadCount,
+    /** Requests matching fails({ method, path, body }) get a 503 until restore() (like no signal). */
+    failRequests(fails) {
+      failingRequests.push(fails);
+    },
+    restore() {
+      failingRequests.length = 0;
+    },
+    /** Moving a file to the trash fails (bad signal) until restore(). */
+    failTrash() {
+      this.failRequests(({ method, body }) => method === 'PATCH' && String(body || '').includes('"trashed":true'));
+    },
     folderPath(fileId) {
       const names = [];
       let current = files.get(fileId);

@@ -210,7 +210,8 @@ export default function Scanner({ onDataExtracted, onError }) {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  });
+    // Attached once per drag (handleMove reads the corner being dragged from this render)
+  }, [activeHandle]);
 
   // A photo that will not open must not leave the spinner running
   const failImageLoad = () => {

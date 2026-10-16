@@ -77,10 +77,10 @@ export function useIssues({ googleToken, activeProject }) {
       return;
     }
 
+    const loadingFor = projectId;
     setLoading(true);
     setError(null);
     try {
-      const loadingFor = projectId;
       const { issuesDataFileId: fileId, issues: remoteList, contacts: remoteContacts } = await loadIssuesVault(
         googleToken,
         activeProject.folderId
@@ -100,6 +100,8 @@ export function useIssues({ googleToken, activeProject }) {
         localStorage.setItem(cacheKey, JSON.stringify(remoteList));
       }
     } catch (err) {
+      // Another project was opened meanwhile: its own load shows its own list
+      if (currentProjectIdRef.current !== loadingFor) return;
       console.error(err);
       setError(getDriveErrorMessage(err, 'load issues from Google Drive'));
       // Fallback to cache on error

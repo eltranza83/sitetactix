@@ -270,20 +270,19 @@ async function putReceiptFile(googleToken, unit, previous, signature, makePdf) {
 }
 
 /** Removes a file left from a split that no longer exists (only while its Sheet row is not written). */
+// Removes a receipt file still waiting in Invoice Uploads (a file whose Sheet row is written stays).
+// Throws when Drive cannot be reached: a file left there would be added to the Sheet by the next sync.
 async function discardReceiptFile(googleToken, upload) {
-  try {
-    const info = await getDriveFileInfo(googleToken, upload.fileId);
-    if (info && !info.trashed && info.appProperties?.sheetRowWritten !== 'true') {
-      await trashDriveFile(googleToken, upload.fileId);
-    }
-  } catch (err) {
-    console.warn('[invoiceUpload] Could not remove a file from a removed split:', err?.message || err);
+  const info = await getDriveFileInfo(googleToken, upload.fileId);
+  if (info && !info.trashed && info.appProperties?.sheetRowWritten !== 'true') {
+    await trashDriveFile(googleToken, upload.fileId);
   }
 }
 
 /**
  * A deleted draft's PDFs still waiting in Invoice Uploads would be added to the Sheet by the
- * next sync: remove them (files whose Sheet row is already written are kept).
+ * next sync: remove them (files whose Sheet row is already written are kept). Throws if any
+ * could not be removed, so the draft is kept and the user can try again.
  */
 export async function discardDraftFiles(googleToken, draft) {
   for (const upload of Object.values(getDraftUploads(draft))) {
@@ -332,11 +331,13 @@ export async function syncInvoiceDocument({
 
   const unitKeys = new Set(units.map(unit => unit.key));
   const removedKeys = Object.keys(uploads).filter(key => !unitKeys.has(key));
+  // A removed split's file must be gone before any Sheet sync, or that sync would write it:
+  // if Drive cannot remove it, stop here (the draft still lists it, so a retry removes it)
   for (const key of removedKeys) {
     if (uploads[key]?.fileId) await discardReceiptFile(googleToken, uploads[key]);
     delete uploads[key];
+    onUploaded?.({ ...uploads });
   }
-  if (removedKeys.length > 0) onUploaded?.({ ...uploads });
 
   const first = uploads[units[0].key];
   return {

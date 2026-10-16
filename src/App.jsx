@@ -125,7 +125,8 @@ export default function App() {
     activeProject,
     googleToken,
     setError,
-    setSuccess
+    setSuccess,
+    onSessionExpired: handleSessionExpired
   });
   const {
     uploading,

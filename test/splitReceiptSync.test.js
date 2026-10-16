@@ -318,3 +318,51 @@ describe('deleting a draft', () => {
     assert.equal(drive.files.get(result.uploads['1'].fileId).trashed, true);
   });
 });
+
+describe('when Drive cannot remove a file (bad signal)', () => {
+  let drive;
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    drive = createFakeDrive();
+    globalThis.fetch = drive.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test('deleting a draft fails loudly, so the draft is kept and its PDF stays tracked', async () => {
+    const { discardDraftFiles } = await import('../src/services/invoiceUpload.js');
+    const item = splitDraft([{ amount: 100, lotNumber: 'Lot 99' }, { amount: 50, lotNumber: 'Lot 3' }]);
+    const { result } = await sync(item);
+
+    drive.failTrash();
+    await assert.rejects(discardDraftFiles('token', { ...item, uploads: result.uploads }));
+    assert.equal(drive.files.get(result.uploads['1'].fileId).trashed, false);
+
+    // With signal back, the same delete finishes the job
+    drive.restore();
+    await discardDraftFiles('token', { ...item, uploads: result.uploads });
+    assert.equal(drive.livePdfsIn(`lot99/${UPLOADS}`).length + drive.livePdfsIn(`lot3/${UPLOADS}`).length, 0);
+  });
+
+  test('a removed split whose file cannot be removed stops the sync and stays remembered', async () => {
+    const item = splitDraft([{ amount: 100, lotNumber: 'Lot 99' }, { amount: 50, lotNumber: 'Lot 3' }]);
+    const { result } = await sync(item);
+
+    drive.failTrash();
+    const edited = splitDraft([{ amount: 150, lotNumber: 'Lot 99' }]);
+    const retry = await sync({ ...edited, uploads: result.uploads });
+
+    assert.ok(retry.error, 'must stop before any Sheet sync');
+    assert.ok(retry.progress.at(-1)['1'], 'the removed split is still remembered for the next try');
+    assert.equal(drive.files.get(result.uploads['1'].fileId).trashed, false);
+
+    drive.restore();
+    const again = await sync({ ...edited, uploads: retry.progress.at(-1) });
+    assert.equal(again.error, undefined);
+    assert.deepEqual(Object.keys(again.result.uploads), ['0']);
+    assert.equal(drive.files.get(result.uploads['1'].fileId).trashed, true);
+  });
+});
