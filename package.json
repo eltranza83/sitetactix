@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.4",
-  "releaseName": "Split receipts and photo albums fixed",
+  "version": "1.14.5",
+  "releaseName": "Offline and navigation fixes",
   "type": "module",
   "scripts": {
     "dev": "vite",

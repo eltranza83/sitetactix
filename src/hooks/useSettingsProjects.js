@@ -16,6 +16,7 @@ import {
 } from '../services/projectSheet';
 import { readProjectInfoIfV2, writeProjectInfo } from '../services/sheetV2';
 import { TEMPLATE_SHEET_ID } from '../config/appConfig';
+import { APP_STORAGE_KEYS, persistActiveProject, persistProjects } from '../services/appStorage';
 import {
   buildNotionLotRequest,
   cleanSubdivision,
@@ -228,7 +229,7 @@ export function useSettingsProjects({
       if (currentActive?.id === project.id) {
         const updatedActive = linkNotionPageToProject(currentActive, result);
         setActiveProject(updatedActive);
-        localStorage.setItem('jobscan_active_project', JSON.stringify(updatedActive));
+        persistActiveProject(updatedActive);
       }
 
       const finishes = result.finishesCopied ? ` with ${result.finishesCopied} standard finishes` : '';
@@ -295,7 +296,7 @@ export function useSettingsProjects({
         return p;
       });
       setProjects(updatedProjects);
-      localStorage.setItem('jobscan_projects', JSON.stringify(updatedProjects));
+      persistProjects(updatedProjects);
 
       const updatedProj = updatedProjects.find(p => p.id === editingProject.id);
       if (googleUser?.email) {
@@ -304,11 +305,8 @@ export function useSettingsProjects({
 
       if (activeProject && activeProject.id === editingProject.id) {
         setActiveProject(updatedProj);
-        localStorage.setItem('jobscan_active_project', JSON.stringify(updatedProj));
-
+        persistActiveProject(updatedProj);
         setSelectedFolder({ id: updatedProj.folderId, name: updatedProj.folderName });
-        localStorage.setItem('jobscan_folder_id', updatedProj.folderId);
-        localStorage.setItem('jobscan_folder_name', updatedProj.folderName);
       }
 
       setProjectNameInput('');
@@ -380,18 +378,15 @@ export function useSettingsProjects({
 
     const updatedProjects = [...projects, newProj];
     setProjects(updatedProjects);
-    localStorage.setItem('jobscan_projects', JSON.stringify(updatedProjects));
+    persistProjects(updatedProjects);
 
     if (googleUser?.email) {
       saveUserProject(newProj, googleUser);
     }
 
     setActiveProject(newProj);
-    localStorage.setItem('jobscan_active_project', JSON.stringify(newProj));
-
+    persistActiveProject(newProj);
     setSelectedFolder({ id: newProj.folderId, name: newProj.folderName });
-    localStorage.setItem('jobscan_folder_id', newProj.folderId);
-    localStorage.setItem('jobscan_folder_name', newProj.folderName);
 
     const notionDetails = projectDetails;
     setProjectNameInput('');
@@ -425,7 +420,7 @@ export function useSettingsProjects({
     const projectId = projectToDelete.id;
     const updatedProjects = projects.filter(p => p.id !== projectId);
     setProjects(updatedProjects);
-    localStorage.setItem('jobscan_projects', JSON.stringify(updatedProjects));
+    persistProjects(updatedProjects);
 
     if (googleUser?.email) {
       deleteUserProject(projectId, googleUser);
@@ -433,10 +428,10 @@ export function useSettingsProjects({
 
     if (activeProject && activeProject.id === projectId) {
       setActiveProject(null);
-      localStorage.setItem('jobscan_active_project', 'null');
+      persistActiveProject(null);
       setSelectedFolder(null);
-      localStorage.removeItem('jobscan_folder_id');
-      localStorage.removeItem('jobscan_folder_name');
+      localStorage.removeItem(APP_STORAGE_KEYS.folderId);
+      localStorage.removeItem(APP_STORAGE_KEYS.folderName);
     }
 
     setSuccess(`Project "${projectToDelete.name}" deleted.`);

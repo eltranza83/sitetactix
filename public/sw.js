@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sitetactix-cache-v138';
+const CACHE_NAME = 'sitetactix-cache-v139';
 
 
 
@@ -38,6 +38,11 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
 
+  // Only the app's own files. Google (Drive, Sheets, Firestore, fonts) and /api calls go straight
+  // to the network: the browser handles them better, and routing them through here broke fonts.
+  const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+
   // Never serve a cached HTML shell. Old HTML can reference chunks from a
   // previous deployment and leave the app blank after a release.
   if (e.request.mode === 'navigate') {
@@ -45,7 +50,8 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // Offline and not saved: a normal network error instead of a crash
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    fetch(e.request).catch(async () => (await caches.match(e.request)) || Response.error())
   );
 });
