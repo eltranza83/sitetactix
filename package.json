@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.6",
-  "releaseName": "Small fixes and cleanup",
+  "version": "1.14.7",
+  "releaseName": "Backup AI model when Google is busy",
   "type": "module",
   "scripts": {
     "dev": "vite",

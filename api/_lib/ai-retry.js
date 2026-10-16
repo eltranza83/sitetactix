@@ -65,3 +65,44 @@ export async function fetchWithExponentialBackoff(
 
   throw new Error(`Request failed after ${maxRetries} retries: ${lastError}`);
 }
+
+/** The Gemini address for one model. */
+export function geminiUrl(model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+}
+
+// Google answers these when a model is overloaded, out of quota or failing: the backup model may still work
+const BACKUP_MODEL_STATUSES = [429, 500, 503];
+// The backup model is only tried when at least this much of the time limit is left
+const MIN_BACKUP_WINDOW_MS = 10000;
+
+/**
+ * Sends one Gemini request to the main model (with its retries). If Google still says that model
+ * is busy, out of quota or failing, the same request goes to the backup model. All tries together
+ * stay within options.deadlineMs (or timeoutMs), so the server's time limit is never passed.
+ * @param {string[]} models - main model first, then the backup (duplicates and blanks are skipped)
+ * @param {(model: string) => string} urlForModel
+ */
+export async function fetchWithBackupModel(models, urlForModel, options = {}, retryConfig, fetchImpl = fetch) {
+  const modelList = [...new Set((models || []).filter(Boolean))];
+  const timeoutMs = options.timeoutMs || 25000;
+  const deadlineMs = options.deadlineMs || timeoutMs;
+  const startedAt = Date.now();
+  let response = null;
+
+  for (const [index, model] of modelList.entries()) {
+    const remainingMs = deadlineMs - (Date.now() - startedAt);
+    if (index > 0 && remainingMs < MIN_BACKUP_WINDOW_MS) break;
+    response = await fetchWithExponentialBackoff(
+      urlForModel(model),
+      { ...options, timeoutMs: Math.min(timeoutMs, remainingMs), deadlineMs: remainingMs },
+      retryConfig,
+      fetchImpl
+    );
+    if (response.ok || !BACKUP_MODEL_STATUSES.includes(response.status)) return response;
+    if (index < modelList.length - 1) {
+      console.warn(`[AI] ${model} answered ${response.status}; trying the backup model ${modelList[index + 1]}.`);
+    }
+  }
+  return response;
+}

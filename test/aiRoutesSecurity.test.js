@@ -136,12 +136,12 @@ describe('AI scan route: auth, keys, request limits and error sanitization', () 
       assert.ok(!data.error.includes('RESOURCE_EXHAUSTED'), 'Must not leak provider error codes');
     });
 
-    it('Gemini 503 returns a generic temporary-service message', async () => {
+    it('Gemini 503 on both models returns a plain busy message', async () => {
       mockUpstream(() => ({ ok: false, status: 503, text: async () => 'internal backend detail xyz' }));
       const res = await postExtractDocument(scanRequest());
       assert.strictEqual(res.status, 502);
       const data = await res.json();
-      assert.ok(data.error.includes('temporarily unavailable'));
+      assert.ok(data.error.includes('busy'));
       assert.ok(!data.error.includes('xyz'));
     });
 
@@ -164,7 +164,7 @@ describe('AI scan route: auth, keys, request limits and error sanitization', () 
       for (const code of [500, 503]) {
         const err = sanitizeUpstreamAiError(code);
         assert.strictEqual(err.status, 502);
-        assert.ok(err.message.includes('temporarily unavailable'));
+        assert.ok(err.message.includes('busy'));
       }
 
       const err504 = sanitizeUpstreamAiError(504);

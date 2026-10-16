@@ -1,6 +1,6 @@
 import { DOCUMENT_EXTRACTION_PROMPT, GEMINI_RESPONSE_SCHEMA } from './_lib/document-prompt.js';
 import { AI_CONFIG } from './_lib/ai-config.js';
-import { fetchWithExponentialBackoff } from './_lib/ai-retry.js';
+import { fetchWithBackupModel, geminiUrl } from './_lib/ai-retry.js';
 import {
   HttpError,
   errorResponse,
@@ -27,11 +27,9 @@ function parseGeminiJson(text) {
 }
 
 export async function generateDocumentData({ bytes, mimeType, apiKey, fetchImpl = fetch }) {
-  const model = AI_CONFIG.primaryModel;
-  const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  
-  const response = await fetchWithExponentialBackoff(
-    targetUrl,
+  const response = await fetchWithBackupModel(
+    [AI_CONFIG.primaryModel, AI_CONFIG.backupModel],
+    geminiUrl,
     {
       method: 'POST',
       // Each try may take up to 35 seconds; all tries together stay under the 60-second server limit
