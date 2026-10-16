@@ -19,6 +19,7 @@ import DashboardCostPerSqFt from './DashboardCostPerSqFt';
 import DashboardPhotoGallery from './DashboardPhotoGallery';
 import DashboardTradeSections from './DashboardTradeSections';
 import { auditSpreadsheetHealth } from '../services/spreadsheetHealth';
+import { compressSitePhoto } from '../services/imageFiles';
 
 export default function Dashboard({ googleToken, activeProject, selectedFolder, onSessionExpired, onRequestConnect, onShowToast, history, drafts }) {
   const [data, setData] = useState(() => loadCachedDashboard(localStorage, activeProject?.id));
@@ -61,6 +62,8 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
   // Handle snapping/uploading a photo on-site
   const handlePhotoUpload = async (e, targetPhase = activeGalleryPhase) => {
     const file = e.target.files[0];
+    // Clear the picker so choosing the same photo again still counts as a change
+    e.target.value = '';
     if (!file || !targetPhase) return;
 
     setActiveGalleryPhase(targetPhase);
@@ -71,7 +74,7 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
         accessToken: googleToken,
         projectFolderId: selectedFolder.id,
         phase: targetPhase,
-        file
+        file: await compressSitePhoto(file)
       });
       setPhotos(updatedList);
     } catch (err) {
@@ -501,6 +504,7 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
         </>
       )}
       <DashboardPhotoGallery
+        googleToken={googleToken}
         activeGalleryPhase={activeGalleryPhase}
         photos={photos}
         loadingPhotos={loadingPhotos}

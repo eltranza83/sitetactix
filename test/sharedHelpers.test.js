@@ -189,3 +189,12 @@ test('no screen asks with the browser pop-up (OK highlighted); all questions use
     .filter(file => /(window\.confirm|[^\w.]confirm)\(/.test(fs.readFileSync(file, 'utf8')));
   assert.deepEqual(offenders, []);
 });
+
+test('isGoogleThumbnail accepts only Google thumbnail hosts', async () => {
+  const { isGoogleThumbnail } = await import('../src/services/imageFiles.js');
+  assert.equal(isGoogleThumbnail('https://lh3.googleusercontent.com/drive-storage/abc=s220'), true);
+  assert.equal(isGoogleThumbnail('https://drive.google.com/thumbnail?id=abc'), false);
+  assert.equal(isGoogleThumbnail('https://evil.example/googleusercontent.com'), false);
+  assert.equal(isGoogleThumbnail(''), false);
+  assert.equal(isGoogleThumbnail(undefined), false);
+});

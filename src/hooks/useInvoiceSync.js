@@ -7,12 +7,15 @@ import {
 } from '../services/appStorage';
 import { STATUS_MESSAGES, getDriveErrorMessage, isAuthError } from '../services/appErrors';
 import { fetchDriveFileBlob } from '../services/googleDrive';
-import { buildHistoryLogs, syncInvoiceDocument } from '../services/invoiceUpload';
+import { syncInvoiceDocument } from '../services/invoiceUpload';
 import {
+  draftSyncFailure,
+  foldersToSync,
+  getDraftUploads,
   getHistoryFileId,
   partitionDraftsBySyncResult
 } from '../services/invoiceSyncState';
-import { syncUploadedInvoicesDirectly } from '../services/directSyncService';
+import { syncUploadedInvoicesDirectly, syncUploadedInvoicesForFolders } from '../services/directSyncService';
 import { isDraftPhaseValid } from '../services/editFormHelpers';
 import { fetchTransactionRows, parseTransactions } from '../services/sheetV2';
 import { checkSyncedEntries, describeSheetMatch, findReceiptInSheet } from '../services/dailyCheck';
@@ -27,6 +30,22 @@ async function checkAgainstSheet(googleToken, spreadsheetId, logs) {
     console.warn('[useInvoiceSync] Could not check the Sheet after sync:', err?.message || err);
     return logs;
   }
+}
+
+/** Checks each synced entry against the Sheet of the lot it went to (a split can go to another house). */
+async function checkAgainstSheets(googleToken, spreadsheetByFolder, logs) {
+  const groups = new Map();
+  (logs || []).forEach((log, index) => {
+    const folderId = log.folderId || '';
+    if (!groups.has(folderId)) groups.set(folderId, []);
+    groups.get(folderId).push(index);
+  });
+  const checked = [...(logs || [])];
+  for (const [folderId, indexes] of groups) {
+    const result = await checkAgainstSheet(googleToken, spreadsheetByFolder?.[folderId], indexes.map(i => logs[i]));
+    indexes.forEach((logIndex, i) => { checked[logIndex] = result[i]; });
+  }
+  return checked;
 }
 
 /**
@@ -96,6 +115,16 @@ function linkedSheetFor(project, folderId) {
   return project?.folderId === folderId ? (project?.spreadsheetId || null) : null;
 }
 
+// Each lot folder with its project's linked Sheet (null: the Sheet is found in the folder)
+function sheetFolders(folderIds, activeProject, projects) {
+  return folderIds.map(folderId => {
+    const project = activeProject?.folderId === folderId
+      ? activeProject
+      : (projects || []).find(p => p?.folderId === folderId);
+    return { folderId, spreadsheetId: project?.spreadsheetId || null };
+  });
+}
+
 export function useInvoiceSync({
   activeProject,
   googleToken,
@@ -120,6 +149,26 @@ export function useInvoiceSync({
   const saveHistory = (newHistory) => {
     setHistory(newHistory);
     persistHistory(newHistory);
+  };
+
+  // Adds entries on top of the latest History (a sync can take a while; never use a stale list)
+  const addToHistory = (logs) => {
+    setHistory(prev => {
+      const next = [...logs, ...(prev || [])];
+      persistHistory(next);
+      return next;
+    });
+  };
+
+  // Saves on the draft which receipt files are already in Drive, right after each one uploads
+  const rememberUploads = (id, uploads) => {
+    if (!updateStagedItem) return;
+    const first = Object.values(uploads)[0];
+    updateStagedItem(id, {
+      uploads,
+      driveFileId: first?.fileId || null,
+      driveFileLink: first?.link || null
+    });
   };
 
   const handleTriggerDirectSync = async () => {
@@ -171,12 +220,8 @@ export function useInvoiceSync({
     if (!itemToSync) return;
 
     if (!isDraftPhaseValid(itemToSync.metadata)) {
-      if (itemToSync.driveFileId) {
-        setError("Already uploaded with an invalid phase. Delete this draft and its PDF in Invoice Uploads, then rescan.");
-      } else {
-        const desc = `'${itemToSync.metadata?.vendor || 'Draft'} – $${Number(itemToSync.metadata?.amount || 0).toFixed(2)}'`;
-        setError(`${desc} needs a phase before it can sync.`);
-      }
+      const desc = `'${itemToSync.metadata?.vendor || 'Draft'} – $${Number(itemToSync.metadata?.amount || 0).toFixed(2)}'`;
+      setError(`${desc} needs a phase before it can sync.`);
       return;
     }
 
@@ -199,79 +244,52 @@ export function useInvoiceSync({
 
     setUploadStatusText('Uploading PDF...');
 
-    let driveUploadResult = null;
+    let uploadedAny = Object.keys(getDraftUploads(itemToSync)).length > 0;
     try {
-      if (itemToSync.driveFileId) {
-        driveUploadResult = {
-          hasDriveUpload: true,
-          driveFileId: itemToSync.driveFileId,
-          webViewLink: itemToSync.driveFileLink,
-          logs: buildHistoryLogs(itemToSync.metadata, {
-            idPrefix: itemToSync.driveFileId,
-            link: itemToSync.driveFileLink,
-            draftId: itemToSync.id
-          })
-        };
-      } else {
-        driveUploadResult = await syncInvoiceDocument({
-          item: itemToSync,
-          googleToken,
-          selectedFolder,
-          projects
-        });
-
-        if (updateStagedItem && driveUploadResult.driveFileId) {
-          updateStagedItem(id, {
-            driveFileId: driveUploadResult.driveFileId,
-            driveFileLink: driveUploadResult.webViewLink
-          });
+      const driveUploadResult = await syncInvoiceDocument({
+        item: itemToSync,
+        googleToken,
+        selectedFolder,
+        projects,
+        onUploaded: (uploads) => {
+          uploadedAny = true;
+          rememberUploads(id, uploads);
         }
-      }
+      });
 
       if (!driveUploadResult.hasDriveUpload) {
-        saveHistory([...driveUploadResult.logs, ...history]);
+        addToHistory(driveUploadResult.logs);
         removeStagedItem(id);
         setSuccess(driveUploadResult.successMessage);
         setTimeout(() => setSuccess(null), 4000);
         return;
       }
 
+      // Every lot this receipt went to gets its Sheet updated now (splits can go to other houses)
       setUploadStatusText('Updating spreadsheet...');
+      const syncedDraft = { ...itemToSync, uploads: driveUploadResult.uploads };
+      const result = await syncUploadedInvoicesForFolders(
+        googleToken,
+        sheetFolders(foldersToSync([syncedDraft]), activeProject, projects)
+      );
+      const failure = draftSyncFailure(syncedDraft, result.failed, result.folderErrors);
 
-      if (!targetFolderId) {
-        throw new Error('Please select an active project folder before syncing.');
-      }
-
-      if (!googleToken) {
-        throw new Error('Connect Google Drive to sync with your spreadsheet.');
-      }
-
-      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId, linkedSheetFor(activeProject, targetFolderId));
-      const targetFileId = driveUploadResult.driveFileId || itemToSync.driveFileId;
-      const targetFailure = (result.failed || []).find(f => f.fileId === targetFileId);
-
-      if (targetFailure) {
-        if (updateStagedItem) {
-          updateStagedItem(id, {
-            driveFileId: targetFileId,
-            driveFileLink: driveUploadResult.webViewLink || itemToSync.driveFileLink,
-            sheetSyncError: targetFailure.reason
-          });
-        }
+      if (failure) {
+        if (updateStagedItem) updateStagedItem(id, { sheetSyncError: failure });
         setHasUnprocessedUploads(true);
         setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, true);
-        setError(`PDF saved to Drive, but spreadsheet sync failed: ${targetFailure.reason}. Tap to retry.`);
+        setError(`PDF saved to Drive, but spreadsheet sync failed: ${failure}. Tap to retry.`);
         return;
       }
 
-      // Successful for this item: read the Sheet back to confirm the rows really landed
+      // Every split made it: read each Sheet back to confirm the rows really landed
       setUploadStatusText('Checking the spreadsheet...');
-      const checkedLogs = await checkAgainstSheet(googleToken, result.spreadsheetId, driveUploadResult.logs);
-      saveHistory([...checkedLogs, ...history]);
+      const checkedLogs = await checkAgainstSheets(googleToken, result.spreadsheetByFolder, driveUploadResult.logs);
+      addToHistory(checkedLogs);
       removeStagedItem(id);
       const oneShotWarning = checkWarning(checkedLogs);
 
-      const hasOtherFailures = (result.failed || []).length > 0;
+      const hasOtherFailures = result.failed.length > 0;
       setHasUnprocessedUploads(hasOtherFailures);
       setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasOtherFailures);
 
@@ -289,17 +307,12 @@ export function useInvoiceSync({
       console.error('One-shot sync failed:', err);
       if (isAuthError(err)) {
         handleSessionExpired();
+      } else if (uploadedAny && updateStagedItem) {
+        // Files already in Drive stay recorded on the draft, so Retry finishes the job without duplicates
+        updateStagedItem(id, { sheetSyncError: err.message || 'Sync did not finish' });
+        setError(`Sync did not finish: ${err.message}. Tap to retry.`);
       } else {
-        if (driveUploadResult?.hasDriveUpload && updateStagedItem) {
-          updateStagedItem(id, {
-            driveFileId: driveUploadResult.driveFileId || itemToSync.driveFileId,
-            driveFileLink: driveUploadResult.webViewLink || itemToSync.driveFileLink,
-            sheetSyncError: err.message || 'Spreadsheet sync failed'
-          });
-          setError(`PDF saved to Drive, but spreadsheet sync failed: ${err.message}. Tap to retry.`);
-        } else {
-          setError(getDriveErrorMessage(err, 'sync document'));
-        }
+        setError(getDriveErrorMessage(err, 'sync document'));
       }
     } finally {
       setUploading(null);
@@ -369,7 +382,7 @@ export function useInvoiceSync({
         allOfflineLogs.push(...result.logs);
         successfulOfflineIds.push(item.id);
       }
-      saveHistory([...allOfflineLogs, ...history]);
+      addToHistory(allOfflineLogs);
       if (typeof removeStagedItems === 'function' && successfulOfflineIds.length > 0) {
         removeStagedItems(successfulOfflineIds);
       } else {
@@ -383,60 +396,37 @@ export function useInvoiceSync({
       return;
     }
 
+    const draftsWithUploads = new Set(
+      validPhaseDrafts.filter(item => Object.keys(getDraftUploads(item)).length > 0).map(item => item.id)
+    );
     try {
       const allLogs = [];
-      const successfulUploadIds = [];
       const uploadedDrafts = [];
 
       for (let i = 0; i < validPhaseDrafts.length; i++) {
         const item = validPhaseDrafts[i];
         setUploadStatusText(`Uploading PDF (${i + 1}/${validPhaseDrafts.length})...`);
 
-        if (item.driveFileId) {
-          successfulUploadIds.push(item.id);
-          uploadedDrafts.push(item);
-          allLogs.push(...buildHistoryLogs(item.metadata, {
-            idPrefix: item.driveFileId,
-            link: item.driveFileLink,
-            draftId: item.id
-          }));
-        } else {
-          try {
-            const uploadRes = await syncInvoiceDocument({
-              item,
-              googleToken,
-              selectedFolder,
-              projects
+        try {
+          const uploadRes = await syncInvoiceDocument({
+            item,
+            googleToken,
+            selectedFolder,
+            projects,
+            onUploaded: (uploads) => {
+              draftsWithUploads.add(item.id);
+              rememberUploads(item.id, uploads);
+            }
+          });
+          uploadedDrafts.push({ ...item, uploads: uploadRes.uploads });
+          allLogs.push(...uploadRes.logs);
+        } catch (uploadErr) {
+          if (isAuthError(uploadErr)) throw uploadErr;
+          console.error(`Failed to upload draft ${item.id}:`, uploadErr);
+          if (updateStagedItem) {
+            updateStagedItem(item.id, {
+              sheetSyncError: `Upload to Drive failed: ${uploadErr.message || 'Network error'}`
             });
-            if (uploadRes && uploadRes.hasDriveUpload && uploadRes.driveFileId) {
-              const updatedItem = {
-                ...item,
-                driveFileId: uploadRes.driveFileId,
-                driveFileLink: uploadRes.webViewLink
-              };
-              successfulUploadIds.push(item.id);
-              uploadedDrafts.push(updatedItem);
-              if (updateStagedItem) {
-                updateStagedItem(item.id, {
-                  driveFileId: uploadRes.driveFileId,
-                  driveFileLink: uploadRes.webViewLink
-                });
-              }
-              allLogs.push(...uploadRes.logs);
-            } else {
-              if (updateStagedItem) {
-                updateStagedItem(item.id, {
-                  sheetSyncError: 'Upload to Drive failed (no Drive file created)'
-                });
-              }
-            }
-          } catch (uploadErr) {
-            console.error(`Failed to upload draft ${item.id}:`, uploadErr);
-            if (updateStagedItem) {
-              updateStagedItem(item.id, {
-                sheetSyncError: `Upload to Drive failed: ${uploadErr.message || 'Network error'}`
-              });
-            }
           }
         }
       }
@@ -445,28 +435,22 @@ export function useInvoiceSync({
         throw new Error('Failed to upload document PDFs to Google Drive.');
       }
 
+      // Every lot these receipts went to gets its Sheet updated (splits can go to other houses)
       setUploadStatusText('Updating spreadsheet...');
+      const result = await syncUploadedInvoicesForFolders(
+        googleToken,
+        sheetFolders(foldersToSync(uploadedDrafts), activeProject, projects)
+      );
 
-      if (!targetFolderId) {
-        throw new Error('Please select an active project folder before syncing.');
-      }
+      // A draft only leaves Drafts when every one of its splits made it into its Sheet
+      const { successfulDrafts, failedDrafts } = partitionDraftsBySyncResult(uploadedDrafts, result.failed, result.folderErrors);
 
-      if (!googleToken) {
-        throw new Error('Connect Google Drive to sync with your spreadsheet.');
-      }
-
-      const result = await syncUploadedInvoicesDirectly(googleToken, targetFolderId, linkedSheetFor(activeProject, targetFolderId));
-
-      // Partition ONLY drafts that actually uploaded to Drive
-      const { successfulDrafts, failedDrafts } = partitionDraftsBySyncResult(uploadedDrafts, result.failed);
-
-      // Save history and remove only successful drafts
       const successfulIds = successfulDrafts.map(d => d.id);
-      // History gets only the drafts that really synced (failed ones stay in Drafts), checked against the Sheet
+      // History gets only the drafts that really synced (failed ones stay in Drafts), checked against each Sheet
       const successfulLogs = allLogs.filter(log => !log.draftId || successfulIds.includes(log.draftId));
       setUploadStatusText('Checking the spreadsheet...');
-      const checkedLogs = await checkAgainstSheet(googleToken, result.spreadsheetId, successfulLogs);
-      saveHistory([...checkedLogs, ...history]);
+      const checkedLogs = await checkAgainstSheets(googleToken, result.spreadsheetByFolder, successfulLogs);
+      addToHistory(checkedLogs);
       const syncAllWarning = checkWarning(checkedLogs);
       if (typeof removeStagedItems === 'function' && successfulIds.length > 0) {
         removeStagedItems(successfulIds);
@@ -481,7 +465,7 @@ export function useInvoiceSync({
         });
       }
 
-      const hasFailures = (result.failed || []).length > 0;
+      const hasFailures = result.failed.length > 0 || failedDrafts.length > 0;
       setHasUnprocessedUploads(hasFailures);
       setStoredBoolean(APP_STORAGE_KEYS.hasUnprocessedUploads, hasFailures);
 
@@ -490,11 +474,12 @@ export function useInvoiceSync({
       if (syncAllWarning) {
         setError(syncAllWarning);
       } else if (hasFailures) {
-        if (result.processedCount > 0) {
-          const docWord = result.processedCount === 1 ? 'document' : 'documents';
-          setSuccess(`Synced ${result.processedCount} ${docWord}. ${result.failed.length} file(s) require attention.${phaseNote}${growthNoteFor(result)}`);
+        const attention = Math.max(failedDrafts.length, result.failed.length);
+        if (successfulIds.length > 0) {
+          const docWord = successfulIds.length === 1 ? 'document' : 'documents';
+          setSuccess(`Synced ${successfulIds.length} ${docWord}. ${attention} file(s) require attention.${phaseNote}${growthNoteFor(result)}`);
         } else {
-          setError(`Spreadsheet sync failed for ${result.failed.length} document(s). Drafts remain safely on device to retry.`);
+          setError(`Spreadsheet sync failed for ${attention} document(s). Drafts remain safely on device to retry.`);
         }
       } else {
         const docWord = successfulIds.length === 1 ? 'document' : 'documents';
@@ -508,7 +493,7 @@ export function useInvoiceSync({
       } else {
         if (updateStagedItem) {
           validPhaseDrafts.forEach(draft => {
-            if (draft.driveFileId) {
+            if (draftsWithUploads.has(draft.id)) {
               updateStagedItem(draft.id, { sheetSyncError: err.message || 'Spreadsheet sync failed' });
             }
           });

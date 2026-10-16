@@ -1,8 +1,10 @@
 import React from 'react';
 import { Camera, Image, Plus, X } from 'lucide-react';
 import { STATUS_MESSAGES } from '../services/appErrors';
+import DrivePhoto from './DrivePhoto';
 
 export default function DashboardPhotoGallery({
+  googleToken,
   activeGalleryPhase,
   photos,
   loadingPhotos,
@@ -110,12 +112,11 @@ export default function DashboardPhotoGallery({
                         backgroundColor: 'var(--color-zinc-900)'
                       }}
                     >
-                      <img
-                        src={photo.thumbnailLink}
+                      <DrivePhoto
+                        googleToken={googleToken}
+                        fileId={photo.id}
+                        thumbnailLink={photo.thumbnailLink}
                         alt={photo.name}
-                        loading="lazy"
-                        decoding="async"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     </div>
                   ))}
@@ -185,17 +186,16 @@ export default function DashboardPhotoGallery({
             <X size={20} />
           </button>
 
-          <img
-            src={fullscreenPhoto.thumbnailLink ? fullscreenPhoto.thumbnailLink.replace(/=s\d+$/, '=s1200') : fullscreenPhoto.webViewLink}
-            alt="Fullscreen view"
-            style={{
-              maxWidth: '100%',
-              maxHeight: '85vh',
-              objectFit: 'contain',
-              borderRadius: '8px'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'center' }}>
+            <DrivePhoto
+              googleToken={googleToken}
+              fileId={fullscreenPhoto.id}
+              alt="Fullscreen view"
+              full
+              placeholderSize={32}
+              style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '8px' }}
+            />
+          </div>
 
           <div style={{ color: 'var(--color-zinc-400)', fontSize: '0.8rem', marginTop: '12px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
             <a

@@ -51,6 +51,26 @@ export function compressImage(file, maxWidth = 1200, maxHeight = 1200, quality =
   });
 }
 
+/**
+ * Album and X-Ray pin photos: shrunk from a full phone photo (3-8 MB) to about 0.5-1 MB,
+ * still large enough to read wire labels and pipe sizes when zoomed in.
+ */
+export function compressSitePhoto(file) {
+  return compressImage(file, 2400, 2400, 0.85);
+}
+
+/**
+ * True for Google's small Drive thumbnails (lh3.googleusercontent.com), which the app's security
+ * rules allow. They are short-lived, so they are shown but never saved.
+ */
+export function isGoogleThumbnail(link) {
+  try {
+    return new URL(link).hostname.endsWith('.googleusercontent.com');
+  } catch {
+    return false;
+  }
+}
+
 /** Reads a file as a data: URL (kept on the phone for offline use). */
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {

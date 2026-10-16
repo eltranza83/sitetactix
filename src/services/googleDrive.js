@@ -111,6 +111,8 @@ export async function uploadFileToDrive(accessToken, folderId, fileName, mimeTyp
 
     if (!uploadResponse.ok) {
       const errText = await uploadResponse.text();
+      // The empty file already carries the receipt details, so a sync would log it: remove it
+      await trashDriveFile(accessToken, fileId).catch(err => console.warn('Could not remove half-uploaded file:', err));
       throw new Error(`Failed to upload file media: ${errText}`);
     }
 
@@ -525,20 +527,25 @@ export async function findOrCreateFolder(accessToken, folderName, parentId) {
 export async function uploadPhotoToPhaseFolder(accessToken, rootFolderId, categoryName, phaseName, fileName, mimeType, fileBlob) {
   // 1. Ensure X-Ray Photos exists inside App Folders
   const xRayFolderId = await ensureAppSubfolder(accessToken, rootFolderId, X_RAY_FOLDER_NAME);
-  
+
   // 2. Find or create "Project_Photos" inside "X-Ray Photos"
-  const photosFolderId = await findOrCreateFolder(accessToken, 'Project_Photos', xRayFolderId);
-  
+  const photosFolderId = await findOrCreateFolder(accessToken, PROJECT_PHOTOS_FOLDER_NAME, xRayFolderId);
+
   // 3. Find or create category folder inside "Project_Photos"
-  const cleanCategoryName = categoryName.replace(/[^a-zA-Z0-9_ -]/g, '_').trim();
-  const categoryFolderId = await findOrCreateFolder(accessToken, cleanCategoryName, photosFolderId);
-  
+  const categoryFolderId = await findOrCreateFolder(accessToken, phasePhotoFolderName(categoryName), photosFolderId);
+
   // 4. Find or create phase folder inside category folder
-  const cleanPhaseName = phaseName.replace(/[^a-zA-Z0-9_ -]/g, '_').trim();
-  const phaseFolderId = await findOrCreateFolder(accessToken, cleanPhaseName, categoryFolderId);
-  
+  const phaseFolderId = await findOrCreateFolder(accessToken, phasePhotoFolderName(phaseName), categoryFolderId);
+
   // 5. Upload file to phase folder
   return await uploadFileToDrive(accessToken, phaseFolderId, fileName, mimeType, fileBlob);
+}
+
+const PROJECT_PHOTOS_FOLDER_NAME = 'Project_Photos';
+
+/** The Drive folder name for a photo category or phase. Upload and list must both use this. */
+export function phasePhotoFolderName(name) {
+  return String(name || '').replace(/[^a-zA-Z0-9_ -]/g, '_').trim();
 }
 
 /**
@@ -571,36 +578,48 @@ export async function findFolder(accessToken, folderName, parentId) {
 }
 
 /**
- * Lists all image files inside a specific phase folder in Google Drive.
+ * Lists all image files inside a specific phase folder in Google Drive
+ * (App Folders / X-Ray Photos / Project_Photos / [Category] / [Phase], where uploadPhotoToPhaseFolder puts them).
+ * Only looks: never creates a folder.
  */
 export async function listPhotosInPhase(accessToken, rootFolderId, categoryName, phaseName) {
   try {
-    const photosFolderId = await findFolder(accessToken, 'Project_Photos', rootFolderId);
+    const appFoldersId = await findFolder(accessToken, APP_FOLDERS_CONTAINER_NAME, rootFolderId);
+    if (!appFoldersId) return [];
+
+    const xRayFolderId = await findFolder(accessToken, X_RAY_FOLDER_NAME, appFoldersId);
+    if (!xRayFolderId) return [];
+
+    const photosFolderId = await findFolder(accessToken, PROJECT_PHOTOS_FOLDER_NAME, xRayFolderId);
     if (!photosFolderId) return [];
 
-    const cleanCategoryName = categoryName.replace(/[^a-zA-Z0-9_]/g, '_');
-    const categoryFolderId = await findFolder(accessToken, cleanCategoryName, photosFolderId);
+    const categoryFolderId = await findFolder(accessToken, phasePhotoFolderName(categoryName), photosFolderId);
     if (!categoryFolderId) return [];
 
-    const cleanPhaseName = phaseName.replace(/[^a-zA-Z0-9_]/g, '_');
-    const phaseFolderId = await findFolder(accessToken, cleanPhaseName, categoryFolderId);
+    const phaseFolderId = await findFolder(accessToken, phasePhotoFolderName(phaseName), categoryFolderId);
     if (!phaseFolderId) return [];
 
-    const query = `'${phaseFolderId}' in parents and mimeType contains 'image/' and trashed=false`;
-    const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name,webViewLink,thumbnailLink)&pageSize=100`;
+    const query = `'${escapeDriveQueryString(phaseFolderId)}' in parents and mimeType contains 'image/' and trashed=false`;
+    const photos = [];
+    let pageToken = '';
+    do {
+      const url = `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=nextPageToken,files(id,name,webViewLink,thumbnailLink)&orderBy=createdTime desc&pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+      if (!response.ok) {
+        throw new Error('Failed to list files in phase folder');
+      }
 
-    if (!response.ok) {
-      throw new Error('Failed to list files in phase folder');
-    }
+      const data = await response.json();
+      photos.push(...(data.files || []));
+      pageToken = data.nextPageToken || '';
+    } while (pageToken);
 
-    const data = await response.json();
-    return data.files || [];
+    return photos;
   } catch (error) {
     console.error('Failed to list photos in phase:', error);
     return [];
@@ -652,6 +671,42 @@ export async function updateFileContent(accessToken, fileId, fileBlob, mimeType)
     throw new Error(`Failed to update file content: ${await response.text()}`);
   }
   return await response.json();
+}
+
+/** A file's folders, trash state and app tags, or null when the file no longer exists. */
+export async function getDriveFileInfo(accessToken, fileId) {
+  const url = `${GOOGLE_DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}?fields=id,parents,trashed,appProperties`;
+  const response = await authenticatedDriveFetch(accessToken, url);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`Failed to read file details: ${await response.text()}`);
+  }
+  return await response.json();
+}
+
+/** Replaces an existing file's name, description and content. */
+export async function replaceDriveFile(accessToken, fileId, { fileName, mimeType, fileBlob, description }) {
+  const response = await authenticatedDriveFetch(accessToken, `${GOOGLE_DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: fileName, description })
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update file details: ${await response.text()}`);
+  }
+  await updateFileContent(accessToken, fileId, fileBlob, mimeType);
+}
+
+/** Moves a file to the Drive trash (a file that is already gone counts as done). */
+export async function trashDriveFile(accessToken, fileId) {
+  const response = await authenticatedDriveFetch(accessToken, `${GOOGLE_DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trashed: true })
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`Failed to remove file: ${await response.text()}`);
+  }
 }
 
 /**

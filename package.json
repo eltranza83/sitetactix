@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.3",
-  "releaseName": "Subdivision on Notion pages",
+  "version": "1.14.4",
+  "releaseName": "Split receipts and photo albums fixed",
   "type": "module",
   "scripts": {
     "dev": "vite",
