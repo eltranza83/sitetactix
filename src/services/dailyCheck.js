@@ -87,6 +87,27 @@ function belongsToProject(lotName, projectName) {
 
 const draftBase = (receiptId) => text(receiptId).replace(/_split_\d+$/, '');
 
+/**
+ * The scan screen's "Scanning into" card: this house's last synced receipt (and whether reading the
+ * Sheet back after sync found it), and what was synced for it today. History only: no Google call.
+ * Status: 'ok' | 'missing' | 'different' | 'unchecked' (older entries or a check that could not run).
+ */
+export function summarizeScanTarget(history = [], projectName = '', now = new Date()) {
+  const mine = (history || []).filter(log => text(projectName) && same(log?.lotName, projectName) && cents(log?.amount) > 0);
+  const last = mine.reduce((latest, log) => (!latest || text(log.syncedAt) > text(latest.syncedAt) ? log : latest), null);
+  const today = mine.filter(log => sameLocalDay(log.syncedAt, now));
+  return {
+    last: last ? {
+      vendor: text(last.vendor) || 'Receipt',
+      amount: cents(last.amount) / 100,
+      date: text(last.dateTransaction),
+      status: last.check?.status || 'unchecked'
+    } : null,
+    todayCount: today.length,
+    todayTotal: today.reduce((sum, log) => sum + cents(log.amount), 0) / 100
+  };
+}
+
 /** Other rows with the same payee, date and total as a row synced today (a receipt or check scanned twice). */
 export function findPossibleDuplicates(transactions, todaysReceiptIds) {
   const rows = transactions || [];

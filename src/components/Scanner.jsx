@@ -728,7 +728,7 @@ export default function Scanner({ onDataExtracted, onError }) {
       ) : (
         <div 
           className="scan-area" 
-          style={{ height: '320px', cursor: 'default', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '24px' }}
+          style={{ padding: '28px 20px', cursor: 'default', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '24px' }}
           onClick={(e) => e.stopPropagation()} // prevent clicking background
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '280px', margin: '0 auto' }}>

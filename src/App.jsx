@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { Camera, Settings as SettingsIcon, Sparkles, Folder, LogIn, FileText, TrendingUp, MapPin, Check, Trash2, X, ChevronDown, CloudLightning } from 'lucide-react';
 import StagingCard from './components/StagingCard';
+import ScanTargetCard from './components/ScanTargetCard';
 import { useGoogleAuth } from './hooks/useGoogleAuth';
 import { useInvoiceSync } from './hooks/useInvoiceSync';
 import { useInviteGate } from './hooks/useInviteGate';
@@ -492,6 +493,12 @@ export default function App() {
                     setInvoicesSubTab('staged');
                   }}
                   onError={setError}
+                />
+
+                <ScanTargetCard
+                  projectName={activeProject?.name || ''}
+                  history={history}
+                  onOpenDashboard={() => setActiveTab('dashboard')}
                 />
 
                 {/* Google Drive Sign In / Reconnect Banner if not signed in */}

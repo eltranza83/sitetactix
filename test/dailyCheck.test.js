@@ -158,3 +158,36 @@ describe('reading the Sheet Dashboard tab', () => {
     assert.deepEqual(parseSheetDashboardTotals([['Spent  to date ', 10]]), { spent: 10, owed: null });
   });
 });
+
+describe('Scanning into card (History only)', () => {
+  const now = new Date('2026-10-15T15:00:00');
+  const log = (over) => ({ lotName: 'Lot 99 -New Test', vendor: 'Home Depot', amount: 10, dateTransaction: '2026-10-15', syncedAt: '2026-10-15T14:00:00', ...over });
+
+  test('shows the newest receipt for this house with its Sheet check, and today\'s count and total', async () => {
+    const { summarizeScanTarget } = await import('../src/services/dailyCheck.js');
+    const result = summarizeScanTarget([
+      log({ vendor: 'Lowes', amount: 20.5, syncedAt: '2026-10-15T09:00:00', check: { status: 'ok' } }),
+      log({ vendor: 'Home Depot', amount: 156.6, syncedAt: '2026-10-15T14:30:00', check: { status: 'ok' } }),
+      log({ vendor: 'Old', amount: 5, syncedAt: '2026-10-12T10:00:00' }),
+      log({ lotName: 'Lot 3', vendor: 'Other house', amount: 999, syncedAt: '2026-10-15T14:59:00' })
+    ], 'lot 99 -new test', now);
+
+    assert.deepEqual(result.last, { vendor: 'Home Depot', amount: 156.6, date: '2026-10-15', status: 'ok' });
+    assert.equal(result.todayCount, 2);
+    assert.equal(result.todayTotal, 177.1);
+  });
+
+  test('another house\'s receipt or an entry with no house is never shown', async () => {
+    const { summarizeScanTarget } = await import('../src/services/dailyCheck.js');
+    const result = summarizeScanTarget([log({ lotName: 'Lot 3' }), log({ lotName: '' })], 'Lot 99 -New Test', now);
+    assert.equal(result.last, null);
+    assert.equal(result.todayCount, 0);
+  });
+
+  test('a receipt the Sheet check could not find is reported, unchecked ones say so', async () => {
+    const { summarizeScanTarget } = await import('../src/services/dailyCheck.js');
+    assert.equal(summarizeScanTarget([log({ check: { status: 'missing' } })], 'Lot 99 -New Test', now).last.status, 'missing');
+    assert.equal(summarizeScanTarget([log({})], 'Lot 99 -New Test', now).last.status, 'unchecked');
+    assert.equal(summarizeScanTarget([], '', now).last, null);
+  });
+});
