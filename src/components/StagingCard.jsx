@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, CloudLightning, FileText, CheckCircle, Trash2, AlertCircle } from 'lucide-react';
+import { Edit2, CloudLightning, FileText, CheckCircle, Trash2, AlertCircle, RefreshCw } from 'lucide-react';
 import { STATUS_MESSAGES } from '../services/appErrors';
 import { isDraftPhaseValid, TRADE_SECTIONS_CONFIG } from '../services/editFormHelpers';
 
@@ -178,8 +178,16 @@ export default function StagingCard({
           <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-zinc-200)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {metadata.vendor || 'Unknown Vendor'}
           </span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--color-zinc-500)' }}>
-            {metadata.date || 'No Date'}
+          <span style={{ fontSize: '0.7rem', color: 'var(--color-zinc-500)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: '4px' }}>
+            <span>{metadata.date || 'No Date'}</span>
+            {stagedItem.readByBackupAi && (
+              <span
+                title="Google's main AI was busy, so a backup read this receipt. Check the amounts before syncing."
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--color-sky-400)', whiteSpace: 'nowrap' }}
+              >
+                <RefreshCw size={11} aria-hidden="true" /> Backup AI
+              </span>
+            )}
           </span>
         </div>
 

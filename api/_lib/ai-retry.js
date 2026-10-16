@@ -18,7 +18,8 @@ export async function fetchWithExponentialBackoff(
   const remainingMs = () => deadlineMs - (Date.now() - startedAt);
   // A retry after a timeout only makes sense with at least this much time left
   const MIN_RETRY_WINDOW_MS = 8000;
-  const { timeoutMs: _timeout, deadlineMs: _deadline, ...requestOptions } = options;
+  // retryAfterTimeout false: a model that hung once is not asked again (a backup model is waiting)
+  const { timeoutMs: _timeout, deadlineMs: _deadline, retryAfterTimeout = true, ...requestOptions } = options;
   let lastError = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -41,7 +42,7 @@ export async function fetchWithExponentialBackoff(
     } catch (err) {
       if (err.name === 'TimeoutError' || err.name === 'AbortError') {
         // A slow answer gets one more try when there is still time; otherwise stop with a clear message
-        if (attempt === maxRetries || options.signal || remainingMs() < MIN_RETRY_WINDOW_MS) {
+        if (attempt === maxRetries || options.signal || !retryAfterTimeout || remainingMs() < MIN_RETRY_WINDOW_MS) {
           throw new HttpError(504, `AI request timed out after ${Math.round((Date.now() - startedAt) / 1000)} seconds. Please retry.`);
         }
         lastError = 'timed out';
@@ -71,38 +72,52 @@ export function geminiUrl(model) {
   return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 }
 
-// Google answers these when a model is overloaded, out of quota or failing: the backup model may still work
-const BACKUP_MODEL_STATUSES = [429, 500, 503];
+// Google answers these when a model is overloaded, out of quota, failing or stuck: the backup model may still work
+const BACKUP_MODEL_STATUSES = [429, 500, 502, 503, 504];
 // The backup model is only tried when at least this much of the time limit is left
 const MIN_BACKUP_WINDOW_MS = 10000;
 
 /**
  * Sends one Gemini request to the main model (with its retries). If Google still says that model
- * is busy, out of quota or failing, the same request goes to the backup model. All tries together
- * stay within options.deadlineMs (or timeoutMs), so the server's time limit is never passed.
+ * is busy, out of quota, failing or stuck, or the model does not answer in time (or the connection
+ * drops), the same request goes to the backup model. A model that hangs is not retried when a
+ * backup is waiting, so the backup still has time. All tries together stay within
+ * options.deadlineMs (or timeoutMs), so the server's time limit is never passed.
  * @param {string[]} models - main model first, then the backup (duplicates and blanks are skipped)
  * @param {(model: string) => string} urlForModel
+ * @returns {Promise<{ response: Response, model: string }>} the last answer and which model gave it
  */
 export async function fetchWithBackupModel(models, urlForModel, options = {}, retryConfig, fetchImpl = fetch) {
   const modelList = [...new Set((models || []).filter(Boolean))];
   const timeoutMs = options.timeoutMs || 25000;
   const deadlineMs = options.deadlineMs || timeoutMs;
   const startedAt = Date.now();
-  let response = null;
+  let last = null;
 
   for (const [index, model] of modelList.entries()) {
     const remainingMs = deadlineMs - (Date.now() - startedAt);
+    const hasBackup = index < modelList.length - 1;
     if (index > 0 && remainingMs < MIN_BACKUP_WINDOW_MS) break;
-    response = await fetchWithExponentialBackoff(
-      urlForModel(model),
-      { ...options, timeoutMs: Math.min(timeoutMs, remainingMs), deadlineMs: remainingMs },
-      retryConfig,
-      fetchImpl
-    );
-    if (response.ok || !BACKUP_MODEL_STATUSES.includes(response.status)) return response;
-    if (index < modelList.length - 1) {
-      console.warn(`[AI] ${model} answered ${response.status}; trying the backup model ${modelList[index + 1]}.`);
+
+    try {
+      const response = await fetchWithExponentialBackoff(
+        urlForModel(model),
+        { ...options, timeoutMs: Math.min(timeoutMs, remainingMs), deadlineMs: remainingMs, retryAfterTimeout: !hasBackup },
+        retryConfig,
+        fetchImpl
+      );
+      last = { response, model };
+      if (response.ok || !BACKUP_MODEL_STATUSES.includes(response.status)) return last;
+      if (hasBackup) console.warn(`[AI] ${model} answered ${response.status}; trying the backup model ${modelList[index + 1]}.`);
+    } catch (err) {
+      // No answer in time, or the connection dropped: the backup gets the rest of the time
+      const canTryBackup = hasBackup && deadlineMs - (Date.now() - startedAt) >= MIN_BACKUP_WINDOW_MS;
+      if (!canTryBackup) {
+        if (last) return last;
+        throw err;
+      }
+      console.warn(`[AI] ${model} did not answer (${err?.message || err}); trying the backup model ${modelList[index + 1]}.`);
     }
   }
-  return response;
+  return last;
 }

@@ -43,7 +43,7 @@ test('requireScannerAccess verifies identity and an access document', async () =
 
 test('generateDocumentData sends inline bytes and parses Gemini JSON', async () => {
   let requestBody;
-  const data = await generateDocumentData({
+  const { data } = await generateDocumentData({
     bytes: new Uint8Array([1, 2, 3]),
     mimeType: 'image/png',
     apiKey: 'server-key',
