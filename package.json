@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.7",
-  "releaseName": "Backup AI model when Google is busy",
+  "version": "1.14.8",
+  "releaseName": "Scanning into card",
   "type": "module",
   "scripts": {
     "dev": "vite",
