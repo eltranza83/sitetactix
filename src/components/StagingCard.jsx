@@ -342,24 +342,7 @@ export default function StagingCard({
         </div>
       </div>
 
-      {!hasValidPhase && stagedItem.driveFileId && (
-        <div style={{
-          fontSize: '0.72rem',
-          color: '#f87171',
-          backgroundColor: 'rgba(239, 68, 68, 0.12)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: '6px',
-          padding: '6px 10px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px'
-        }}>
-          <AlertCircle size={13} style={{ flexShrink: 0, color: '#f87171' }} />
-          <span>Already uploaded with an invalid phase. Delete this draft and its PDF in Invoice Uploads, then rescan.</span>
-        </div>
-      )}
-
-      {!hasValidPhase && !stagedItem.driveFileId && (
+      {!hasValidPhase && (
         <div style={{
           fontSize: '0.72rem',
           color: '#fbbf24',

@@ -48,6 +48,8 @@ export default function IssueFormModal({
   }, [authImage.src, photoFile]);
 
   const fileInputRef = useRef(null);
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
 
   // Get phases for the selected category
   const phases = TRADE_SECTIONS_CONFIG[category]?.phases || [];
@@ -136,6 +138,8 @@ export default function IssueFormModal({
 
   const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
+    // Clear the picker so choosing the same photo again still counts as a change
+    e.target.value = '';
     if (file) {
       try {
         const compressed = await compressImage(file, 1024, 1024, 0.7);
@@ -171,27 +175,35 @@ export default function IssueFormModal({
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    // One save at a time: a second tap while the photo uploads would log the item twice
+    if (!title.trim() || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
 
-    onSave({
-      title: title.trim(),
-      description: description.trim(),
-      category,
-      tradePhase,
-      contractorName: contractorName.trim(),
-      phoneNumber: phoneNumber.trim(),
-      priority,
-      dueDate: dueDate.trim(),
-      photoFile,
-      floorPlanX: Number.isFinite(initialFloorLocation?.x)
-        ? initialFloorLocation.x
-        : pinCoordinate(editingIssue?.floorPlanX),
-      floorPlanY: Number.isFinite(initialFloorLocation?.y)
-        ? initialFloorLocation.y
-        : pinCoordinate(editingIssue?.floorPlanY)
-    });
+    try {
+      await onSave({
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        tradePhase,
+        contractorName: contractorName.trim(),
+        phoneNumber: phoneNumber.trim(),
+        priority,
+        dueDate: dueDate.trim(),
+        photoFile,
+        floorPlanX: Number.isFinite(initialFloorLocation?.x)
+          ? initialFloorLocation.x
+          : pinCoordinate(editingIssue?.floorPlanX),
+        floorPlanY: Number.isFinite(initialFloorLocation?.y)
+          ? initialFloorLocation.y
+          : pinCoordinate(editingIssue?.floorPlanY)
+      });
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
 
@@ -540,6 +552,7 @@ export default function IssueFormModal({
               className="btn btn-secondary"
               style={{ flex: 1, padding: '10px' }}
               onClick={onClose}
+              disabled={saving}
             >
               Cancel
             </button>
@@ -547,9 +560,10 @@ export default function IssueFormModal({
               type="submit"
               className="btn btn-primary"
               style={{ flex: 2, padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              disabled={saving}
             >
               <Check size={16} />
-              <span>{isEditing ? 'Save Changes' : 'Log Issue'}</span>
+              <span>{saving ? 'Saving…' : (isEditing ? 'Save Changes' : 'Log Issue')}</span>
             </button>
           </div>
         </form>

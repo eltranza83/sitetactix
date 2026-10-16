@@ -29,3 +29,14 @@ test('rawBlobCache properly caches and retrieves raw Blob instances', () => {
   assert.equal(getCachedDriveBlob('test_file_123'), dummyBlob);
   assert.equal(getCachedDriveBlob('non_existent_file'), undefined);
 });
+
+test('the photo cache drops the least recently used photos once it passes 40 MB', () => {
+  const tenMb = (id) => ({ size: 10 * 1024 * 1024, type: 'image/jpeg', id });
+  ['lru_a', 'lru_b', 'lru_c', 'lru_d'].forEach(id => setCachedDriveBlob(id, tenMb(id)));
+  // Opening photo A again makes it the most recent, so B is now the oldest
+  assert.ok(getCachedDriveBlob('lru_a'));
+  setCachedDriveBlob('lru_e', tenMb('lru_e'));
+
+  assert.equal(getCachedDriveBlob('lru_b'), undefined);
+  ['lru_a', 'lru_c', 'lru_d', 'lru_e'].forEach(id => assert.ok(getCachedDriveBlob(id), id));
+});

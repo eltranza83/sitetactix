@@ -12,6 +12,7 @@ import {
 } from '../services/blueprintDrive';
 import { normalizeZoomScale } from '../services/blueprintViewport';
 import { confirmAction } from '../services/confirmAction';
+import { compressSitePhoto } from '../services/imageFiles';
 
 const DEFAULT_PIN_FORM = {
   tradeCategory: 'Mechanicals_&_Utilities',
@@ -155,6 +156,8 @@ export function useBlueprintPinboard({
 
   const handleUploadAlbumPhoto = async (e) => {
     const file = e.target.files[0];
+    // Clear the picker so choosing the same photo again still counts as a change
+    e.target.value = '';
     if (!file || !activeAlbumPhase) return;
 
     setUploadingAlbumPhoto(true);
@@ -164,7 +167,7 @@ export function useBlueprintPinboard({
         accessToken: googleToken,
         projectFolderId: selectedFolder.id,
         activeAlbumPhase,
-        file
+        file: await compressSitePhoto(file)
       });
       await loadPhasePhotos(activeAlbumPhase.category, activeAlbumPhase.phase);
       setSuccess('Progress photo uploaded successfully!');
@@ -234,12 +237,14 @@ export function useBlueprintPinboard({
     }));
   };
 
-  const handlePhotoSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+  const handlePhotoSelect = async (e) => {
+    const picked = Array.from(e.target.files || []);
+    // Clear the picker so choosing the same photo again still counts as a change
+    e.target.value = '';
+    if (!picked.length) return;
 
-    const nextPhotos = [...selectedPhotos, ...files];
-    setSelectedPhotos(nextPhotos);
+    const files = await Promise.all(picked.map(compressSitePhoto));
+    setSelectedPhotos(prev => [...prev, ...files]);
 
     const fileReaders = files.map((file) => new Promise((resolve) => {
       const reader = new FileReader();

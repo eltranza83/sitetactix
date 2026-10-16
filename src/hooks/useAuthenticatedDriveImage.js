@@ -1,15 +1,53 @@
 import { useState, useEffect } from 'react';
 import { fetchDriveFileBlob } from '../services/googleDrive.js';
 
-// In-memory cache for downloaded Blobs so repeated mounts do not re-fetch over the network
+// Downloaded photos kept in memory so reopening an album does not download them again.
+// Capped (oldest dropped first) so a long day of browsing photos cannot fill the phone's memory.
+const MAX_CACHED_BYTES = 40 * 1024 * 1024;
+const MAX_CACHED_PHOTOS = 60;
 const rawBlobCache = new Map();
+let cachedBytes = 0;
 
 export function getCachedDriveBlob(fileId) {
-  return rawBlobCache.get(fileId);
+  const blob = rawBlobCache.get(fileId);
+  if (blob) {
+    // Most recently used goes to the back of the line
+    rawBlobCache.delete(fileId);
+    rawBlobCache.set(fileId, blob);
+  }
+  return blob;
 }
 
 export function setCachedDriveBlob(fileId, blob) {
+  if (rawBlobCache.has(fileId)) {
+    cachedBytes -= rawBlobCache.get(fileId)?.size || 0;
+    rawBlobCache.delete(fileId);
+  }
   rawBlobCache.set(fileId, blob);
+  cachedBytes += blob?.size || 0;
+  while (rawBlobCache.size > 1 && (cachedBytes > MAX_CACHED_BYTES || rawBlobCache.size > MAX_CACHED_PHOTOS)) {
+    const [oldestId, oldestBlob] = rawBlobCache.entries().next().value;
+    rawBlobCache.delete(oldestId);
+    cachedBytes -= oldestBlob?.size || 0;
+  }
+}
+
+// At most a few photo downloads at once, so a full album does not choke a weak signal
+const MAX_PARALLEL_DOWNLOADS = 3;
+let activeDownloads = 0;
+const waitingDownloads = [];
+
+async function downloadWithLimit(googleToken, fileId) {
+  if (activeDownloads >= MAX_PARALLEL_DOWNLOADS) {
+    await new Promise(resolve => waitingDownloads.push(resolve));
+  }
+  activeDownloads++;
+  try {
+    return await fetchDriveFileBlob(googleToken, fileId);
+  } finally {
+    activeDownloads--;
+    waitingDownloads.shift()?.();
+  }
 }
 
 export function extractDriveFileId(url) {
@@ -18,7 +56,12 @@ export function extractDriveFileId(url) {
   return match ? match[1] : null;
 }
 
-export function useAuthenticatedDriveImage({ googleToken, fileId, url, base64 }) {
+/**
+ * A Drive photo loaded with the user's Google sign-in (works for private files). Returns a local
+ * blob: address, never a drive.google.com one (the app's security rules block those).
+ * With enabled false nothing downloads yet (e.g. until the photo scrolls into view).
+ */
+export function useAuthenticatedDriveImage({ googleToken, fileId, url, base64, enabled = true }) {
   const [objectUrl, setObjectUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -28,27 +71,22 @@ export function useAuthenticatedDriveImage({ googleToken, fileId, url, base64 })
   const resolvedFileId = fileId || extractDriveFileId(url);
 
   useEffect(() => {
-    if (directSrc) {
-      setObjectUrl(null);
-      return;
-    }
-
-    if (!resolvedFileId || !googleToken) {
+    if (directSrc || !enabled || !resolvedFileId || !googleToken) {
       setObjectUrl(null);
       return;
     }
 
     let active = true;
     let localUrl = null;
+    setError(null);
 
     const loadBlob = async () => {
-      // 1. Check in-memory raw Blob cache
-      let blob = rawBlobCache.get(resolvedFileId);
+      let blob = getCachedDriveBlob(resolvedFileId);
       if (!blob) {
         setLoading(true);
         try {
-          blob = await fetchDriveFileBlob(googleToken, resolvedFileId);
-          rawBlobCache.set(resolvedFileId, blob);
+          blob = await downloadWithLimit(googleToken, resolvedFileId);
+          setCachedDriveBlob(resolvedFileId, blob);
         } catch (err) {
           if (active) {
             console.warn('[useAuthenticatedDriveImage] Failed to load Drive image blob:', err);
@@ -74,7 +112,7 @@ export function useAuthenticatedDriveImage({ googleToken, fileId, url, base64 })
         URL.revokeObjectURL(localUrl);
       }
     };
-  }, [googleToken, resolvedFileId, directSrc]);
+  }, [googleToken, resolvedFileId, directSrc, enabled]);
 
   return {
     src: directSrc || objectUrl || null,

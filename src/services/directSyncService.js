@@ -19,6 +19,7 @@ import {
   getReceiptId
 } from './sheetV2.js';
 import { growPhaseSections } from './phaseGrowth.js';
+import { isAuthError } from './appErrors.js';
 
 const GOOGLE_SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
@@ -290,4 +291,33 @@ export async function syncUploadedInvoicesDirectly(accessToken, projectFolderId,
   }
 
   return { ok: true, processedCount, failed, phaseGrowth, growthNote, spreadsheetId };
+}
+
+/**
+ * Syncs each lot that received receipt files into its own Sheet (a split can go to another house).
+ * A lot whose Sheet fails is reported in folderErrors and the other lots still sync; a sign-in
+ * problem stops everything so the user can reconnect.
+ * @param {Array<{ folderId: string, spreadsheetId?: string|null }>} folders
+ */
+export async function syncUploadedInvoicesForFolders(accessToken, folders, syncFolder = syncUploadedInvoicesDirectly) {
+  const failed = [];
+  const folderErrors = {};
+  const spreadsheetByFolder = {};
+  let processedCount = 0;
+  let growthNote = null;
+
+  for (const { folderId, spreadsheetId } of (folders || [])) {
+    try {
+      const result = await syncFolder(accessToken, folderId, spreadsheetId || null);
+      spreadsheetByFolder[folderId] = result.spreadsheetId;
+      processedCount += result.processedCount || 0;
+      failed.push(...(result.failed || []));
+      growthNote = growthNote || result.growthNote || null;
+    } catch (err) {
+      if (isAuthError(err)) throw err;
+      folderErrors[folderId] = err?.message || 'Spreadsheet sync failed';
+    }
+  }
+
+  return { failed, folderErrors, spreadsheetByFolder, processedCount, growthNote };
 }

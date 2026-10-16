@@ -1,15 +1,17 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { normalizePhotoUrl } from '../services/blueprintDrive';
+import DrivePhoto from './DrivePhoto';
 
-export default function BlueprintFullscreenPhotoModal({ photo, onClose }) {
+export default function BlueprintFullscreenPhotoModal({ photo, googleToken, onClose }) {
   if (!photo) return null;
 
-  const imageSource = normalizePhotoUrl(photo?.url || '', photo?.fileId || photo?.id || '');
+  // Album photos carry id; pin photos carry fileId (older pins may only have a Drive link in url)
+  const fileId = photo.fileId || photo.id || '';
+  const url = photo.url || '';
   const title = photo?.name || 'Photo';
-  const openLink = photo?.webViewLink || photo?.url || null;
+  const openLink = photo?.webViewLink || (fileId ? `https://drive.google.com/file/d/${fileId}/view` : null);
 
-  if (!imageSource) return null;
+  if (!fileId && !url) return null;
 
   return (
     <div
@@ -24,12 +26,17 @@ export default function BlueprintFullscreenPhotoModal({ photo, onClose }) {
         <X size={24} />
       </button>
 
-      <img
-        src={imageSource}
-        alt={title}
-        style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--color-zinc-800)' }}
-        onClick={(e) => e.stopPropagation()}
-      />
+      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'center' }}>
+        <DrivePhoto
+          googleToken={googleToken}
+          fileId={fileId}
+          url={url}
+          alt={title}
+          full
+          placeholderSize={32}
+          style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '8px', border: '1px solid var(--color-zinc-800)' }}
+        />
+      </div>
 
       <div style={{ marginTop: '16px', textAlign: 'center', color: '#fff', fontSize: '0.82rem' }}>
         <p style={{ fontWeight: 600 }}>{title}</p>

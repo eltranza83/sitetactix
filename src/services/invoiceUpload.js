@@ -1,4 +1,13 @@
-import { ensureAppSubfolder, INVOICE_UPLOADS_FOLDER_NAME, uploadFileToDrive } from './googleDrive.js';
+import {
+  ensureAppSubfolder,
+  getDriveFileInfo,
+  INVOICE_UPLOADS_FOLDER_NAME,
+  moveFileInDrive,
+  replaceDriveFile,
+  trashDriveFile,
+  uploadFileToDrive
+} from './googleDrive.js';
+import { getDraftUploads } from './invoiceSyncState.js';
 
 function dataURLtoBlob(dataUrl) {
   const arr = dataUrl.split(',');
@@ -46,42 +55,53 @@ export function buildSplitMetadata(metadata, split, draftId, splitIndex) {
 /**
  * History entries for a synced receipt (one per split). With a draftId, each entry also carries the
  * Receipt ID of its Transactions row and when it was synced, so the app can check the row really landed.
+ * With uploads (see syncInvoiceDocument), each split gets its own PDF link and project folder.
  */
-export function buildHistoryLogs(metadata, { idPrefix, link, draftId = null, syncedAt = null }) {
+export function buildHistoryLogs(metadata, { idPrefix, link, draftId = null, syncedAt = null, uploads = null }) {
   const dateLogged = new Date().toLocaleDateString();
   const checkFields = (splitIndex) => (draftId ? {
     draftId,
     receiptId: buildReceiptId(draftId, splitIndex),
     syncedAt: syncedAt || new Date().toISOString()
   } : {});
+  const fileFields = (key) => {
+    const upload = uploads?.[key];
+    return upload?.fileId
+      ? { fileId: upload.fileId, link: upload.link || null, ...(upload.folderId ? { folderId: upload.folderId } : {}) }
+      : { fileId: idPrefix, link };
+  };
 
   if (metadata.splits && metadata.splits.length > 0) {
     // A $0 split is not uploaded (see the sync loop), so it gets no History entry either
-    return metadata.splits.map((split, index) => ({
-      id: `${idPrefix}_split_${index}`,
-      dateLogged,
-      dateTransaction: metadata.date,
-      description: `[${split.lotNumber || metadata.lotNumber || 'N/A'}] ${split.description || metadata.description || ''}`,
-      vendor: metadata.vendor,
-      costCategory: split.costCategory || metadata.costCategory || 'material',
-      amount: split.amount,
-      link,
-      tradeCategory: split.tradeCategory || metadata.tradeCategory,
-      tradePhase: split.tradePhase || metadata.tradePhase,
-      ...(draftId ? { lotName: split.lotNumber || metadata.lotNumber || '' } : {}),
-      ...checkFields(index)
-    })).filter((_, index) => (parseFloat(metadata.splits[index].amount) || 0) > 0);
+    return metadata.splits.map((split, index) => {
+      const { fileId, ...file } = fileFields(String(index));
+      return {
+        id: `${fileId}_split_${index}`,
+        dateLogged,
+        dateTransaction: metadata.date,
+        description: `[${split.lotNumber || metadata.lotNumber || 'N/A'}] ${split.description || metadata.description || ''}`,
+        vendor: metadata.vendor,
+        costCategory: split.costCategory || metadata.costCategory || 'material',
+        amount: split.amount,
+        ...file,
+        tradeCategory: split.tradeCategory || metadata.tradeCategory,
+        tradePhase: split.tradePhase || metadata.tradePhase,
+        ...(draftId ? { lotName: split.lotNumber || metadata.lotNumber || '' } : {}),
+        ...checkFields(index)
+      };
+    }).filter((_, index) => (parseFloat(metadata.splits[index].amount) || 0) > 0);
   }
 
+  const { fileId, ...file } = fileFields('main');
   return [{
-    id: idPrefix,
+    id: fileId,
     dateLogged,
     dateTransaction: metadata.date,
     description: `[${metadata.lotNumber || 'N/A'}] ${metadata.description || ''}`,
     vendor: metadata.vendor,
     costCategory: metadata.costCategory,
     amount: metadata.amount,
-    link,
+    ...file,
     tradeCategory: metadata.tradeCategory,
     tradePhase: metadata.tradePhase,
     ...(draftId ? { lotName: metadata.lotNumber || '' } : {}),
@@ -181,18 +201,120 @@ export function resolveSplitProjectFolder(projects = [], selectedFolder = null, 
   };
 }
 
+// Short fingerprint of what a receipt PDF was made from, so a retry only re-uploads after an edit
+function contentSignature(description, images) {
+  const text = `${description}|${images.map(image => String(image).length).join(',')}`;
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) hash = ((hash * 33) ^ text.charCodeAt(i)) >>> 0;
+  return hash.toString(36);
+}
+
+/**
+ * The files one receipt becomes in Drive: one per split with an amount (each in its own lot's folder),
+ * or one for the whole receipt. Every split's lot is checked before anything is uploaded.
+ */
+function buildUploadUnits(item, selectedFolder, projects) {
+  const { metadata } = item;
+  if (metadata.splits && metadata.splits.length > 0) {
+    const units = [];
+    for (const [splitIndex, split] of metadata.splits.entries()) {
+      if ((parseFloat(split.amount) || 0) <= 0) continue;
+      const projectFolder = resolveSplitProjectFolder(projects, selectedFolder, split);
+      if (projectFolder.unresolved || !projectFolder.folderId) {
+        throw new Error(projectFolder.error || `Could not resolve lot "${split.lotNumber}".`);
+      }
+      const splitMetadata = buildSplitMetadata(metadata, split, item.id, splitIndex);
+      units.push({
+        key: String(splitIndex),
+        metadata: splitMetadata,
+        folderId: projectFolder.folderId,
+        fileName: buildInvoiceFileName({ ...splitMetadata, lotNumber: projectFolder.lotName })
+      });
+    }
+    if (units.length === 0) {
+      throw new Error('No invoice splits had a valid amount to upload.');
+    }
+    return units;
+  }
+
+  return [{
+    key: 'main',
+    metadata: item.id ? { ...metadata, receiptId: buildReceiptId(item.id) } : metadata,
+    folderId: selectedFolder.id,
+    fileName: buildInvoiceFileName(metadata),
+    isWholeReceipt: true
+  }];
+}
+
+/**
+ * Puts one receipt file in its lot's Invoice Uploads folder. A file from an earlier try is reused:
+ * left alone once its Sheet row is written, otherwise refreshed in place when the draft was edited
+ * (or moved when its lot changed). Only a missing file is uploaded again, so a retry never duplicates.
+ */
+async function putReceiptFile(googleToken, unit, previous, signature, makePdf) {
+  const uploadsFolder = await ensureAppSubfolder(googleToken, unit.folderId, INVOICE_UPLOADS_FOLDER_NAME);
+  const description = JSON.stringify(unit.metadata);
+
+  if (previous?.fileId) {
+    const info = await getDriveFileInfo(googleToken, previous.fileId);
+    if (info && !info.trashed) {
+      const kept = {
+        fileId: previous.fileId,
+        link: previous.link || `https://drive.google.com/file/d/${previous.fileId}/view?usp=drivesdk`,
+        folderId: unit.folderId,
+        signature
+      };
+      // Already in the Sheet: never touched again (the check after sync flags a later edit)
+      if (info.appProperties?.sheetRowWritten === 'true') return { ...kept, signature: previous.signature || signature };
+      const parents = info.parents || [];
+      const inPlace = parents.includes(uploadsFolder);
+      if (inPlace && previous.signature === signature) return kept;
+      if (!inPlace) {
+        await moveFileInDrive(googleToken, previous.fileId, parents.join(','), uploadsFolder);
+      }
+      await replaceDriveFile(googleToken, previous.fileId, {
+        fileName: unit.fileName,
+        mimeType: 'application/pdf',
+        fileBlob: await makePdf(),
+        description
+      });
+      return kept;
+    }
+  }
+
+  const result = await uploadFileToDrive(googleToken, uploadsFolder, unit.fileName, 'application/pdf', await makePdf(), description);
+  return { fileId: result.id, link: result.webViewLink, folderId: unit.folderId, signature };
+}
+
+/** Removes a file left from a split that no longer exists (only while its Sheet row is not written). */
+async function discardReceiptFile(googleToken, upload) {
+  try {
+    const info = await getDriveFileInfo(googleToken, upload.fileId);
+    if (info && !info.trashed && info.appProperties?.sheetRowWritten !== 'true') {
+      await trashDriveFile(googleToken, upload.fileId);
+    }
+  } catch (err) {
+    console.warn('[invoiceUpload] Could not remove a file from a removed split:', err?.message || err);
+  }
+}
+
+/**
+ * Uploads a draft's receipt PDFs to Drive (one per split). onUploaded(uploads) runs after every file,
+ * so the draft keeps what already made it to Drive even when a later split fails.
+ */
 export async function syncInvoiceDocument({
   item,
   googleToken,
   selectedFolder,
-  projects
+  projects,
+  onUploaded = null
 }) {
   const { generateDocumentPDF } = await import('./pdfGenerator.js');
   const { metadata } = item;
-  const { pdfBlob, images } = await buildPdfBlob(item, generateDocumentPDF);
 
   const isOfflineMode = !googleToken || !selectedFolder;
   if (isOfflineMode) {
+    const { pdfBlob } = await buildPdfBlob(item, generateDocumentPDF);
     downloadPdf(pdfBlob, buildInvoiceFileName(metadata));
     return {
       logs: buildHistoryLogs(metadata, { idPrefix: Date.now().toString(), link: null }),
@@ -201,63 +323,35 @@ export async function syncInvoiceDocument({
     };
   }
 
-  let mainUploadResult = null;
+  const images = [item.mainImageBase64, item.secondaryImageBase64].filter(Boolean);
+  const units = buildUploadUnits(item, selectedFolder, projects);
+  const previous = getDraftUploads(item);
+  const uploads = { ...previous };
 
-  if (metadata.splits && metadata.splits.length > 0) {
-    for (const [splitIndex, split] of metadata.splits.entries()) {
-      const splitAmount = parseFloat(split.amount) || 0;
-      if (splitAmount <= 0) continue;
-
-      const splitMetadata = buildSplitMetadata(metadata, split, item.id, splitIndex);
-      const splitPdfBlob = await generateDocumentPDF(splitMetadata, images);
-      const projectFolder = resolveSplitProjectFolder(projects, selectedFolder, split);
-      if (projectFolder.unresolved || !projectFolder.folderId) {
-        throw new Error(projectFolder.error || `Could not resolve lot "${split.lotNumber}".`);
-      }
-      const uploadsFolder = await ensureAppSubfolder(googleToken, projectFolder.folderId, INVOICE_UPLOADS_FOLDER_NAME);
-      const splitFileName = buildInvoiceFileName({
-        ...splitMetadata,
-        lotNumber: projectFolder.lotName
-      });
-
-      const result = await uploadFileToDrive(
-        googleToken,
-        uploadsFolder,
-        splitFileName,
-        'application/pdf',
-        splitPdfBlob,
-        JSON.stringify(splitMetadata)
-      );
-
-      if (!mainUploadResult) {
-        mainUploadResult = result;
-      }
-    }
-  } else {
-    const uploadsFolder = await ensureAppSubfolder(googleToken, selectedFolder.id, INVOICE_UPLOADS_FOLDER_NAME);
-    mainUploadResult = await uploadFileToDrive(
-      googleToken,
-      uploadsFolder,
-      buildInvoiceFileName(metadata),
-      'application/pdf',
-      pdfBlob,
-      JSON.stringify(item.id ? { ...metadata, receiptId: buildReceiptId(item.id) } : metadata)
-    );
+  for (const unit of units) {
+    const makePdf = unit.isWholeReceipt
+      ? async () => (await buildPdfBlob(item, generateDocumentPDF)).pdfBlob
+      : () => generateDocumentPDF(unit.metadata, images);
+    const signature = contentSignature(JSON.stringify(unit.metadata), images);
+    uploads[unit.key] = await putReceiptFile(googleToken, unit, previous[unit.key], signature, makePdf);
+    onUploaded?.({ ...uploads });
   }
 
-  if (!mainUploadResult) {
-    throw new Error('No invoice splits had a valid amount to upload.');
+  const unitKeys = new Set(units.map(unit => unit.key));
+  const removedKeys = Object.keys(uploads).filter(key => !unitKeys.has(key));
+  for (const key of removedKeys) {
+    if (uploads[key]?.fileId) await discardReceiptFile(googleToken, uploads[key]);
+    delete uploads[key];
   }
+  if (removedKeys.length > 0) onUploaded?.({ ...uploads });
 
-    return {
-      logs: buildHistoryLogs(metadata, {
-        idPrefix: mainUploadResult.id,
-        link: mainUploadResult.webViewLink,
-        draftId: item.id || null
-      }),
-      hasDriveUpload: true,
-      successMessage: 'Document report PDF synced successfully!',
-      driveFileId: mainUploadResult.id,
-      webViewLink: mainUploadResult.webViewLink
-    };
-  }
+  const first = uploads[units[0].key];
+  return {
+    logs: buildHistoryLogs(metadata, { draftId: item.id || null, uploads }),
+    hasDriveUpload: true,
+    successMessage: 'Document report PDF synced successfully!',
+    uploads,
+    driveFileId: first.fileId,
+    webViewLink: first.link
+  };
+}

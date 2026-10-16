@@ -1,7 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { normalizePinPhotos, normalizePhotoUrl } from '../services/blueprintDrive';
-import { fetchDriveFileAsObjectUrl } from '../services/googleDrive';
+import { normalizePinPhotos } from '../services/blueprintDrive';
+import DrivePhoto from './DrivePhoto';
 
 export default function BlueprintSelectedPinCard({
   pin,
@@ -14,44 +14,7 @@ export default function BlueprintSelectedPinCard({
 }) {
   if (!pin) return null;
 
-  const attachments = React.useMemo(() => normalizePinPhotos(pin), [pin]);
-  const [resolvedImageUrls, setResolvedImageUrls] = React.useState({});
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const nextImageUrls = {};
-
-    const resolveAttachments = async () => {
-      if (!googleToken) {
-        setResolvedImageUrls({});
-        return;
-      }
-
-      for (const attachment of attachments) {
-        if (!attachment.fileId || !googleToken) continue;
-
-        try {
-          const objectUrl = await fetchDriveFileAsObjectUrl(googleToken, attachment.fileId);
-          if (!cancelled) {
-            nextImageUrls[attachment.fileId] = objectUrl;
-          }
-        } catch (err) {
-          console.warn('Failed to resolve blueprint photo preview URL:', err);
-        }
-      }
-
-      if (!cancelled) {
-        setResolvedImageUrls(nextImageUrls);
-      }
-    };
-
-    resolveAttachments();
-
-    return () => {
-      cancelled = true;
-      Object.values(nextImageUrls).forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [attachments, googleToken]);
+  const attachments = normalizePinPhotos(pin);
 
   return (
     <div style={{ backgroundColor: 'var(--st-panel)', border: '1px solid var(--st-line)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', animation: 'slideUp 0.2s ease-out', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)' }}>
@@ -94,34 +57,24 @@ export default function BlueprintSelectedPinCard({
         {attachments.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' }}>
             {attachments.map((attachment, index) => {
-              const attachmentUrl = normalizePhotoUrl(attachment.url || '', attachment.fileId || '');
-              const resolvedImageUrl = attachment.fileId ? resolvedImageUrls[attachment.fileId] : '';
-              const thumbnailUrl = resolvedImageUrl || attachment.thumbnailUrl || attachmentUrl;
               const attachmentName = attachment.name || `Verification photo ${index + 1}`;
               return (
                 <button
                   key={`${attachment.fileId || attachment.url || index}`}
                   type="button"
                   onClick={() => onOpenPhoto?.({
-                    ...attachment,
-                    id: attachment.fileId || attachment.url || index,
-                    name: attachmentName,
-                    url: resolvedImageUrl || attachmentUrl,
-                    webViewLink: attachment.webViewLink || attachmentUrl || attachment.url
+                    fileId: attachment.fileId,
+                    url: attachment.url,
+                    name: attachmentName
                   })}
-                  style={{ display: 'block', width: '100%', padding: 0, background: 'none', cursor: 'pointer', textAlign: 'left', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-zinc-800)' }}
+                  style={{ display: 'block', width: '100%', height: '110px', padding: 0, background: 'none', cursor: 'pointer', textAlign: 'left', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-zinc-800)' }}
                   title={`Open ${attachmentName}`}
                 >
-                  <img
-                    src={thumbnailUrl}
+                  <DrivePhoto
+                    googleToken={googleToken}
+                    fileId={attachment.fileId}
+                    url={attachment.url}
                     alt={`Verification preview ${index + 1}`}
-                    style={{ width: '100%', height: '110px', objectFit: 'cover', display: 'block' }}
-                    onError={(e) => {
-                      e.target.src = attachmentUrl || attachment.url || '';
-                      if (!e.target.src) {
-                        e.target.style.display = 'none';
-                      }
-                    }}
                   />
                 </button>
               );

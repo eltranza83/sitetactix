@@ -312,6 +312,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
           albumFileInputRef={pinboard.albumFileInputRef}
           albumPhotos={pinboard.albumPhotos}
           expandedCategory={pinboard.expandedCategory}
+          googleToken={googleToken}
           imageSrc={pinboard.imageSrc}
           loadingAlbumPhotos={pinboard.loadingAlbumPhotos}
           onBackToBlueprint={() => pinboard.setViewMode('blueprint')}
@@ -379,6 +380,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
       />
       <BlueprintFullscreenPhotoModal
         photo={pinboard.fullscreenAlbumPhoto}
+        googleToken={googleToken}
         onClose={() => pinboard.setFullscreenAlbumPhoto(null)}
       />
       {pendingIssueLocation && (

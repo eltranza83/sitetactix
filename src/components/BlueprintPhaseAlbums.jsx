@@ -1,12 +1,14 @@
 import React from 'react';
 import { ArrowLeft, Camera, ChevronDown, ChevronUp, Image, Loader2 } from 'lucide-react';
 import { STATUS_MESSAGES } from '../services/appErrors';
+import DrivePhoto from './DrivePhoto';
 
 export default function BlueprintPhaseAlbums({
   activeAlbumPhase,
   albumFileInputRef,
   albumPhotos,
   expandedCategory,
+  googleToken,
   loadingAlbumPhotos,
   onExpandCategory,
   onPhotoUpload,
@@ -100,10 +102,11 @@ export default function BlueprintPhaseAlbums({
                   onClick={() => onSelectFullscreenPhoto(photo)}
                   style={{ position: 'relative', aspectRatio: '1', borderRadius: '6px', overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--color-zinc-800)', backgroundColor: 'var(--color-zinc-950)' }}
                 >
-                  <img
-                    src={photo.thumbnailLink}
+                  <DrivePhoto
+                    googleToken={googleToken}
+                    fileId={photo.id}
+                    thumbnailLink={photo.thumbnailLink}
                     alt={photo.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 </div>
               ))}
