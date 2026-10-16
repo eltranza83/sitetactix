@@ -351,10 +351,11 @@ export default function Scanner({ onDataExtracted, onError }) {
 
   const analyzeCroppedFile = async (file) => {
     try {
-      const extractedData = await extractDocumentData(file);
+      const { data: extractedData, readByBackupAi } = await extractDocumentData(file);
       onDataExtracted({
         metadata: extractedData,
         mainImage: file,
+        readByBackupAi
       });
     } catch (err) {
       console.error('Scan process failed:', err);

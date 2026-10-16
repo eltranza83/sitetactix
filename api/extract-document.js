@@ -26,8 +26,12 @@ function parseGeminiJson(text) {
   return JSON.parse(cleaned);
 }
 
+/**
+ * Reads one document with Gemini. Returns the extracted fields and which model read them
+ * (the backup model when Google said the main one was busy).
+ */
 export async function generateDocumentData({ bytes, mimeType, apiKey, fetchImpl = fetch }) {
-  const response = await fetchWithBackupModel(
+  const { response, model } = await fetchWithBackupModel(
     [AI_CONFIG.primaryModel, AI_CONFIG.backupModel],
     geminiUrl,
     {
@@ -77,7 +81,7 @@ export async function generateDocumentData({ bytes, mimeType, apiKey, fetchImpl 
   }
 
   try {
-    return parseGeminiJson(text);
+    return { data: parseGeminiJson(text), model };
   } catch (error) {
     console.error('Gemini returned invalid JSON:', error);
     throw new HttpError(502, 'AI extraction returned unreadable data. Please try again.');
@@ -120,8 +124,9 @@ export async function POST(request) {
       return jsonResponse({ corners });
     }
 
-    const data = await generateDocumentData({ bytes, mimeType, apiKey });
-    return jsonResponse({ data });
+    const { data, model } = await generateDocumentData({ bytes, mimeType, apiKey });
+    // Lets the draft show that the backup model read this receipt (worth a closer look)
+    return jsonResponse({ data, readByBackupAi: model !== AI_CONFIG.primaryModel });
   } catch (error) {
     return errorResponse(error);
   }

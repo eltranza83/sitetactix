@@ -49,7 +49,7 @@ describe('backup model when Google says the main model is busy', () => {
   test('a busy main model sends the same request to the backup model', async () => {
     const { fetchWithBackupModel, geminiUrl } = await import('../api/_lib/ai-retry.js');
     const asked = [];
-    const response = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, { method: 'POST', body: 'same' }, fastRetry,
+    const { response } = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, { method: 'POST', body: 'same' }, fastRetry,
       async (url, options) => {
         asked.push([url.includes('main-model') ? 'main' : 'backup', options.body]);
         return url.includes('main-model') ? busy() : ok();
@@ -61,7 +61,7 @@ describe('backup model when Google says the main model is busy', () => {
   test('out of quota (429) and Google errors (500) also use the backup', async () => {
     const { fetchWithBackupModel, geminiUrl } = await import('../api/_lib/ai-retry.js');
     for (const status of [429, 500]) {
-      const response = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, {}, fastRetry,
+      const { response } = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, {}, fastRetry,
         async (url) => (url.includes('main-model') ? new Response('x', { status }) : ok()));
       assert.equal(response.status, 200, `status ${status}`);
     }
@@ -70,7 +70,7 @@ describe('backup model when Google says the main model is busy', () => {
   test('a bad request is not sent to the backup (it would fail there too)', async () => {
     const { fetchWithBackupModel, geminiUrl } = await import('../api/_lib/ai-retry.js');
     let calls = 0;
-    const response = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, {}, fastRetry,
+    const { response } = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, {}, fastRetry,
       async () => { calls++; return new Response('bad', { status: 400 }); });
     assert.equal(response.status, 400);
     assert.equal(calls, 1);
@@ -79,7 +79,7 @@ describe('backup model when Google says the main model is busy', () => {
   test('no backup when too little time is left before the server limit', async () => {
     const { fetchWithBackupModel, geminiUrl } = await import('../api/_lib/ai-retry.js');
     let backupAsked = false;
-    const response = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, { timeoutMs: 5000, deadlineMs: 5000 }, fastRetry,
+    const { response } = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, { timeoutMs: 5000, deadlineMs: 5000 }, fastRetry,
       async (url) => { if (url.includes('backup-model')) backupAsked = true; return busy(); });
     assert.equal(response.status, 503);
     assert.equal(backupAsked, false);
@@ -89,7 +89,7 @@ describe('backup model when Google says the main model is busy', () => {
     const { generateDocumentData } = await import('../api/extract-document.js');
     const { AI_CONFIG } = await import('../api/_lib/ai-config.js');
     const models = [];
-    const data = await generateDocumentData({
+    const { data } = await generateDocumentData({
       bytes: new Uint8Array([1]),
       mimeType: 'image/jpeg',
       apiKey: 'test',
@@ -107,4 +107,64 @@ describe('backup model when Google says the main model is busy', () => {
 
 test('the backup model is the newer lite model (checked live on 2026-10-15 while the main one was busy)', () => {
   assert.equal(SERVER_AI_CONFIG.backupModel, 'gemini-3.5-flash-lite');
+});
+
+describe('backup model when the main model is stuck (v1.14.9)', () => {
+  const ok = () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"vendor":"Lowes"}' }] } }] }), { status: 200 });
+  const fastRetry = { maxRetries: 2, initialDelayMs: 1, backoffFactor: 1, jitter: false, retryableStatusCodes: [429, 500, 502, 503, 504] };
+  // Answers only when the request is cancelled (like a model that never responds)
+  const hang = (_url, options) => new Promise((_resolve, reject) => {
+    options.signal?.addEventListener('abort', () => reject(Object.assign(new Error('The operation timed out.'), { name: 'TimeoutError' })));
+  });
+
+  test('a main model that does not answer goes straight to the backup (no retry of the stuck one)', async () => {
+    const { fetchWithBackupModel, geminiUrl } = await import('../api/_lib/ai-retry.js');
+    let mainTries = 0;
+    const { response, model } = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl,
+      { timeoutMs: 150, deadlineMs: 20000 }, fastRetry,
+      async (url, options) => {
+        if (url.includes('main-model')) { mainTries++; return hang(url, options); }
+        return ok();
+      });
+    assert.equal(response.status, 200);
+    assert.equal(model, 'backup-model');
+    assert.equal(mainTries, 1);
+  });
+
+  test('a dropped connection to the main model also goes to the backup', async () => {
+    const { fetchWithBackupModel, geminiUrl } = await import('../api/_lib/ai-retry.js');
+    const { model } = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, { timeoutMs: 20000 }, fastRetry,
+      async (url) => { if (url.includes('main-model')) throw new TypeError('fetch failed'); return ok(); });
+    assert.equal(model, 'backup-model');
+  });
+
+  test('Google 502 and 504 answers use the backup too', async () => {
+    const { fetchWithBackupModel, geminiUrl } = await import('../api/_lib/ai-retry.js');
+    for (const status of [502, 504]) {
+      const { model } = await fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, {}, fastRetry,
+        async (url) => (url.includes('main-model') ? new Response('x', { status }) : ok()));
+      assert.equal(model, 'backup-model', `status ${status}`);
+    }
+  });
+
+  test('when both models are stuck, the timeout error still reaches the app', async () => {
+    const { fetchWithBackupModel, geminiUrl } = await import('../api/_lib/ai-retry.js');
+    await assert.rejects(
+      fetchWithBackupModel(['main-model', 'backup-model'], geminiUrl, { timeoutMs: 100, deadlineMs: 20000 }, fastRetry, hang),
+      (err) => err.status === 504
+    );
+  });
+
+  test('the scan route says when the backup read the receipt', async () => {
+    const { generateDocumentData } = await import('../api/extract-document.js');
+    const { AI_CONFIG } = await import('../api/_lib/ai-config.js');
+    const normal = await generateDocumentData({ bytes: new Uint8Array([1]), mimeType: 'image/jpeg', apiKey: 't', fetchImpl: async () => ok() });
+    assert.equal(normal.model, AI_CONFIG.primaryModel);
+    const viaBackup = await generateDocumentData({
+      bytes: new Uint8Array([1]), mimeType: 'image/jpeg', apiKey: 't',
+      fetchImpl: async (url) => (url.includes(encodeURIComponent(AI_CONFIG.primaryModel)) ? new Response('busy', { status: 503 }) : ok())
+    });
+    assert.equal(viaBackup.model, AI_CONFIG.backupModel);
+    assert.deepEqual(viaBackup.data, { vendor: 'Lowes' });
+  });
 });

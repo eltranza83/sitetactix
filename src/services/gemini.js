@@ -13,6 +13,7 @@ function getExtractionError(status, payload) {
 /**
  * Reads a receipt, invoice or check through the server's /api/extract-document route.
  * The AI key only lives on the server; the browser never holds one.
+ * Returns { data, readByBackupAi } (true when Google's main model was busy and the backup read it).
  */
 export async function extractDocumentData(fileOrBlob, fetchImpl = fetch) {
   if (!fileOrBlob || fileOrBlob.size === 0) {
@@ -51,7 +52,7 @@ export async function extractDocumentData(fileOrBlob, fetchImpl = fetch) {
   }
 
   if (response.ok && payload?.data) {
-    return payload.data;
+    return { data: payload.data, readByBackupAi: payload.readByBackupAi === true };
   }
   throw new Error(getExtractionError(response.status, payload));
 }

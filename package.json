@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.8",
-  "releaseName": "Scanning into card",
+  "version": "1.14.9",
+  "releaseName": "Backup AI on timeouts, Backup AI tag",
   "type": "module",
   "scripts": {
     "dev": "vite",

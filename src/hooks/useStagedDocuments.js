@@ -107,6 +107,8 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
         metadata: draftMetadata,
         mainImageBase64,
         secondaryImageBase64: null,
+        // Shown on the draft card (not saved to Drive or the Sheet): Google's backup model read it
+        ...(scanItem.readByBackupAi ? { readByBackupAi: true } : {}),
         createdAt: Date.now()
       };
 

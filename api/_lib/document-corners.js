@@ -37,7 +37,7 @@ export const DOCUMENT_CORNERS_SCHEMA = {
 };
 
 export async function generateDocumentCorners({ bytes, mimeType, apiKey, fetchImpl = fetch }) {
-  const response = await fetchWithBackupModel(
+  const { response } = await fetchWithBackupModel(
     [AI_CONFIG.primaryModel, AI_CONFIG.backupModel],
     geminiUrl,
     {
