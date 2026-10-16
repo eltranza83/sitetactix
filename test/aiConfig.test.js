@@ -112,9 +112,14 @@ test('the backup model is the newer lite model (checked live on 2026-10-15 while
 describe('backup model when the main model is stuck (v1.14.9)', () => {
   const ok = () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"vendor":"Lowes"}' }] } }] }), { status: 200 });
   const fastRetry = { maxRetries: 2, initialDelayMs: 1, backoffFactor: 1, jitter: false, retryableStatusCodes: [429, 500, 502, 503, 504] };
-  // Answers only when the request is cancelled (like a model that never responds)
+  // Answers only when the request is cancelled (like a model that never responds). The timer keeps
+  // Node running until then: AbortSignal.timeout alone does not, and Node 20 ends the test early.
   const hang = (_url, options) => new Promise((_resolve, reject) => {
-    options.signal?.addEventListener('abort', () => reject(Object.assign(new Error('The operation timed out.'), { name: 'TimeoutError' })));
+    const keepAlive = setTimeout(() => {}, 10000);
+    options.signal?.addEventListener('abort', () => {
+      clearTimeout(keepAlive);
+      reject(Object.assign(new Error('The operation timed out.'), { name: 'TimeoutError' }));
+    }, { once: true });
   });
 
   test('a main model that does not answer goes straight to the backup (no retry of the stuck one)', async () => {
