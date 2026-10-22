@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.11",
-  "releaseName": "Split totals and returns",
+  "version": "1.14.12",
+  "releaseName": "Pins and punch list never wiped by a bad read",
   "type": "module",
   "scripts": {
     "dev": "vite",

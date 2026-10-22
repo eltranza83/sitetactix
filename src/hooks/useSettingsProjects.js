@@ -224,7 +224,13 @@ export function useSettingsProjects({
       const { projects: currentProjects, activeProject: currentActive } = latestRef.current;
       const base = currentProjects.find(p => p.id === project.id) || project;
       const linked = linkNotionPageToProject(base, result);
-      setProjects(currentProjects.map(p => (p.id === project.id ? linked : p)));
+      const nextProjects = currentProjects.map(p => (p.id === project.id ? linked : p));
+      setProjects(nextProjects);
+      // Saved on this phone and in the account, so the link is still there after the app reloads
+      persistProjects(nextProjects);
+      if (googleUser?.email) {
+        saveUserProject(linked, googleUser).catch(err => console.warn('[makeNotionPage] Could not save the Notion link to the account:', err));
+      }
       if (currentActive?.id === project.id) {
         const updatedActive = linkNotionPageToProject(currentActive, result);
         setActiveProject(updatedActive);

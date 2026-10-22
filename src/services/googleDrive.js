@@ -636,6 +636,23 @@ export async function getFileContent(accessToken, fileId) {
 }
 
 /**
+ * Reads a saved list kept as JSON in Drive (X-Ray pins, punch list). Never returns an empty list in
+ * place of a failed read: a read error is passed on, and a file that is not valid JSON stops with a
+ * clear error, because saving after either would write over everything already saved.
+ * An empty file (nothing saved yet) reads as {}.
+ */
+export async function readVaultFile(accessToken, fileId, label) {
+  try {
+    return await getFileContent(accessToken, fileId);
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      throw new Error(`The ${label} file in Drive could not be read, so nothing was changed. Ask for help before editing the ${label}.`);
+    }
+    throw err;
+  }
+}
+
+/**
  * Overwrites the binary content of an existing Google Drive file.
  */
 export async function updateFileContent(accessToken, fileId, fileBlob, mimeType) {

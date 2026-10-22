@@ -3,7 +3,7 @@ import {
   ensureXRayFolder,
   fetchDriveFileBlob,
   findFileInFolder,
-  getFileContent,
+  readVaultFile,
   listPhotosInPhase,
   updateFileContent,
   uploadFileToDrive,
@@ -100,27 +100,18 @@ export async function loadBlueprintVault(accessToken, projectFolderId) {
     };
   }
 
-  try {
-    const data = await getFileContent(accessToken, configJsonFile.id);
-    const blueprintFileId = data?.blueprintFileId || null;
+  // A failed read (of the pin list or of the floor plan picture) must never look like an empty plan:
+  // adding a pin or a new floor plan after it would write over every saved pin. Let the error through.
+  const data = await readVaultFile(accessToken, configJsonFile.id, 'X-Ray pins');
+  const blueprintFileId = data?.blueprintFileId || null;
 
-    return {
-      blueprintDataFileId: configJsonFile.id,
-      blueprintFileId,
-      blueprintFileName: data?.blueprintFileName || null,
-      pins: data?.pins || [],
-      blueprintBlob: blueprintFileId ? await fetchDriveFileBlob(accessToken, blueprintFileId) : null
-    };
-  } catch (err) {
-    console.error('Failed to parse blueprint_data.json content:', err);
-    return {
-      blueprintDataFileId: configJsonFile.id,
-      blueprintFileId: null,
-      blueprintFileName: null,
-      pins: [],
-      blueprintBlob: null
-    };
-  }
+  return {
+    blueprintDataFileId: configJsonFile.id,
+    blueprintFileId,
+    blueprintFileName: data?.blueprintFileName || null,
+    pins: data?.pins || [],
+    blueprintBlob: blueprintFileId ? await fetchDriveFileBlob(accessToken, blueprintFileId) : null
+  };
 }
 
 export async function uploadBlueprintVaultFile({
