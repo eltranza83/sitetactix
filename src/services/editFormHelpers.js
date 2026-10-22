@@ -59,6 +59,15 @@ export function distributeReceiptTotalToSplits(splitBaseAmounts, receiptTotal) {
   }
 
   const receiptCents = Math.round((parseFloat(receiptTotal) || 0) * 100);
+
+  // A return (negative total) is split like a purchase of the same size, then every share is made
+  // negative. Its item prices count by size, whether the receipt prints them negative or not.
+  if (receiptCents < 0) {
+    const sizes = splitBaseAmounts.map(amt => Math.abs(parseFloat(amt) || 0));
+    return distributeReceiptTotalToSplits(sizes, -receiptCents / 100)
+      .map(share => (-Math.round(parseFloat(share) * 100) / 100 || 0).toFixed(2));
+  }
+
   const baseCents = splitBaseAmounts.map(amt => Math.max(0, Math.round((parseFloat(amt) || 0) * 100)));
   const totalBaseCents = baseCents.reduce((sum, c) => sum + c, 0);
 

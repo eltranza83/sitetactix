@@ -2,7 +2,7 @@
   "name": "sitetactix-app",
   "private": true,
   "version": "1.14.11",
-  "releaseName": "Split totals checked before sync",
+  "releaseName": "Split totals and returns",
   "type": "module",
   "scripts": {
     "dev": "vite",

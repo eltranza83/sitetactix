@@ -14,9 +14,9 @@ const cents = (value) => Math.round((Number(value) || 0) * 100);
 const text = (value) => String(value ?? '').trim();
 const same = (a, b) => text(a).toLowerCase() === text(b).toLowerCase();
 
-/** Entries synced with tracking (newer History entries); older entries have no Receipt ID to look up. */
+/** Entries synced with tracking (newer History entries, returns included); older entries have no Receipt ID to look up. */
 export function isTrackedEntry(log) {
-  return Boolean(log?.receiptId) && cents(log.amount) > 0;
+  return Boolean(log?.receiptId) && cents(log.amount) !== 0;
 }
 
 /** The Transactions row a History entry should have produced. */
@@ -93,7 +93,7 @@ const draftBase = (receiptId) => text(receiptId).replace(/_split_\d+$/, '');
  * Status: 'ok' | 'missing' | 'different' | 'unchecked' (older entries or a check that could not run).
  */
 export function summarizeScanTarget(history = [], projectName = '', now = new Date()) {
-  const mine = (history || []).filter(log => text(projectName) && same(log?.lotName, projectName) && cents(log?.amount) > 0);
+  const mine = (history || []).filter(log => text(projectName) && same(log?.lotName, projectName) && cents(log?.amount) !== 0);
   const last = mine.reduce((latest, log) => (!latest || text(log.syncedAt) > text(latest.syncedAt) ? log : latest), null);
   const today = mine.filter(log => sameLocalDay(log.syncedAt, now));
   return {
@@ -139,7 +139,7 @@ export function findReceiptInSheet(metadata, transactions, draftId = '') {
   const totalCents = splits
     ? splits.reduce((sum, s) => sum + cents(s.amount), 0)
     : cents(metadata?.amount);
-  if (totalCents <= 0) return null;
+  if (totalCents === 0) return null;
 
   const firstRow = buildTransactionRow(metadata || {});
   const payee = text(firstRow[1]).replace(/^'/, '');

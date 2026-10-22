@@ -98,3 +98,60 @@ describe('reading receipt dates', () => {
     assert.equal(normalizeScanDate('2/30/2026'), '');
   });
 });
+
+describe('return receipts go through like purchases, as negative amounts', () => {
+  test('a split return uploads every split and lists each one in History', async () => {
+    const { createFakeDrive } = await import('./fakeDrive.js');
+    const { syncInvoiceDocument } = await import('../src/services/invoiceUpload.js');
+    const drive = createFakeDrive();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = drive.fetch;
+    try {
+      const phase = { tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In' };
+      const item = {
+        id: 'draft_return',
+        metadata: {
+          vendor: 'Lowes', date: '2026-10-20', amount: -58.97, costCategory: 'material', lotNumber: 'Lot 99', ...phase,
+          splits: [{ amount: -45.47, lotNumber: 'Lot 99', ...phase }, { amount: -13.5, lotNumber: 'Lot 99', ...phase }]
+        }
+      };
+      const { uploads, logs } = await syncInvoiceDocument({
+        item, googleToken: 't', selectedFolder: { id: 'lot99' }, projects: [{ name: 'Lot 99', folderId: 'lot99' }]
+      });
+      assert.deepEqual(Object.keys(uploads).sort(), ['0', '1']);
+      assert.deepEqual(logs.map(l => l.amount), [-45.47, -13.5]);
+      assert.deepEqual(logs.map(l => l.receiptId), ['draft_return_split_0', 'draft_return_split_1']);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('a synced return is checked against its Sheet row, shown on the scan card and caught as a duplicate', async () => {
+    const { checkSyncedEntries, findReceiptInSheet, summarizeScanTarget } = await import('../src/services/dailyCheck.js');
+    const { buildTransactionRow, parseTransactions } = await import('../src/services/sheetV2.js');
+    const metadata = {
+      vendor: 'Lowes', date: '2026-10-20', amount: -58.97, costCategory: 'material',
+      tradeCategory: 'Mechanicals_&_Utilities', tradePhase: 'Plumbing Rough-In'
+    };
+    const header = ['Date', 'Payee', 'Description', 'Category', 'Phase', 'Material', 'Labor', 'Check', 'Receipt', 'Receipt ID'];
+    const rows = [header, buildTransactionRow(metadata, { receiptId: 'old_draft' })];
+    const log = { ...metadata, receiptId: 'old_draft', lotName: 'Lot 99', dateTransaction: '2026-10-20', syncedAt: new Date().toISOString() };
+
+    assert.equal(checkSyncedEntries([log], rows)[0].check.status, 'ok');
+    assert.equal(summarizeScanTarget([{ ...log, check: { status: 'ok' } }], 'Lot 99').last.amount, -58.97);
+    const duplicate = findReceiptInSheet(metadata, parseTransactions(rows), 'new_draft');
+    assert.ok(duplicate, 'scanning the same return twice must warn');
+  });
+
+  test('a $0 split is still skipped', async () => {
+    const { buildHistoryLogs } = await import('../src/services/invoiceUpload.js');
+    const logs = buildHistoryLogs({ vendor: 'X', amount: -5, splits: [{ amount: -5 }, { amount: 0 }] }, { idPrefix: 'p', link: null });
+    assert.equal(logs.length, 1);
+  });
+
+  test('a return split by item prices follows the prices, printed negative or not', () => {
+    assert.deepEqual(distributeReceiptTotalToSplits([-60, -20], -86.6), ['-64.95', '-21.65']);
+    assert.deepEqual(distributeReceiptTotalToSplits([60, 20], -86.6), ['-64.95', '-21.65']);
+    assert.deepEqual(distributeReceiptTotalToSplits([5, 0], -5), ['-5.00', '0.00']);
+  });
+});
