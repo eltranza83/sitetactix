@@ -22,7 +22,6 @@ export function useIssues({ googleToken, activeProject }) {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [issuesDataFileId, setIssuesDataFileId] = useState(null);
 
   const projectId = activeProject?.id || 'default';
   const offlineQueueKey = `${OFFLINE_QUEUE_KEY}_${projectId}`;
@@ -87,7 +86,6 @@ export function useIssues({ googleToken, activeProject }) {
       );
       // Another project was opened while this one loaded: do not show its punch list there
       if (currentProjectIdRef.current !== loadingFor) return;
-      setIssuesDataFileId(fileId);
       setContacts(remoteContacts || {});
       localStorage.setItem(contactsCacheKey, JSON.stringify(remoteContacts || {}));
 
@@ -127,7 +125,8 @@ export function useIssues({ googleToken, activeProject }) {
     setError(null);
     try {
       const queue = getOfflineQueue();
-      const currentFileId = fileId || issuesDataFileId;
+      // Always the file the caller just read from Drive (null: no punch list file yet, one is made)
+      const currentFileId = fileId;
 
       // 1. Process any pending image uploads inside the queue
       for (const op of queue) {
@@ -155,19 +154,34 @@ export function useIssues({ googleToken, activeProject }) {
             console.error('Failed to upload offline photo during sync:', uploadErr);
           }
         }
+
+        // The fix photo from Mark Fixed with no signal goes to Drive too, instead of staying inside the punch list file
+        if ((op.type === 'CREATE' || op.type === 'UPDATE') && op.payload.proofPhotoBase64) {
+          try {
+            if (!op.payload.proofPhotoUrl) {
+              const blob = dataUrlToBlob(op.payload.proofPhotoBase64);
+              const fileObj = new File([blob], 'offline_proof_photo.jpg', { type: blob.type });
+              const uploadResult = await uploadIssueProofPhoto(googleToken, activeProject.folderId, fileObj);
+              op.payload.proofPhotoUrl = uploadResult.url;
+              op.payload.proofPhotoFileId = uploadResult.id;
+            }
+            op.payload.proofPhotoBase64 = null; // The photo is in Drive: keep the JSON light
+          } catch (uploadErr) {
+            console.error('Failed to upload offline fix photo during sync:', uploadErr);
+          }
+        }
       }
 
       // 2. Perform the merge
       const mergedList = mergeIssues(remoteList, queue);
 
       // 3. Save merged config back to Google Drive
-      const savedFileId = await saveIssuesVault(
+      await saveIssuesVault(
         googleToken,
         activeProject.folderId,
         currentFileId,
         { issues: mergedList, contacts: updatedContacts }
       );
-      setIssuesDataFileId(savedFileId);
 
       // 5. Success! Clear local queue, update states and cache
       saveOfflineQueue([]);
@@ -314,8 +328,9 @@ export function useIssues({ googleToken, activeProject }) {
     // Try to trigger online sync
     if (googleToken && activeProject?.folderId) {
       try {
-        const { issues: latestRemote } = await loadIssuesVault(googleToken, activeProject.folderId);
-        await processAndSyncQueue(latestRemote, issuesDataFileId, updatedContacts);
+        // Save into the file just read (never one remembered from earlier, which may be another house's)
+        const { issues: latestRemote, issuesDataFileId: latestFileId } = await loadIssuesVault(googleToken, activeProject.folderId);
+        await processAndSyncQueue(latestRemote, latestFileId, updatedContacts);
       } catch {
         // If sync fails, it will remain in queue and sync next time
       }
@@ -427,8 +442,9 @@ export function useIssues({ googleToken, activeProject }) {
 
     if (googleToken && activeProject?.folderId) {
       try {
-        const { issues: latestRemote } = await loadIssuesVault(googleToken, activeProject.folderId);
-        await processAndSyncQueue(latestRemote, issuesDataFileId, updatedContacts);
+        // Save into the file just read (never one remembered from earlier, which may be another house's)
+        const { issues: latestRemote, issuesDataFileId: latestFileId } = await loadIssuesVault(googleToken, activeProject.folderId);
+        await processAndSyncQueue(latestRemote, latestFileId, updatedContacts);
       } catch {
         // Remains in queue
       }
@@ -581,8 +597,9 @@ export function useIssues({ googleToken, activeProject }) {
     // Try sync
     if (googleToken && activeProject?.folderId) {
       try {
-        const { issues: latestRemote } = await loadIssuesVault(googleToken, activeProject.folderId);
-        await processAndSyncQueue(latestRemote, issuesDataFileId);
+        // Save into the file just read (never one remembered from earlier, which may be another house's)
+        const { issues: latestRemote, issuesDataFileId: latestFileId } = await loadIssuesVault(googleToken, activeProject.folderId);
+        await processAndSyncQueue(latestRemote, latestFileId);
       } catch {
         // Remains in queue
       }

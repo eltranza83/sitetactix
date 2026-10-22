@@ -48,6 +48,9 @@ export function useBlueprintPinboard({
   const [blueprintFileName, setBlueprintFileName] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const [pins, setPins] = useState([]);
+  // True only after this house's pins really loaded from Drive: until then nothing may be saved,
+  // or a save would write a half-known list over the real one
+  const [vaultReady, setVaultReady] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
   const [isAddMode, setIsAddMode] = useState(false);
   const [selectedPin, setSelectedPin] = useState(null);
@@ -88,6 +91,12 @@ export function useBlueprintPinboard({
     setSelectedPin(null);
     setIsAddMode(false);
     clearBlueprintImage();
+    // Forget the previous house's pins and files before loading this one
+    setVaultReady(false);
+    setPins([]);
+    setBlueprintDataFileId(null);
+    setBlueprintFileId(null);
+    setBlueprintFileName(null);
 
     try {
       const data = await loadBlueprintVault(googleToken, selectedFolder.id);
@@ -103,13 +112,21 @@ export function useBlueprintPinboard({
         const localUrl = URL.createObjectURL(safeData.blueprintBlob);
         setImageSrc(localUrl);
       }
+      setVaultReady(true);
     } catch (err) {
       if (loadId !== loadCountRef.current) return;
       console.error(err);
-      setError(getDriveErrorMessage(err, 'retrieve blueprint data from Google Drive'));
+      setError(`${getDriveErrorMessage(err, 'load the floor plan and pins from Google Drive')} Nothing was changed; leave X-Ray and come back to try again.`);
     } finally {
       if (loadId === loadCountRef.current) setLoading(false);
     }
+  };
+
+  // Pins, the floor plan and their saved list only change after a real load (see vaultReady)
+  const blockedUntilLoaded = () => {
+    if (vaultReady) return false;
+    setError('The floor plan and pins have not loaded from Drive yet, so nothing was changed. Check your signal, then leave X-Ray and come back.');
+    return true;
   };
 
   const loadPhasePhotos = async (category, phase) => {
@@ -193,6 +210,7 @@ export function useBlueprintPinboard({
       setError(getValidationErrorMessage('Please pick the floor plan as a picture (PNG or JPEG). For a PDF, take a screenshot of the floor plan page and pick that.'));
       return;
     }
+    if (blockedUntilLoaded()) return;
 
     setLoading(true);
     setError(null);
@@ -270,6 +288,7 @@ export function useBlueprintPinboard({
 
   const handleSavePin = async (e) => {
     e.preventDefault();
+    if (blockedUntilLoaded()) return;
     // The note is optional: level, room, wall, phase and the photo already describe the pin
 
     setSavingPin(true);
@@ -326,6 +345,7 @@ export function useBlueprintPinboard({
   };
 
   const handleDeletePin = async (pinId) => {
+    if (blockedUntilLoaded()) return;
     if (!(await confirmAction({ title: 'Delete this pin?', message: 'The pin comes off the floor plan. Its photos stay in Drive.', confirmLabel: 'Delete pin' }))) return;
 
     setLoading(true);
@@ -353,6 +373,7 @@ export function useBlueprintPinboard({
   };
 
   const handleResetBlueprint = async () => {
+    if (blockedUntilLoaded()) return;
     if (!(await confirmAction({
       title: 'Remove the floor plan?',
       message: 'This also removes every X-Ray pin on it. The pin photos stay in Drive, but lose their spots on the plan.',

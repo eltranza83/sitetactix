@@ -3,7 +3,7 @@ import {
   ensureXRayFolder,
   findFileInFolder,
   findOrCreateFolder,
-  getFileContent,
+  readVaultFile,
   updateFileContent,
   uploadFileToDrive
 } from './googleDrive.js';
@@ -30,21 +30,14 @@ export async function loadIssuesVault(accessToken, projectFolderId) {
     };
   }
 
-  try {
-    const data = await getFileContent(accessToken, configJsonFile.id);
-    return {
-      issuesDataFileId: configJsonFile.id,
-      issues: data?.issues || [],
-      contacts: data?.contacts || {}
-    };
-  } catch (err) {
-    console.error('Failed to parse issues_data.json content:', err);
-    return {
-      issuesDataFileId: configJsonFile.id,
-      issues: [],
-      contacts: {}
-    };
-  }
+  // A failed read (no signal, Google error, expired sign-in) must never look like an empty punch list:
+  // the next save would write only the new item over every saved one. Let the error through instead.
+  const data = await readVaultFile(accessToken, configJsonFile.id, 'punch list');
+  return {
+    issuesDataFileId: configJsonFile.id,
+    issues: data?.issues || [],
+    contacts: data?.contacts || {}
+  };
 }
 
 export async function saveIssuesVault(accessToken, projectFolderId, fileId, config) {

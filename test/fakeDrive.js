@@ -31,7 +31,7 @@ export function createFakeDrive() {
     const u = new URL(url);
     const method = options.method || 'GET';
     calls.push({ method, path: u.pathname, search: u.search });
-    if (failingRequests.some(fails => fails({ method, path: u.pathname, body: options.body }))) {
+    if (failingRequests.some(fails => fails({ method, path: u.pathname, search: u.search, body: options.body }))) {
       return new Response('Google is unavailable', { status: 503 });
     }
 
@@ -42,6 +42,7 @@ export function createFakeDrive() {
       const file = files.get(id);
       if (!file) return new Response('not found', { status: 404 });
       file.size = options.body?.size ?? String(options.body || '').length;
+      file.content = typeof options.body?.text === 'function' ? await options.body.text() : String(options.body ?? '');
       file.contentVersion = (file.contentVersion || 0) + 1;
       return json({ id, name: file.name });
     }
@@ -73,6 +74,7 @@ export function createFakeDrive() {
     if (match) {
       const file = files.get(decodeURIComponent(match[1]));
       if (!file) return new Response('not found', { status: 404 });
+      if (method === 'GET' && u.searchParams.get('alt') === 'media') return new Response(file.content ?? '', { status: 200 });
       if (method === 'GET') return json(file);
       if (method === 'PATCH') {
         const removeParents = (u.searchParams.get('removeParents') || '').split(',').filter(Boolean);
@@ -99,7 +101,7 @@ export function createFakeDrive() {
       mediaUploadsToFail.push(mediaUploadCount + nth);
     },
     mediaUploads: () => mediaUploadCount,
-    /** Requests matching fails({ method, path, body }) get a 503 until restore() (like no signal). */
+    /** Requests matching fails({ method, path, search, body }) get a 503 until restore() (like no signal). */
     failRequests(fails) {
       failingRequests.push(fails);
     },
