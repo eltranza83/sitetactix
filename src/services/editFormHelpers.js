@@ -12,6 +12,39 @@ export function isValidPhase(category, phase) {
   return config.phases.includes(phase);
 }
 
+/**
+ * A split receipt's splits must add up to the receipt total to the cent before it can sync
+ * (a receipt with no splits always passes). The edit screen checks this too; Sync checks it again
+ * because a receipt split automatically after the scan can be synced without opening the edit screen.
+ */
+export function splitsMatchTotal(metadata) {
+  const splits = Array.isArray(metadata?.splits) ? metadata.splits : [];
+  if (splits.length === 0) return true;
+  const toCents = (value) => Math.round((parseFloat(value) || 0) * 100);
+  return splits.reduce((sum, split) => sum + toCents(split.amount), 0) === toCents(metadata.amount);
+}
+
+/** Splits total and receipt total in dollars (for the message when they differ). */
+export function splitsTotals(metadata) {
+  const splits = Array.isArray(metadata?.splits) ? metadata.splits : [];
+  const cents = splits.reduce((sum, split) => sum + Math.round((parseFloat(split.amount) || 0) * 100), 0);
+  return { splitsTotal: cents / 100, receiptTotal: Math.round((parseFloat(metadata?.amount) || 0) * 100) / 100 };
+}
+
+/**
+ * Why a draft cannot sync yet (null when it can): no valid phase, or splits that do not add up
+ * to the receipt total. Used by Sync, Sync All and the draft card, so they always agree.
+ */
+export function draftSyncProblem(metadata) {
+  const label = `'${metadata?.vendor || 'Draft'} – $${Number(metadata?.amount || 0).toFixed(2)}'`;
+  if (!isDraftPhaseValid(metadata)) return `${label} needs a phase before it can sync.`;
+  if (!splitsMatchTotal(metadata)) {
+    const { splitsTotal, receiptTotal } = splitsTotals(metadata);
+    return `${label}: its splits add up to $${splitsTotal.toFixed(2)}, not the receipt total $${receiptTotal.toFixed(2)}. Tap Edit to fix the amounts.`;
+  }
+  return null;
+}
+
 export function isDraftPhaseValid(metadata) {
   if (!metadata) return false;
   if (Array.isArray(metadata.splits) && metadata.splits.length > 0) {
@@ -33,11 +66,13 @@ export function distributeReceiptTotalToSplits(splitBaseAmounts, receiptTotal) {
     if (receiptCents === 0) {
       return baseCents.map(() => '0.00');
     }
-    const equalShare = Math.floor(receiptCents / baseCents.length);
-    let remainder = receiptCents % baseCents.length;
+    // Equal shares whose cents add up exactly, for a return (negative total) too
+    const equalShare = Math.trunc(receiptCents / baseCents.length);
+    let remainder = receiptCents - equalShare * baseCents.length;
+    const step = Math.sign(remainder);
     return baseCents.map(() => {
-      const share = equalShare + (remainder > 0 ? 1 : 0);
-      if (remainder > 0) remainder--;
+      const share = equalShare + (remainder !== 0 ? step : 0);
+      remainder -= remainder !== 0 ? step : 0;
       return (share / 100).toFixed(2);
     });
   }
@@ -199,13 +234,17 @@ export function recalculateSplits(splits, lineItems, itemAllocations, receiptTot
   return changed ? updated : splits;
 }
 
+const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
 /**
  * Turns a scanned date into YYYY-MM-DD, which is what the date box needs.
- * Accepts 2026-02-01, 02/01/2026, 2/1/26 and 02-01-2026 (month first, as on US receipts;
- * a first number above 12 is read as the day). Returns '' when the text is not a real date.
+ * Accepts 2026-02-01, 02/01/2026, 2/1/26, 02-01-2026 (month first, as on US receipts;
+ * a first number above 12 is read as the day) and Feb 1, 2026; a time after the date is ignored.
+ * Returns '' when the text is not a real date.
  */
 export function normalizeScanDate(value) {
-  const text = String(value ?? '').trim();
+  // A time after the date ("10/15/2026 2:14 PM", "2026-10-15T14:22:00") is not part of the date
+  const text = String(value ?? '').trim().replace(/(?:T|\s+)\d{1,2}:\d{2}.*$/i, '').trim();
   if (!text) return '';
 
   let year;
@@ -213,8 +252,15 @@ export function normalizeScanDate(value) {
   let day;
   const iso = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
   const us = text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/);
+  // "Oct 15, 2026", "October 15 2026", "Sept. 3, 2026"
+  const named = text.match(/^([a-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})$/i);
+  const namedMonth = named ? MONTH_NAMES.indexOf(named[1].slice(0, 3).toLowerCase()) + 1 : 0;
   if (iso) {
     [, year, month, day] = iso.map(Number);
+  } else if (named && namedMonth > 0) {
+    month = namedMonth;
+    day = Number(named[2]);
+    year = Number(named[3]);
   } else if (us) {
     let first = Number(us[1]);
     let second = Number(us[2]);

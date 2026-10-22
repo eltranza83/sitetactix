@@ -11,7 +11,7 @@ import {
   partitionDraftsBySyncResult
 } from '../services/invoiceSyncState';
 import { syncUploadedInvoicesForFolders } from '../services/directSyncService';
-import { isDraftPhaseValid } from '../services/editFormHelpers';
+import { draftSyncProblem } from '../services/editFormHelpers';
 import { fetchTransactionRows, parseTransactions } from '../services/sheetV2';
 import { checkSyncedEntries, describeSheetMatch, findReceiptInSheet } from '../services/dailyCheck';
 import { confirmAction } from '../services/confirmAction';
@@ -166,9 +166,9 @@ export function useInvoiceSync({
     const itemToSync = stagedItems.find(item => item.id === id);
     if (!itemToSync) return;
 
-    if (!isDraftPhaseValid(itemToSync.metadata)) {
-      const desc = `'${itemToSync.metadata?.vendor || 'Draft'} – $${Number(itemToSync.metadata?.amount || 0).toFixed(2)}'`;
-      setError(`${desc} needs a phase before it can sync.`);
+    const syncProblem = draftSyncProblem(itemToSync.metadata);
+    if (syncProblem) {
+      setError(syncProblem);
       return;
     }
 
@@ -273,12 +273,11 @@ export function useInvoiceSync({
       return;
     }
 
-    const validPhaseDrafts = activeProjectDrafts.filter(item => isDraftPhaseValid(item.metadata));
-    const invalidPhaseDrafts = activeProjectDrafts.filter(item => !isDraftPhaseValid(item.metadata));
+    // Drafts that cannot sync yet (no phase, or splits that do not add up) stay in Drafts
+    const validPhaseDrafts = activeProjectDrafts.filter(item => !draftSyncProblem(item.metadata));
+    const invalidPhaseDrafts = activeProjectDrafts.filter(item => draftSyncProblem(item.metadata));
 
-    const invalidDesc = invalidPhaseDrafts.length > 0
-      ? `'${invalidPhaseDrafts[0].metadata?.vendor || 'Draft'} – $${Number(invalidPhaseDrafts[0].metadata?.amount || 0).toFixed(2)}' needs a phase before it can sync.`
-      : '';
+    const invalidDesc = invalidPhaseDrafts.length > 0 ? draftSyncProblem(invalidPhaseDrafts[0].metadata) : '';
 
     if (validPhaseDrafts.length === 0) {
       setError(invalidDesc || 'No valid drafts found to sync.');

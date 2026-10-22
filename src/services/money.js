@@ -2,11 +2,17 @@
  * The one place that reads and shows dollar amounts.
  */
 
-/** A number from a Sheet value or typed text ("$1,234.50" -> 1234.5); anything unreadable is 0. */
+/**
+ * A number from a Sheet value or typed text ("$1,234.50" -> 1234.5); anything unreadable is 0.
+ * Accounting negatives count as negative: "(45.10)" and "45.10-" -> -45.1.
+ */
 export function parseMoney(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const parsed = parseFloat(String(value ?? '').replace(/[^0-9.-]/g, ''));
-  return Number.isFinite(parsed) ? parsed : 0;
+  const text = String(value ?? '').trim();
+  const parsed = parseFloat(text.replace(/[^0-9.-]/g, ''));
+  if (!Number.isFinite(parsed)) return 0;
+  const accountingNegative = /\([^()]*\d[^()]*\)/.test(text) || /^[^-]*\d[^-]*-$/.test(text);
+  return accountingNegative ? -Math.abs(parsed) : parsed;
 }
 
 /**
