@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { loadStoredAppState, persistStagedItems } from '../services/appStorage';
+import { APP_STORAGE_KEYS, loadStoredAppState, persistStagedItems } from '../services/appStorage';
+import { DRAFT_PHOTO_FIELDS, pendingDraftPhotos, restoreDraftPhotos } from '../services/draftPhotoStore';
 import {
   removeDraftById,
   removeDraftsById,
@@ -49,21 +50,18 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
     setPrevStagedCount(stagedItems?.length || 0);
   }, [stagedItems.length, prevStagedCount]);
 
-  // Live synchronization listener: Immediately reflects new staged drafts across tabs and from AI tool calls
+  // Drafts changed in another tab: show them here too, with their photos loaded back from the large storage
   useEffect(() => {
-    const handleStagedUpdate = () => {
+    const handleStagedUpdate = async (event) => {
+      if (event?.key && event.key !== APP_STORAGE_KEYS.stagedItems) return;
       const freshState = loadStoredAppState();
       const freshDrafts = Array.isArray(freshState.stagedItems) ? freshState.stagedItems : [];
-      setStagedItems(freshDrafts);
+      setStagedItems(await restoreDraftPhotos(freshDrafts));
     };
 
     if (typeof window !== 'undefined') {
-      window.addEventListener('staged-items-updated', handleStagedUpdate);
       window.addEventListener('storage', handleStagedUpdate);
-      return () => {
-        window.removeEventListener('staged-items-updated', handleStagedUpdate);
-        window.removeEventListener('storage', handleStagedUpdate);
-      };
+      return () => window.removeEventListener('storage', handleStagedUpdate);
     }
   }, []);
 
@@ -79,6 +77,29 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
       return next;
     });
   };
+
+  // On opening the app: put each draft's photo back from the large storage, and move photos of older
+  // drafts (saved before v1.14.13, photo inside the small storage) out to the large one
+  useEffect(() => {
+    let active = true;
+    restoreDraftPhotos(loadStoredAppState().stagedItems).then(restored => {
+      if (!active) return;
+      const byId = new Map(restored.map(draft => [draft.id, draft]));
+      saveStagedItems(prev => prev.map(draft => {
+        const back = byId.get(draft.id);
+        if (!back || pendingDraftPhotos(draft).length === 0) return draft;
+        const next = { ...draft };
+        delete next.storedPhotos;
+        for (const field of DRAFT_PHOTO_FIELDS) {
+          if (!next[field] && back[field]) next[field] = back[field];
+        }
+        if (back.storedPhotos) next.storedPhotos = back.storedPhotos;
+        if (back.missingPhotos) next.missingPhotos = back.missingPhotos;
+        return next;
+      }));
+    });
+    return () => { active = false; };
+  }, []);
 
   const handleDataExtracted = async (scanItem) => {
     setError(null);

@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.12",
-  "releaseName": "Pins and punch list never wiped by a bad read",
+  "version": "1.14.13",
+  "releaseName": "Draft photos in the phone's large storage",
   "type": "module",
   "scripts": {
     "dev": "vite",
