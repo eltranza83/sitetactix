@@ -1,7 +1,8 @@
 import React from 'react';
 import { Edit2, CloudLightning, FileText, CheckCircle, Trash2, AlertCircle, RefreshCw } from 'lucide-react';
 import { STATUS_MESSAGES } from '../services/appErrors';
-import { isDraftPhaseValid, TRADE_SECTIONS_CONFIG } from '../services/editFormHelpers';
+import { isDraftPhaseValid, splitsMatchTotal, splitsTotals, TRADE_SECTIONS_CONFIG } from '../services/editFormHelpers';
+import { formatMoney } from '../services/money';
 
 export default function StagingCard({ 
   stagedItem, 
@@ -24,6 +25,10 @@ export default function StagingCard({
   const isCheck = metadata.type === 'check';
   const isMockMode = !googleToken || !selectedFolder;
   const hasValidPhase = isDraftPhaseValid(metadata);
+  // Splits must add up to the receipt total before the draft can sync
+  const splitsAddUp = splitsMatchTotal(metadata);
+  const canSync = hasValidPhase && splitsAddUp;
+  const { splitsTotal, receiptTotal } = splitsTotals(metadata);
 
   const scannedItems = Array.isArray(metadata.lineItems) ? metadata.lineItems : [];
   const itemCount = scannedItems.length;
@@ -317,12 +322,12 @@ export default function StagingCard({
               fontSize: '0.8rem', 
               height: '36px', 
               whiteSpace: 'nowrap',
-              backgroundColor: !hasValidPhase ? 'var(--color-zinc-800)' : (stagedItem.sheetSyncError ? '#f59e0b' : undefined),
-              color: !hasValidPhase ? 'var(--color-zinc-500)' : (stagedItem.sheetSyncError ? '#000' : undefined),
-              border: !hasValidPhase ? '1px solid var(--color-zinc-700)' : undefined,
-              cursor: !hasValidPhase ? 'not-allowed' : undefined
+              backgroundColor: !canSync ? 'var(--color-zinc-800)' : (stagedItem.sheetSyncError ? '#f59e0b' : undefined),
+              color: !canSync ? 'var(--color-zinc-500)' : (stagedItem.sheetSyncError ? '#000' : undefined),
+              border: !canSync ? '1px solid var(--color-zinc-700)' : undefined,
+              cursor: !canSync ? 'not-allowed' : undefined
             }}
-            disabled={Boolean(uploading) || !hasValidPhase}
+            disabled={Boolean(uploading) || !canSync}
           >
             {uploading ? (
               <>
@@ -332,6 +337,10 @@ export default function StagingCard({
             ) : !hasValidPhase ? (
               <>
                 <AlertCircle size={12} /> Choose a phase
+              </>
+            ) : !splitsAddUp ? (
+              <>
+                <AlertCircle size={12} /> Fix split amounts
               </>
             ) : isMockMode ? (
               <>
@@ -364,6 +373,23 @@ export default function StagingCard({
         }}>
           <AlertCircle size={13} style={{ flexShrink: 0, color: '#fbbf24' }} />
           <span>Needs a phase before it can sync. Tap Edit to choose one.</span>
+        </div>
+      )}
+
+      {hasValidPhase && !splitsAddUp && (
+        <div style={{
+          fontSize: '0.72rem',
+          color: '#fbbf24',
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          borderRadius: '6px',
+          padding: '6px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <AlertCircle size={13} style={{ flexShrink: 0, color: '#fbbf24' }} />
+          <span>Splits add up to {formatMoney(splitsTotal)}, the receipt is {formatMoney(receiptTotal)}. Tap Edit to fix the amounts.</span>
         </div>
       )}
 

@@ -61,7 +61,7 @@ export function buildHistoryLogs(metadata, { idPrefix, link, draftId = null, syn
   };
 
   if (metadata.splits && metadata.splits.length > 0) {
-    // A $0 split is not uploaded (see the sync loop), so it gets no History entry either
+    // A $0 split is not uploaded (see the sync loop), so it gets no History entry either; a return (negative) split gets one
     return metadata.splits.map((split, index) => {
       const { fileId, ...file } = fileFields(String(index));
       return {
@@ -78,7 +78,7 @@ export function buildHistoryLogs(metadata, { idPrefix, link, draftId = null, syn
         ...(draftId ? { lotName: split.lotNumber || metadata.lotNumber || '' } : {}),
         ...checkFields(index)
       };
-    }).filter((_, index) => (parseFloat(metadata.splits[index].amount) || 0) > 0);
+    }).filter((_, index) => (parseFloat(metadata.splits[index].amount) || 0) !== 0);
   }
 
   const { fileId, ...file } = fileFields('main');
@@ -198,7 +198,8 @@ function buildUploadUnits(item, selectedFolder, projects) {
   if (metadata.splits && metadata.splits.length > 0) {
     const units = [];
     for (const [splitIndex, split] of metadata.splits.entries()) {
-      if ((parseFloat(split.amount) || 0) <= 0) continue;
+      // $0 splits are skipped; a return split (negative) is uploaded like any other
+      if ((parseFloat(split.amount) || 0) === 0) continue;
       const projectFolder = resolveSplitProjectFolder(projects, selectedFolder, split);
       if (projectFolder.unresolved || !projectFolder.folderId) {
         throw new Error(projectFolder.error || `Could not resolve lot "${split.lotNumber}".`);

@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.10",
-  "releaseName": "Library updates before go-live",
+  "version": "1.14.11",
+  "releaseName": "Split totals and returns",
   "type": "module",
   "scripts": {
     "dev": "vite",

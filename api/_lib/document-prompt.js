@@ -82,4 +82,5 @@ High-Precision OCR Rules:
 11. COST CLASSIFICATION (costCategory): use "labor" ONLY when the document pays a person or subcontractor for their work (a check to a sub, or a sub's invoice for installation or service). Everything else is "material": supplies, tools, fuel and gas, fees, permits, utilities, postage, rentals, food and drinks for the crew.
 12. PAYMENT METHOD: for a check, put the check number in checkNumber. For any other receipt that shows how it was paid, put the method in checkNumber as "Credit Card", "Debit Card" or "Cash". If it does not say, return null.
 13. VENDOR NAME: write the vendor in normal capitalization, the way a person would type it (Stripes, Home Depot, Floor and Decor), not in all capitals.
+14. RETURNS, REFUNDS AND CREDITS: if the document is a return, refund, exchange credit or store credit (money coming back to the buyer, e.g. "RETURN", "REFUND", "CREDIT", "REFUND TOTAL", a negative total), return amount as a NEGATIVE number (a $45.10 refund is -45.10) and give every returned line item a NEGATIVE price. In the description say it is a return. A normal purchase is always a positive amount.
 `;

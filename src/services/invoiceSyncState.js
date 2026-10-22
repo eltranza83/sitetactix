@@ -11,7 +11,7 @@ export function getDraftUploads(draft) {
   if (!draft?.driveFileId) return {};
   const splits = draft.metadata?.splits;
   const key = Array.isArray(splits) && splits.length > 0
-    ? String(splits.findIndex(split => (parseFloat(split?.amount) || 0) > 0))
+    ? String(splits.findIndex(split => (parseFloat(split?.amount) || 0) !== 0))
     : 'main';
   return { [key]: { fileId: draft.driveFileId, link: draft.driveFileLink || null, folderId: null } };
 }

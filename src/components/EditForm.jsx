@@ -219,7 +219,9 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
           const val = s.id === id ? (parseFloat(value) || 0) : (parseFloat(s.amount) || 0);
           return acc + val;
         }, 0);
-        const remainder = Math.max(0, receiptTotalVal - otherSplitsSum);
+        // Never past $0 the wrong way: a purchase stays positive, a return stays negative
+        const difference = receiptTotalVal - otherSplitsSum;
+        const remainder = receiptTotalVal >= 0 ? Math.max(0, difference) : Math.min(0, difference);
         firstSplitNewAmount = remainder.toFixed(2);
       }
 
