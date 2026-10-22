@@ -12,6 +12,7 @@ import {
 } from '../services/invoiceSyncState';
 import { syncUploadedInvoicesForFolders } from '../services/directSyncService';
 import { draftSyncProblem } from '../services/editFormHelpers';
+import { draftPhotoProblem } from '../services/draftPhotoStore';
 import { fetchTransactionRows, parseTransactions } from '../services/sheetV2';
 import { checkSyncedEntries, describeSheetMatch, findReceiptInSheet } from '../services/dailyCheck';
 import { confirmAction } from '../services/confirmAction';
@@ -166,7 +167,7 @@ export function useInvoiceSync({
     const itemToSync = stagedItems.find(item => item.id === id);
     if (!itemToSync) return;
 
-    const syncProblem = draftSyncProblem(itemToSync.metadata);
+    const syncProblem = draftSyncProblem(itemToSync.metadata) || draftPhotoProblem(itemToSync);
     if (syncProblem) {
       setError(syncProblem);
       return;
@@ -274,10 +275,11 @@ export function useInvoiceSync({
     }
 
     // Drafts that cannot sync yet (no phase, or splits that do not add up) stay in Drafts
-    const validPhaseDrafts = activeProjectDrafts.filter(item => !draftSyncProblem(item.metadata));
-    const invalidPhaseDrafts = activeProjectDrafts.filter(item => draftSyncProblem(item.metadata));
+    const problemFor = (item) => draftSyncProblem(item.metadata) || draftPhotoProblem(item);
+    const validPhaseDrafts = activeProjectDrafts.filter(item => !problemFor(item));
+    const invalidPhaseDrafts = activeProjectDrafts.filter(item => problemFor(item));
 
-    const invalidDesc = invalidPhaseDrafts.length > 0 ? draftSyncProblem(invalidPhaseDrafts[0].metadata) : '';
+    const invalidDesc = invalidPhaseDrafts.length > 0 ? problemFor(invalidPhaseDrafts[0]) : '';
 
     if (validPhaseDrafts.length === 0) {
       setError(invalidDesc || 'No valid drafts found to sync.');

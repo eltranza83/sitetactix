@@ -1,4 +1,5 @@
 import { DEFAULT_GOOGLE_CLIENT_ID, isBuiltInAdmin } from '../config/appConfig.js';
+import { draftsForSmallStorage, removeUnusedDraftPhotos, saveDraftPhotos } from './draftPhotoStore.js';
 
 export const APP_STORAGE_KEYS = {
   googleToken: 'jobscan_google_token',
@@ -134,10 +135,34 @@ export function sanitizeProjects(projects) {
   return Array.isArray(projects) ? projects.map(sanitizeProject).filter(Boolean) : [];
 }
 
+// History is this device's log of synced receipts (newest first); only the newest are kept
+export const HISTORY_LIMIT = 1000;
+
 export function persistHistory(history) {
-  setStoredJson(APP_STORAGE_KEYS.history, history);
+  setStoredJson(APP_STORAGE_KEYS.history, Array.isArray(history) ? history.slice(0, HISTORY_LIMIT) : []);
 }
 
+let latestStagedItems = [];
+let photoCleanupTimer = null;
+
+/**
+ * Saves the drafts. Their photos go to the phone's large storage (see draftPhotoStore.js); the
+ * small storage keeps each photo only until the large one confirms it. Photos start saving before
+ * the small storage is written, so even when it is full they still move out and free room.
+ * Throws when the small storage is full (the caller warns the user).
+ */
 export function persistStagedItems(stagedItems) {
-  setStoredJson(APP_STORAGE_KEYS.stagedItems, stagedItems);
+  latestStagedItems = stagedItems;
+  saveDraftPhotos(stagedItems, () => {
+    try {
+      setStoredJson(APP_STORAGE_KEYS.stagedItems, draftsForSmallStorage(latestStagedItems));
+    } catch (err) {
+      console.warn('[appStorage] Could not update drafts after a photo moved:', err);
+    }
+  });
+  // Photos of drafts that were synced or deleted are removed a moment later
+  clearTimeout(photoCleanupTimer);
+  photoCleanupTimer = setTimeout(() => removeUnusedDraftPhotos(latestStagedItems), 3000);
+  photoCleanupTimer?.unref?.(); // (tests only) never keeps Node running
+  setStoredJson(APP_STORAGE_KEYS.stagedItems, draftsForSmallStorage(stagedItems));
 }

@@ -29,6 +29,8 @@ export default function StagingCard({
   const splitsAddUp = splitsMatchTotal(metadata);
   const canSync = hasValidPhase && splitsAddUp;
   const { splitsTotal, receiptTotal } = splitsTotals(metadata);
+  // A photo this phone could not find any more (it is put back with Edit)
+  const photoMissing = (stagedItem.missingPhotos || []).some(field => !stagedItem[field]);
 
   const scannedItems = Array.isArray(metadata.lineItems) ? metadata.lineItems : [];
   const itemCount = scannedItems.length;
@@ -373,6 +375,23 @@ export default function StagingCard({
         }}>
           <AlertCircle size={13} style={{ flexShrink: 0, color: '#fbbf24' }} />
           <span>Needs a phase before it can sync. Tap Edit to choose one.</span>
+        </div>
+      )}
+
+      {photoMissing && (
+        <div style={{
+          fontSize: '0.72rem',
+          color: '#fbbf24',
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          borderRadius: '6px',
+          padding: '6px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <AlertCircle size={13} style={{ flexShrink: 0, color: '#fbbf24' }} />
+          <span>This draft's receipt photo is no longer on this phone. Tap Edit to add it again, or sync without it.</span>
         </div>
       )}
 
