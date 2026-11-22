@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
-
 /* CSS Design System for SiteTactix - Adepec Homes Studio */
 /* Billion Dollar Architecture: Obsidian Glass, Anodized Titanium & Champagne Specular Bevels */
 
@@ -1564,6 +1562,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 /* High-Craft Frontend Design System Utilities */
 .font-display {
-  font-family: 'Outfit', sans-serif !important;
+  font-family: var(--font-display) !important;
   letter-spacing: -0.01em;
 }

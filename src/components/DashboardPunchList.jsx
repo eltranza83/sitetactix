@@ -72,13 +72,13 @@ export default function DashboardPunchList({
       
       {/* Toast notifications */}
       {error && (
-        <div className="status-msg error-msg" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+        <div className="alert-box alert-error">
           <AlertCircle size={16} />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="status-msg success-msg" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+        <div className="alert-box alert-success">
           <CheckCircle2 size={16} />
           <span>{success}</span>
         </div>
