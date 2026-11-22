@@ -697,7 +697,7 @@ export default function App() {
                           </div>
                           {item.tradeCategory && item.tradePhase && (
                             <div style={{ fontSize: '0.7rem', color: 'var(--color-amber-400)', marginTop: '2px', fontWeight: 500 }}>
-                              Logged: {item.tradeCategory.replace(/_/g, ' ').replace(/&/g, '&')} → {item.tradePhase}
+                              Logged: {item.tradeCategory.replace(/_/g, ' ')} → {item.tradePhase}
                             </div>
                           )}
                           <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>

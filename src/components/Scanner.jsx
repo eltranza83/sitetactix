@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
+import EditFormCamera from './EditFormCamera';
+import { useInlineCamera } from '../hooks/useInlineCamera';
 import { extractDocumentData } from '../services/gemini';
 import { detectDocumentCorners, rotationForTextDirection } from '../services/documentCorners';
 import { compressImage } from '../services/imageFiles';
@@ -146,14 +148,7 @@ function warpPerspective(srcImgData, srcWidth, srcHeight, corners) {
 export default function Scanner({ onDataExtracted, onError }) {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
-
-  // WebRTC inline camera states
-  const [showCamera, setShowCamera] = useState(false);
-  const [cameraStream, setCameraStream] = useState(null);
   const [textDirection, setTextDirection] = useState('upright');
-  const [zoomInfo, setZoomInfo] = useState(null);
-  const [zoomValue, setZoomValue] = useState(1);
-  const videoRef = useRef(null);
 
   // Crop & Perspective Correction states
   const [croppingImageSrc, setCroppingImageSrc] = useState(null);
@@ -367,15 +362,7 @@ export default function Scanner({ onDataExtracted, onError }) {
     }
   };
 
-  // Cleanup camera stream and blob URLs on unmount
-  useEffect(() => {
-    return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [cameraStream]);
-
+  // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
       if (croppingImageSrc && croppingImageSrc.startsWith('blob:')) {
@@ -384,89 +371,19 @@ export default function Scanner({ onDataExtracted, onError }) {
     };
   }, [croppingImageSrc]);
 
-  const startCamera = async () => {
-    if (onError) onError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 3840 },
-          height: { ideal: 2160 }
-        },
-        audio: false
-      });
-      // Zoom is only offered when the phone's camera supports it
-      const track = stream.getVideoTracks()[0];
-      const caps = track && track.getCapabilities ? track.getCapabilities() : null;
-      if (caps && caps.zoom && caps.zoom.max > caps.zoom.min) {
-        setZoomInfo({ min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 });
-        setZoomValue(caps.zoom.min);
-      } else {
-        setZoomInfo(null);
-      }
-      setCameraStream(stream);
-      setShowCamera(true);
-      
-      // Delay slightly to ensure video element is rendered
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 100);
-    } catch (err) {
-      console.error('Failed to access camera:', err);
-      if (onError) onError('Could not access camera. Verify browser permissions.');
-    }
-  };
-
-  const stopCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
-      setCameraStream(null);
-    }
-    setZoomInfo(null);
-    setShowCamera(false);
-  };
-
-  const handleZoomChange = (e) => {
-    const value = Number(e.target.value);
-    setZoomValue(value);
-    const track = cameraStream && cameraStream.getVideoTracks()[0];
-    if (track) {
-      track.applyConstraints({ advanced: [{ zoom: value }] }).catch(() => {});
-    }
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
-    
-    try {
-      const video = videoRef.current;
-      const canvas = document.createElement('canvas');
-      
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
-          stopCamera();
-          await processFile(file);
-        } else {
-          const frameErr = 'Failed to capture canvas frame.';
-          if (onError) onError(frameErr);
-        }
-      }, 'image/jpeg', 0.85);
-      
-    } catch (err) {
-      console.error('Capture failed:', err);
-      const capErr = `Capture failed: ${err.message}`;
-      if (onError) onError(capErr);
-    }
-  };
+  const {
+    showCamera,
+    videoRef,
+    zoomInfo,
+    zoomValue,
+    startCamera,
+    stopCamera,
+    handleZoomChange,
+    capturePhoto
+  } = useInlineCamera({
+    onPhotoCaptured: (file) => processFile(file),
+    onError
+  });
 
   const handleFileChange = async (e) => {
     const files = e.target.files;
@@ -667,45 +584,15 @@ export default function Scanner({ onDataExtracted, onError }) {
 
   if (showCamera) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Inline Camera</h2>
-          <button 
-            type="button" 
-            onClick={stopCamera} 
-            className="btn btn-secondary" 
-            style={{ width: 'auto', padding: '6px 12px', fontSize: '0.8rem' }}
-          >
-            Cancel
-          </button>
-        </div>
-
-        <div className="camera-container">
-          <video 
-            ref={videoRef} 
-            className="camera-video" 
-            autoPlay 
-            playsInline
-            muted
-          />
-        </div>
-
-        {zoomInfo && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 4px' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--color-zinc-400)' }}>Zoom</span>
-            <input type="range" min={zoomInfo.min} max={zoomInfo.max} step={zoomInfo.step} value={zoomValue} onChange={handleZoomChange} style={{ flex: 1 }} aria-label="Camera zoom" />
-          </div>
-        )}
-
-        <div className="camera-controls">
-          <button 
-            type="button" 
-            onClick={capturePhoto} 
-            className="shutter-btn"
-            title="Capture photo"
-          />
-        </div>
-      </div>
+      <EditFormCamera
+        className=""
+        videoRef={videoRef}
+        onCapturePhoto={capturePhoto}
+        onStopCamera={stopCamera}
+        zoomInfo={zoomInfo}
+        zoomValue={zoomValue}
+        onZoomChange={handleZoomChange}
+      />
     );
   }
 

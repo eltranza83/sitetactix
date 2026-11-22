@@ -15,7 +15,7 @@ import {
 } from '../services/projectSheet';
 import { readProjectInfoIfV2, writeProjectInfo } from '../services/sheetV2';
 import { TEMPLATE_SHEET_ID } from '../config/appConfig';
-import { APP_STORAGE_KEYS, persistActiveProject, persistProjects } from '../services/appStorage';
+import { APP_STORAGE_KEYS, persistActiveProject, persistProjects, sanitizeProject } from '../services/appStorage';
 import {
   buildNotionLotRequest,
   cleanSubdivision,
@@ -286,8 +286,7 @@ export function useSettingsProjects({
       setSavingProject(false);
       const updatedProjects = projects.map(p => {
         if (p.id === editingProject.id) {
-          const { appsScriptUrl: _url, appsScriptSecret: _secret, ...safeProject } = p;
-          const base = clearSheetLinkIfFolderChanged(safeProject, tempSelectedFolder.id);
+          const base = clearSheetLinkIfFolderChanged(sanitizeProject(p), tempSelectedFolder.id);
           return {
             ...(tempSelectedSheet ? linkSheetToProject(base, tempSelectedSheet) : base),
             name: projectNameInput.trim(),

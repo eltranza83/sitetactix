@@ -4,15 +4,15 @@
  * `key` is the app's internal category key; `name` matches the Sheet exactly.
  */
 export const TRADE_CATEGORIES = [
-  { key: 'Paperwork_&_Permits', name: 'Paperwork & Permits', phases: ['Paperwork & Permits'] },
-  { key: 'Site_Prep_&_Structure', name: 'Site Prep & Structure', phases: ['Foundation & Flatwork', 'Roofing', 'Windows & Exterior Doors'] },
-  { key: 'Framing_&_Lumber', name: 'Framing & Lumber', phases: ['Framing Lumber & Truss'] },
-  { key: 'Mechanicals_&_Utilities', name: 'Mechanicals & Utilities', phases: ['Plumbing Rough-In', 'Electrical & Lighting', 'HVAC / AC Systems', 'Insulation & Alarms'] },
-  { key: 'Interior_Finishes', name: 'Interior Finishes', phases: ['Drywall & Sheetrock', 'Cabinets & Trim Carpentry', 'Quartz & Countertops', 'Glass Work'] },
-  { key: 'Paint_Tile', name: 'Paint & Tile', phases: ['Tile & Flooring', 'Paint & Finishes'] },
-  { key: 'Interior_Hardware', name: 'Interior Hardware', phases: ['Plumbing Hardware Fixtures', 'Electrical Hardware Fixtures'] },
-  { key: 'House_Exterior_&_Yard', name: 'House Exterior & Yard', phases: ['Stucco & Masonry', 'Garage Doors', 'Driveway & Sidewalks', 'Cantera Stone Detail', 'Fencing & Gates', 'Landscaping & Irrigation'] },
-  { key: 'Project_Overhead_&_Bills', name: 'Project Overhead & Bills', phases: ['Monthly Utility Bills', 'Dumpsters & Cleaning', 'Extra Costs & Misc'] }
+  { key: 'Paperwork_&_Permits', name: 'Paperwork & Permits', color: '#14b8a6', phases: ['Paperwork & Permits'] },
+  { key: 'Site_Prep_&_Structure', name: 'Site Prep & Structure', color: '#10b981', phases: ['Foundation & Flatwork', 'Roofing', 'Windows & Exterior Doors'] },
+  { key: 'Framing_&_Lumber', name: 'Framing & Lumber', color: '#3b82f6', phases: ['Framing Lumber & Truss'] },
+  { key: 'Mechanicals_&_Utilities', name: 'Mechanicals & Utilities', color: '#F1D7A7', phases: ['Plumbing Rough-In', 'Electrical & Lighting', 'HVAC / AC Systems', 'Insulation & Alarms'] },
+  { key: 'Interior_Finishes', name: 'Interior Finishes', color: '#f43f5e', phases: ['Drywall & Sheetrock', 'Cabinets & Trim Carpentry', 'Quartz & Countertops', 'Glass Work'] },
+  { key: 'Paint_Tile', name: 'Paint & Tile', color: '#a855f7', phases: ['Tile & Flooring', 'Paint & Finishes'] },
+  { key: 'Interior_Hardware', name: 'Interior Hardware', color: '#6366f1', phases: ['Plumbing Hardware Fixtures', 'Electrical Hardware Fixtures'] },
+  { key: 'House_Exterior_&_Yard', name: 'House Exterior & Yard', color: '#F1D7A7', phases: ['Stucco & Masonry', 'Garage Doors', 'Driveway & Sidewalks', 'Cantera Stone Detail', 'Fencing & Gates', 'Landscaping & Irrigation'] },
+  { key: 'Project_Overhead_&_Bills', name: 'Project Overhead & Bills', color: '#71717a', phases: ['Monthly Utility Bills', 'Dumpsters & Cleaning', 'Extra Costs & Misc'] }
 ];
 
 export const ALL_CATEGORY_KEYS = TRADE_CATEGORIES.map(c => c.key);

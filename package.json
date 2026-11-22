@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.13",
-  "releaseName": "Draft photos in the phone's large storage",
+  "version": "1.14.14",
+  "releaseName": "Punch list photo safety and code cleanup",
   "type": "module",
   "scripts": {
     "dev": "vite",

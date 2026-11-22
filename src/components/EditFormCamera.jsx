@@ -1,8 +1,16 @@
 import React from 'react';
 
-export default function EditFormCamera({ videoRef, onCapturePhoto, onStopCamera, zoomInfo = null, zoomValue = 1, onZoomChange }) {
+export default function EditFormCamera({
+  videoRef,
+  onCapturePhoto,
+  onStopCamera,
+  zoomInfo = null,
+  zoomValue = 1,
+  onZoomChange,
+  className = 'edit-overlay-container'
+}) {
   return (
-    <div className="edit-overlay-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className={className || undefined} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Inline Camera</h2>
         <button

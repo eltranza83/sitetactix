@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
-import { mergeIssues } from '../src/services/issuesDrive.js';
+import {
+  filterRemainingOfflineQueue,
+  mergeIssues,
+  removeLegacyCachedIssuePhotos,
+  uploadQueuedIssuePhotos
+} from '../src/services/issuesDrive.js';
 
 test('mergeIssues applies CREATE operations correctly', () => {
   const remoteIssues = [];
@@ -161,4 +167,93 @@ test('mergeIssues applies multiple operations in chronological order', () => {
   assert.equal(merged.length, 1);
   assert.equal(merged[0].status, 'in_progress');
   assert.equal(merged[0].deletedAt, new Date(3000).toISOString());
+});
+
+test('removeLegacyCachedIssuePhotos removes old write-only jobscan_photo_* keys and keeps everything else', () => {
+  const data = new Map([
+    ['jobscan_photo_issue_1', 'data:image/jpeg;base64,AAAA'],
+    ['jobscan_photo_issue_2', 'data:image/jpeg;base64,BBBB'],
+    ['jobscan_staged_items', '[]'],
+    ['jobscan_projects', '[]']
+  ]);
+  const storage = {
+    get length() { return data.size; },
+    key: (i) => [...data.keys()][i] || null,
+    getItem: (k) => data.get(k) ?? null,
+    removeItem: (k) => data.delete(k)
+  };
+
+  const removed = removeLegacyCachedIssuePhotos(storage);
+  assert.equal(removed, 2);
+  assert.equal(data.has('jobscan_photo_issue_1'), false);
+  assert.equal(data.has('jobscan_photo_issue_2'), false);
+  assert.equal(data.get('jobscan_staged_items'), '[]');
+  assert.equal(data.get('jobscan_projects'), '[]');
+
+  const useIssuesSource = fs.readFileSync(new URL('../src/hooks/useIssues.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(useIssuesSource, /jobscan_photo_/);
+});
+
+test('uploadQueuedIssuePhotos uploads defect and proof photos, strips base64, and stops on upload failure', async () => {
+  const sampleBase64 = `data:image/jpeg;base64,${Buffer.from('jpeg-bytes').toString('base64')}`;
+  const queue = [
+    {
+      type: 'CREATE',
+      id: 'issue_1',
+      timestamp: 1000,
+      payload: { title: 'Defect 1', photoBase64: sampleBase64, proofPhotoBase64: null }
+    },
+    {
+      type: 'UPDATE',
+      id: 'issue_1',
+      timestamp: 2000,
+      payload: { status: 'in_progress', proofPhotoBase64: sampleBase64 }
+    }
+  ];
+
+  const savedSnapshots = [];
+  await uploadQueuedIssuePhotos('token', 'folder_1', queue, {
+    onProgress: (q) => savedSnapshots.push(JSON.parse(JSON.stringify(q))),
+    uploadDefect: async () => ({ id: 'drive_defect_1', url: 'https://drive.google.com/file/d/drive_defect_1/view' }),
+    uploadProof: async () => ({ id: 'drive_proof_1', url: 'https://drive.google.com/file/d/drive_proof_1/view' })
+  });
+
+  assert.equal(savedSnapshots.length, 2);
+  assert.equal(queue[0].payload.photoBase64, undefined);
+  assert.equal(queue[0].payload.photoFileId, 'drive_defect_1');
+  assert.equal(queue[1].payload.proofPhotoBase64, null);
+  assert.equal(queue[1].payload.proofPhotoFileId, 'drive_proof_1');
+
+  // If a photo upload fails mid-sync, it must throw so raw base64 is never merged into issues_data.json
+  const failingQueue = [
+    {
+      type: 'CREATE',
+      id: 'issue_2',
+      timestamp: 3000,
+      payload: { title: 'Defect 2', photoBase64: sampleBase64 }
+    }
+  ];
+  await assert.rejects(
+    uploadQueuedIssuePhotos('token', 'folder_1', failingQueue, {
+      uploadDefect: async () => { throw new Error('Network dropped'); }
+    }),
+    /Network dropped/
+  );
+  // Base64 stays intact in the queued item so the next sync retries the upload
+  assert.equal(failingQueue[0].payload.photoBase64, sampleBase64);
+});
+
+test('filterRemainingOfflineQueue removes only synced operations and preserves concurrent additions', () => {
+  const syncedBatch = [
+    { type: 'CREATE', id: 'issue_1', timestamp: 1000 },
+    { type: 'UPDATE', id: 'issue_1', timestamp: 2000 }
+  ];
+  const currentQueue = [
+    ...syncedBatch,
+    { type: 'CREATE', id: 'issue_2', timestamp: 2500 }
+  ];
+
+  const remaining = filterRemainingOfflineQueue(currentQueue, syncedBatch);
+  assert.equal(remaining.length, 1);
+  assert.equal(remaining[0].id, 'issue_2');
 });

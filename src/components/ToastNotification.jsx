@@ -35,7 +35,7 @@ export default function ToastNotification({ message, type = 'success', onClose, 
       alignItems: 'center',
       gap: '10px',
       padding: '10px 18px',
-      borderRadius: '30px',
+      borderRadius: '20px',
       backgroundColor: isSuccess ? '#141416' : '#1c0a0c',
       border: isSuccess ? '1.5px solid #F1D7A7' : '1.5px solid #ef4444',
       backdropFilter: 'blur(20px)',
@@ -75,7 +75,7 @@ export default function ToastNotification({ message, type = 'success', onClose, 
           <AlertCircle size={18} style={{ color: '#f87171' }} />
         </div>
       )}
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
+      <span style={{ whiteSpace: 'normal', lineHeight: 1.35, wordBreak: 'break-word', letterSpacing: '0.01em' }}>
         {message}
       </span>
       <button
