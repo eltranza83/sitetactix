@@ -712,7 +712,7 @@ export async function generateDocumentPDF(metadata, imageUrls) {
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(12);
-      pdf.text('JOBSCAN - ATTACHED RECEIPT / REFERENCE', margin, 13);
+      pdf.text('ADEPEC HOMES - ATTACHED RECEIPT / REFERENCE', margin, 13);
       
       const p2Y = 30;
       const maxImgHeightP2 = pageHeight - p2Y - margin;

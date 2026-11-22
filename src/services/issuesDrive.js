@@ -7,10 +7,85 @@ import {
   updateFileContent,
   uploadFileToDrive
 } from './googleDrive.js';
+import { dataUrlToBlob } from './imageFiles.js';
 
 const ISSUE_PHOTOS_FOLDER_NAME = 'Issue Photos';
 const ISSUES_CONFIG_FILE = 'issues_data.json';
 const ISSUES_CONFIG_MIME_TYPE = 'application/json';
+const LEGACY_PHOTO_KEY_PREFIX = 'jobscan_photo_';
+
+/**
+ * Removes old write-only `jobscan_photo_*` entries from localStorage so phones recover that space.
+ */
+export function removeLegacyCachedIssuePhotos(storage) {
+  if (!storage) return 0;
+  const keysToRemove = new Set();
+  try {
+    if (typeof storage.length === 'number' && typeof storage.key === 'function') {
+      for (let i = 0; i < storage.length; i += 1) {
+        const key = storage.key(i);
+        if (key && key.startsWith(LEGACY_PHOTO_KEY_PREFIX)) keysToRemove.add(key);
+      }
+    }
+    for (const key of Object.keys(storage)) {
+      if (key.startsWith(LEGACY_PHOTO_KEY_PREFIX)) keysToRemove.add(key);
+    }
+    for (const key of keysToRemove) {
+      storage.removeItem(key);
+    }
+  } catch {
+    // Ignore storage enumeration errors
+  }
+  return keysToRemove.size;
+}
+
+/**
+ * Uploads any offline base64 defect or proof photos in the queue to Google Drive before merging.
+ * Calls `onProgress(queue)` after each uploaded photo so progress is kept if a later upload fails.
+ * Throws if any photo upload fails so raw base64 is never written into `issues_data.json` in Drive.
+ */
+export async function uploadQueuedIssuePhotos(
+  accessToken,
+  projectFolderId,
+  queue,
+  { onProgress, uploadDefect = uploadIssuePhoto, uploadProof = uploadIssueProofPhoto } = {}
+) {
+  for (const op of (Array.isArray(queue) ? queue : [])) {
+    if ((op.type === 'CREATE' || op.type === 'UPDATE') && op.payload?.photoBase64) {
+      if (!op.payload.photoUrl) {
+        const blob = dataUrlToBlob(op.payload.photoBase64);
+        const fileObj = new File([blob], 'offline_issue_photo.jpg', { type: blob.type || 'image/jpeg' });
+        const uploadResult = await uploadDefect(accessToken, projectFolderId, fileObj);
+        op.payload.photoUrl = uploadResult.url;
+        op.payload.photoFileId = uploadResult.id;
+      }
+      delete op.payload.photoBase64;
+      onProgress?.(queue);
+    }
+
+    if ((op.type === 'CREATE' || op.type === 'UPDATE') && op.payload?.proofPhotoBase64) {
+      if (!op.payload.proofPhotoUrl) {
+        const blob = dataUrlToBlob(op.payload.proofPhotoBase64);
+        const fileObj = new File([blob], 'offline_proof_photo.jpg', { type: blob.type || 'image/jpeg' });
+        const uploadResult = await uploadProof(accessToken, projectFolderId, fileObj);
+        op.payload.proofPhotoUrl = uploadResult.url;
+        op.payload.proofPhotoFileId = uploadResult.id;
+      }
+      op.payload.proofPhotoBase64 = null;
+      onProgress?.(queue);
+    }
+  }
+}
+
+/**
+ * Removes only the operations that were part of the completed sync batch, keeping any new
+ * operation that was queued while the Drive sync was in flight.
+ */
+export function filterRemainingOfflineQueue(currentQueue = [], syncedQueue = []) {
+  const opKey = (op) => `${op?.type}_${op?.id}_${op?.timestamp}`;
+  const syncedKeys = new Set((syncedQueue || []).map(opKey));
+  return (currentQueue || []).filter(op => !syncedKeys.has(opKey(op)));
+}
 
 
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Edit3,
   FileText,
@@ -16,7 +16,7 @@ import {
   ClipboardCheck
 } from 'lucide-react';
 import { useAuthenticatedDriveImage } from '../hooks/useAuthenticatedDriveImage';
-import { getDisplayImageUrl } from '../services/imageFiles';
+import { compressImage, getDisplayImageUrl } from '../services/imageFiles';
 import { formatPhone } from '../services/projectInfoFormatter';
 import { ISSUE_STATUS_LABELS, buildSubShareText } from '../services/issueStatus';
 import { confirmAction, showMessage } from '../services/confirmAction';
@@ -211,13 +211,34 @@ export default function IssueCard({
     }
   };
 
-  const handleProofPhotoSelect = (e) => {
+  useEffect(() => {
+    return () => {
+      if (proofPreview && proofPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(proofPreview);
+      }
+    };
+  }, [proofPreview]);
+
+  const clearProofPhoto = () => {
+    setProofFile(null);
+    setProofPreview(prev => {
+      if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+      return null;
+    });
+  };
+
+  const handleProofPhotoSelect = async (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setProofFile(file);
-      const url = URL.createObjectURL(file);
-      setProofPreview(url);
-    }
+    // Clear the picker so choosing the same photo again still counts as a change
+    e.target.value = '';
+    if (!file) return;
+    const prepared = await compressImage(file, 1200, 1200, 0.8);
+    setProofFile(prepared);
+    const url = URL.createObjectURL(prepared);
+    setProofPreview(prev => {
+      if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+      return url;
+    });
   };
 
   const handleSubmitProof = async () => {
@@ -225,8 +246,7 @@ export default function IssueCard({
     try {
       await onMarkFixed(id, { proofPhotoFile: proofFile, proofNotes });
       setShowFixForm(false);
-      setProofFile(null);
-      setProofPreview(null);
+      clearProofPhoto();
       setProofNotes('');
     } catch (err) {
       console.error('Failed to submit proof photo:', err);
@@ -303,6 +323,119 @@ export default function IssueCard({
       default: return act;
     }
   };
+
+  const issueDetailsContent = (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+        <h4 style={{
+          fontSize: '1rem',
+          fontWeight: 600,
+          color: 'var(--color-zinc-100)',
+          lineHeight: '1.4',
+          margin: 0
+        }}>
+          {title}
+        </h4>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+          {onSendPacket && (
+            <button
+              type="button"
+              onClick={handleSendPacketClick}
+              disabled={preparingPacket}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--color-zinc-800)',
+                color: 'var(--color-zinc-300)',
+                cursor: 'pointer',
+                padding: '3px 7px',
+                borderRadius: '5px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                fontSize: '0.68rem',
+                fontWeight: 600,
+                opacity: preparingPacket ? 0.6 : 1
+              }}
+              title="Download PDF Packet"
+            >
+              <FileText size={12} />
+              <span>{preparingPacket ? '...' : 'PDF'}</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleShareWithSub}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--color-zinc-800)',
+              color: copiedShare ? '#34d399' : 'var(--color-zinc-300)',
+              cursor: 'pointer',
+              padding: '3px 7px',
+              borderRadius: '5px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px',
+              fontSize: '0.68rem',
+              fontWeight: 600
+            }}
+            title="Copy text summary to share with sub"
+          >
+            {copiedShare ? <Check size={12} /> : <Share2 size={12} />}
+            <span>{copiedShare ? 'Copied!' : 'Share'}</span>
+          </button>
+        </div>
+      </div>
+      {description && (
+        <p style={{
+          fontSize: '0.85rem',
+          color: 'var(--color-zinc-400)',
+          lineHeight: '1.5',
+          marginBottom: '6px'
+        }}>
+          {description}
+        </p>
+      )}
+
+      {/* Category details */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.75rem', color: 'var(--color-zinc-400)' }}>
+        <div>
+          Category: <strong style={{ color: 'var(--color-zinc-200)' }}>{category?.replace(/_/g, ' ')}</strong>
+          {tradePhase && <span> • <strong>{tradePhase}</strong></span>}
+        </div>
+        {(contractorName || phoneNumber) && (
+          <div>
+            Assigned: <strong style={{ color: 'var(--color-amber-400)' }}>{contractorName || 'N/A'}</strong> {phoneNumber ? `· ${formatPhone(phoneNumber)}` : ''}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem', color: 'var(--color-zinc-400)', flexWrap: 'wrap', marginTop: '3px' }}>
+          {dateFormatted && dateFormatted !== 'N/A' && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--color-zinc-500)' }}>
+              <Calendar size={11} />
+              <span>Logged {dateFormatted}</span>
+            </span>
+          )}
+          {dueDateFormatted && (
+            <span style={{
+              fontSize: '0.68rem',
+              color: 'var(--color-amber-400)',
+              backgroundColor: 'rgba(241, 215, 167, 0.1)',
+              border: '1px solid rgba(241, 215, 167, 0.25)',
+              padding: '1px 6px',
+              borderRadius: '4px',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px'
+            }}>
+              <Clock size={10} />
+              <span>Due {dueDateFormatted}</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <div style={{
@@ -391,114 +524,7 @@ export default function IssueCard({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {/* 100% Full Width Text Section */}
           <div style={{ width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-              <h4 style={{
-                fontSize: '1rem',
-                fontWeight: 600,
-                color: 'var(--color-zinc-100)',
-                lineHeight: '1.4',
-                margin: 0
-              }}>
-                {title}
-              </h4>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                {onSendPacket && (
-                  <button
-                    type="button"
-                    onClick={handleSendPacketClick}
-                    disabled={preparingPacket}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid var(--color-zinc-800)',
-                      color: 'var(--color-zinc-300)',
-                      cursor: 'pointer',
-                      padding: '3px 7px',
-                      borderRadius: '5px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      fontSize: '0.68rem',
-                      fontWeight: 600,
-                      opacity: preparingPacket ? 0.6 : 1
-                    }}
-                    title="Download PDF Packet"
-                  >
-                    <FileText size={12} />
-                    <span>{preparingPacket ? '...' : 'PDF'}</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleShareWithSub}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--color-zinc-800)',
-                    color: copiedShare ? '#34d399' : 'var(--color-zinc-300)',
-                    cursor: 'pointer',
-                    padding: '3px 7px',
-                    borderRadius: '5px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    fontSize: '0.68rem',
-                    fontWeight: 600
-                  }}
-                  title="Copy text summary to share with sub"
-                >
-                  {copiedShare ? <Check size={12} /> : <Share2 size={12} />}
-                  <span>{copiedShare ? 'Copied!' : 'Share'}</span>
-                </button>
-              </div>
-            </div>
-            {description && (
-              <p style={{
-                fontSize: '0.85rem',
-                color: 'var(--color-zinc-400)',
-                lineHeight: '1.5',
-                marginBottom: '6px'
-              }}>
-                {description}
-              </p>
-            )}
-
-            {/* Category details */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.75rem', color: 'var(--color-zinc-400)' }}>
-              <div>
-                Category: <strong style={{ color: 'var(--color-zinc-200)' }}>{category?.replace(/_/g, ' ')}</strong>
-                {tradePhase && <span> • <strong>{tradePhase}</strong></span>}
-              </div>
-              {(contractorName || phoneNumber) && (
-                <div>
-                  Assigned: <strong style={{ color: 'var(--color-amber-400)' }}>{contractorName || 'N/A'}</strong> {phoneNumber ? `· ${formatPhone(phoneNumber)}` : ''}
-                </div>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem', color: 'var(--color-zinc-400)', flexWrap: 'wrap', marginTop: '3px' }}>
-                {dateFormatted && dateFormatted !== 'N/A' && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--color-zinc-500)' }}>
-                    <Calendar size={11} />
-                    <span>Logged {dateFormatted}</span>
-                  </span>
-                )}
-                {dueDateFormatted && (
-                  <span style={{
-                    fontSize: '0.68rem',
-                    color: 'var(--color-amber-400)',
-                    backgroundColor: 'rgba(241, 215, 167, 0.1)',
-                    border: '1px solid rgba(241, 215, 167, 0.25)',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px'
-                  }}>
-                    <Clock size={10} />
-                    <span>Due {dueDateFormatted}</span>
-                  </span>
-                )}
-              </div>
-            </div>
+            {issueDetailsContent}
           </div>
 
           {/* Dedicated Before & After Comparison Grid */}
@@ -645,114 +671,7 @@ export default function IssueCard({
         /* Single Photo (or No Photo) Compact Row: Text on Left + 72px Thumbnail on Right */
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-              <h4 style={{
-                fontSize: '1rem',
-                fontWeight: 600,
-                color: 'var(--color-zinc-100)',
-                lineHeight: '1.4',
-                margin: 0
-              }}>
-                {title}
-              </h4>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                {onSendPacket && (
-                  <button
-                    type="button"
-                    onClick={handleSendPacketClick}
-                    disabled={preparingPacket}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid var(--color-zinc-800)',
-                      color: 'var(--color-zinc-300)',
-                      cursor: 'pointer',
-                      padding: '3px 7px',
-                      borderRadius: '5px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      fontSize: '0.68rem',
-                      fontWeight: 600,
-                      opacity: preparingPacket ? 0.6 : 1
-                    }}
-                    title="Download PDF Packet"
-                  >
-                    <FileText size={12} />
-                    <span>{preparingPacket ? '...' : 'PDF'}</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleShareWithSub}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--color-zinc-800)',
-                    color: copiedShare ? '#34d399' : 'var(--color-zinc-300)',
-                    cursor: 'pointer',
-                    padding: '3px 7px',
-                    borderRadius: '5px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    fontSize: '0.68rem',
-                    fontWeight: 600
-                  }}
-                  title="Copy text summary to share with sub"
-                >
-                  {copiedShare ? <Check size={12} /> : <Share2 size={12} />}
-                  <span>{copiedShare ? 'Copied!' : 'Share'}</span>
-                </button>
-              </div>
-            </div>
-            {description && (
-              <p style={{
-                fontSize: '0.85rem',
-                color: 'var(--color-zinc-400)',
-                lineHeight: '1.5',
-                marginBottom: '6px'
-              }}>
-                {description}
-              </p>
-            )}
-
-            {/* Category details */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.75rem', color: 'var(--color-zinc-400)' }}>
-              <div>
-                Category: <strong style={{ color: 'var(--color-zinc-200)' }}>{category?.replace(/_/g, ' ')}</strong>
-                {tradePhase && <span> • <strong>{tradePhase}</strong></span>}
-              </div>
-              {(contractorName || phoneNumber) && (
-                <div>
-                  Assigned: <strong style={{ color: 'var(--color-amber-400)' }}>{contractorName || 'N/A'}</strong> {phoneNumber ? `· ${formatPhone(phoneNumber)}` : ''}
-                </div>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem', color: 'var(--color-zinc-400)', flexWrap: 'wrap', marginTop: '3px' }}>
-                {dateFormatted && dateFormatted !== 'N/A' && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--color-zinc-500)' }}>
-                    <Calendar size={11} />
-                    <span>Logged {dateFormatted}</span>
-                  </span>
-                )}
-                {dueDateFormatted && (
-                  <span style={{
-                    fontSize: '0.68rem',
-                    color: 'var(--color-amber-400)',
-                    backgroundColor: 'rgba(241, 215, 167, 0.1)',
-                    border: '1px solid rgba(241, 215, 167, 0.25)',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px'
-                  }}>
-                    <Clock size={10} />
-                    <span>Due {dueDateFormatted}</span>
-                  </span>
-                )}
-              </div>
-            </div>
+            {issueDetailsContent}
           </div>
 
           {/* Right Side: Single Compact Thumbnail + Action Button Underneath */}
@@ -1000,7 +919,7 @@ export default function IssueCard({
               <img src={proofPreview} alt="Proof preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <button
                 type="button"
-                onClick={() => { setProofFile(null); setProofPreview(null); }}
+                onClick={clearProofPhoto}
                 style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}
               >
                 <X size={12} />

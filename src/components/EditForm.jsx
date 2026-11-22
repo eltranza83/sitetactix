@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Save, Trash2, Calendar, User, DollarSign, Tag, CheckSquare, MapPin } from 'lucide-react';
 import EditFormAttachments from './EditFormAttachments';
 import EditFormCamera from './EditFormCamera';
 import EditFormPayeePicker from './EditFormPayeePicker';
+import { useInlineCamera } from '../hooks/useInlineCamera';
 import { knownSubPayeeName } from '../services/payeeMatching';
 import {
   ALLOCATION_COLORS,
@@ -17,7 +18,7 @@ import {
   getItemIndexesForSplit,
   normalizeScanDate
 } from '../services/editFormHelpers';
-import { compressImage } from '../services/imageFiles';
+import { compressImage, fileToBase64 } from '../services/imageFiles';
 
 export default function EditForm({ stagedItem, onSave, onCancel, history = [], stagedItems = [], projects = [], knownSubs = [] }) {
   const [formData, setFormData] = useState({
@@ -281,16 +282,15 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     }));
   };
 
+  const attachSecondaryFile = async (file) => {
+    const compressedFile = await compressImage(file, 1800, 1800);
+    setSecondaryImageBase64(await fileToBase64(compressedFile));
+  };
+
   const handleFileChange = async (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const compressedFile = await compressImage(files[0], 1800, 1800);
-      const base64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(compressedFile);
-      });
-      setSecondaryImageBase64(base64);
+      await attachSecondaryFile(files[0]);
     }
   };
 
@@ -298,109 +298,20 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     setSecondaryImageBase64(null);
   };
 
-  // WebRTC camera states for receipt attachments
-  const [showCamera, setShowCamera] = useState(false);
-  const [cameraStream, setCameraStream] = useState(null);
-  const videoRef = useRef(null);
-  const [cameraError, setCameraError] = useState(null);
-
-  useEffect(() => {
-    return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [cameraStream]);
-
-  const [zoomInfo, setZoomInfo] = useState(null);
-  const [zoomValue, setZoomValue] = useState(1);
-
-  const handleZoomChange = (e) => {
-    const value = Number(e.target.value);
-    setZoomValue(value);
-    const track = cameraStream && cameraStream.getVideoTracks()[0];
-    if (track) {
-      track.applyConstraints({ advanced: [{ zoom: value }] }).catch(() => {});
-    }
-  };
-
-  const startCamera = async () => {
-    setCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 3840 },
-          height: { ideal: 2160 }
-        },
-        audio: false
-      });
-      // Zoom is only offered when the phone's camera supports it
-      const track = stream.getVideoTracks()[0];
-      const caps = track && track.getCapabilities ? track.getCapabilities() : null;
-      if (caps && caps.zoom && caps.zoom.max > caps.zoom.min) {
-        setZoomInfo({ min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 });
-        setZoomValue(caps.zoom.min);
-      } else {
-        setZoomInfo(null);
-      }
-      setCameraStream(stream);
-      setShowCamera(true);
-      
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 100);
-    } catch (err) {
-      console.error('Failed to access camera:', err);
-      setCameraError('Could not start inline camera. Please verify permissions.');
-    }
-  };
-
-  const stopCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
-      setCameraStream(null);
-    }
-    setZoomInfo(null);
-    setShowCamera(false);
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
-    
-    try {
-      const video = videoRef.current;
-      const canvas = document.createElement('canvas');
-      
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
-          stopCamera();
-          const compressed = await compressImage(file, 1800, 1800);
-          const base64 = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.readAsDataURL(compressed);
-          });
-          setSecondaryImageBase64(base64);
-        } else {
-          setCameraError('Failed to capture canvas frame.');
-        }
-      }, 'image/jpeg', 0.85);
-      
-    } catch (err) {
-      console.error('Capture failed:', err);
-      setCameraError(`Capture failed: ${err.message}`);
-    }
-  };
+  const {
+    showCamera,
+    cameraError,
+    videoRef,
+    zoomInfo,
+    zoomValue,
+    startCamera,
+    stopCamera,
+    handleZoomChange,
+    capturePhoto
+  } = useInlineCamera({
+    onPhotoCaptured: attachSecondaryFile,
+    accessErrorMessage: 'Could not start inline camera. Please verify permissions.'
+  });
 
   const isPhaseValid = isSplit
     ? (splits.length > 0 && splits.every(s => isValidPhase(s.tradeCategory || formData.tradeCategory, s.tradePhase)))

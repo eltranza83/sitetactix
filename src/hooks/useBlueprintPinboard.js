@@ -204,6 +204,8 @@ export function useBlueprintPinboard({
 
   const handleUploadBlueprint = async (e) => {
     const file = e.target.files[0];
+    // Clear the picker so choosing the same floor plan again still counts as a change
+    e.target.value = '';
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {

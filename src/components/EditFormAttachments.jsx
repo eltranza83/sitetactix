@@ -1,5 +1,22 @@
 import React from 'react';
 import { Camera, Plus, Trash2 } from 'lucide-react';
+import { dataUrlToBlob } from '../services/imageFiles';
+
+export function openPdfPreview(mainImageUrl) {
+  if (!mainImageUrl) return;
+  if (mainImageUrl.startsWith('data:')) {
+    const blob = dataUrlToBlob(mainImageUrl, 'application/pdf');
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+    setTimeout(() => {
+      try {
+        URL.revokeObjectURL(blobUrl);
+      } catch {}
+    }, 60000);
+    return;
+  }
+  window.open(mainImageUrl, '_blank');
+}
 
 export default function EditFormAttachments({
   cameraError,
@@ -17,7 +34,7 @@ export default function EditFormAttachments({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px', backgroundColor: 'var(--color-zinc-950)', borderRadius: '8px', border: '1px solid var(--color-zinc-800)' }}>
             {mainImageUrl.startsWith('data:application/pdf') ? (
               <div
-                onClick={() => window.open(mainImageUrl, '_blank')}
+                onClick={() => openPdfPreview(mainImageUrl)}
                 style={{
                   cursor: 'pointer',
                   width: '40px',

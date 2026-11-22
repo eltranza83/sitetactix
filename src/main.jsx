@@ -84,7 +84,12 @@ class AppErrorBoundary extends React.Component {
             </button>
             <button
               type="button"
-              onClick={() => { localStorage.clear(); sessionStorage.clear(); window.location.reload(); }}
+              onClick={() => {
+                localStorage.clear();
+                sessionStorage.clear();
+                try { indexedDB?.deleteDatabase?.('sitetactix-drafts'); } catch {}
+                window.location.reload();
+              }}
               style={{ padding: '10px 18px', backgroundColor: '#27272a', color: '#e4e4e7', fontWeight: 600, borderRadius: '8px', border: '1px solid #3f3f46', cursor: 'pointer', fontSize: '0.85rem' }}
             >
               Clear Cache & Reset

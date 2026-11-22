@@ -1,8 +1,8 @@
 import { TRADE_CATEGORIES } from '../config/tradeCategories.js';
 
-/** Category key -> { label, phases }, in Sheet order (from the shared list). */
+/** Category key -> { label, color, phases }, in Sheet order (from the shared list). */
 export const TRADE_SECTIONS_CONFIG = Object.fromEntries(
-  TRADE_CATEGORIES.map(({ key, name, phases }) => [key, { label: name, phases }])
+  TRADE_CATEGORIES.map(({ key, name, color, phases }) => [key, { label: name, color, phases }])
 );
 
 export function isValidPhase(category, phase) {

@@ -83,7 +83,7 @@ export default function StagingCard({
             color: 'var(--color-zinc-300)', 
             border: '1px solid var(--color-zinc-800)' 
           }}>
-            Cat: {metadata.tradeCategory ? metadata.tradeCategory.replace(/_/g, ' ').replace(/&/g, '&') : 'None'}
+            Cat: {metadata.tradeCategory ? metadata.tradeCategory.replace(/_/g, ' ') : 'None'}
           </span>
           <span style={{ 
             fontSize: '0.65rem', 

@@ -1,8 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { getStoredJson } from '../services/appStorage';
-import { loadIssuesVault, saveIssuesVault, uploadIssuePhoto, uploadIssueProofPhoto, mergeIssues, mergeActivityHistories } from '../services/issuesDrive';
+import {
+  filterRemainingOfflineQueue,
+  loadIssuesVault,
+  mergeActivityHistories,
+  mergeIssues,
+  removeLegacyCachedIssuePhotos,
+  saveIssuesVault,
+  uploadIssuePhoto,
+  uploadIssueProofPhoto,
+  uploadQueuedIssuePhotos
+} from '../services/issuesDrive';
 import { getDriveErrorMessage } from '../services/appErrors';
-import { dataUrlToBlob, fileToBase64 } from '../services/imageFiles';
+import { compressImage, fileToBase64 } from '../services/imageFiles';
 import { pinCoordinate } from '../services/floorPlanPin';
 
 const OFFLINE_QUEUE_KEY = 'jobscan_offline_issues_queue';
@@ -43,15 +53,30 @@ export function useIssues({ googleToken, activeProject }) {
   const updateLocalIssues = (change) => {
     setIssues(prev => {
       const next = change(prev);
-      localStorage.setItem(cacheKey, JSON.stringify(next));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(next));
+      } catch (err) {
+        console.warn('Could not cache punch list locally:', err);
+      }
       return next;
     });
   };
 
   // Save local queue
   const saveOfflineQueue = (queue) => {
-    localStorage.setItem(offlineQueueKey, JSON.stringify(queue));
+    try {
+      localStorage.setItem(offlineQueueKey, JSON.stringify(queue));
+    } catch (err) {
+      console.error('Could not save offline punch queue:', err);
+      setError('Phone storage is full. Connect to Google Drive and tap Sync so queued punch items can upload.');
+    }
   };
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      removeLegacyCachedIssuePhotos(localStorage);
+    }
+  }, []);
 
   // Load issues (either from Drive or local cache if offline)
   const loadIssues = async (forceSync = false) => {
@@ -128,49 +153,10 @@ export function useIssues({ googleToken, activeProject }) {
       // Always the file the caller just read from Drive (null: no punch list file yet, one is made)
       const currentFileId = fileId;
 
-      // 1. Process any pending image uploads inside the queue
-      for (const op of queue) {
-        if ((op.type === 'CREATE' || op.type === 'UPDATE') && op.payload.photoBase64 && !op.payload.photoUrl) {
-          try {
-            const blob = dataUrlToBlob(op.payload.photoBase64);
-            const mimeType = blob.type;
-            const fileObj = new File([blob], `offline_issue_photo.jpg`, { type: mimeType });
-
-            const uploadResult = await uploadIssuePhoto(googleToken, activeProject.folderId, fileObj);
-            op.payload.photoUrl = uploadResult.url;
-            op.payload.photoFileId = uploadResult.id;
-
-            // Cache base64 photo locally on this device before stripping it from operations payload
-            if (op.payload.photoBase64) {
-              try {
-                localStorage.setItem(`jobscan_photo_${op.id}`, op.payload.photoBase64);
-              } catch (e) {
-                console.warn('Failed to cache base64 photo locally during sync:', e);
-              }
-            }
-
-            delete op.payload.photoBase64; // Remove base64 data to keep JSON light
-          } catch (uploadErr) {
-            console.error('Failed to upload offline photo during sync:', uploadErr);
-          }
-        }
-
-        // The fix photo from Mark Fixed with no signal goes to Drive too, instead of staying inside the punch list file
-        if ((op.type === 'CREATE' || op.type === 'UPDATE') && op.payload.proofPhotoBase64) {
-          try {
-            if (!op.payload.proofPhotoUrl) {
-              const blob = dataUrlToBlob(op.payload.proofPhotoBase64);
-              const fileObj = new File([blob], 'offline_proof_photo.jpg', { type: blob.type });
-              const uploadResult = await uploadIssueProofPhoto(googleToken, activeProject.folderId, fileObj);
-              op.payload.proofPhotoUrl = uploadResult.url;
-              op.payload.proofPhotoFileId = uploadResult.id;
-            }
-            op.payload.proofPhotoBase64 = null; // The photo is in Drive: keep the JSON light
-          } catch (uploadErr) {
-            console.error('Failed to upload offline fix photo during sync:', uploadErr);
-          }
-        }
-      }
+      // 1. Upload any pending offline defect or fix photos to Drive before merging
+      await uploadQueuedIssuePhotos(googleToken, activeProject.folderId, queue, {
+        onProgress: (updatedQueue) => saveOfflineQueue(updatedQueue)
+      });
 
       // 2. Perform the merge
       const mergedList = mergeIssues(remoteList, queue);
@@ -183,10 +169,14 @@ export function useIssues({ googleToken, activeProject }) {
         { issues: mergedList, contacts: updatedContacts }
       );
 
-      // 5. Success! Clear local queue, update states and cache
-      saveOfflineQueue([]);
+      // 5. Success! Remove synced operations from local queue, update states and cache
+      saveOfflineQueue(filterRemainingOfflineQueue(getOfflineQueue(), queue));
       setIssues(mergedList);
-      localStorage.setItem(cacheKey, JSON.stringify(mergedList));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(mergedList));
+      } catch (err) {
+        console.warn('Could not cache merged punch list locally:', err);
+      }
       setSuccess('Issues synchronized successfully!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -316,15 +306,6 @@ export function useIssues({ googleToken, activeProject }) {
     };
     updateLocalIssues(list => [...list, localNewIssue]);
 
-    // Cache the base64 photo locally on this device permanently
-    if (photoBase64) {
-      try {
-        localStorage.setItem(`jobscan_photo_${newId}`, photoBase64);
-      } catch (e) {
-        console.warn('Failed to cache base64 photo locally:', e);
-      }
-    }
-
     // Try to trigger online sync
     if (googleToken && activeProject?.folderId) {
       try {
@@ -405,9 +386,7 @@ export function useIssues({ googleToken, activeProject }) {
         ? updates.activityHistory
         : (Array.isArray(existingIssue.activityHistory) ? existingIssue.activityHistory : []),
       floorPlanX: pinCoordinate(updates.floorPlanX) ?? existingIssue.floorPlanX,
-      floorPlanY: pinCoordinate(updates.floorPlanY) ?? existingIssue.floorPlanY,
-      floorPlanSnapshotUrl: updates.floorPlanSnapshotUrl || existingIssue.floorPlanSnapshotUrl || '',
-      floorPlanSnapshotFileId: updates.floorPlanSnapshotFileId || existingIssue.floorPlanSnapshotFileId || ''
+      floorPlanY: pinCoordinate(updates.floorPlanY) ?? existingIssue.floorPlanY
     };
 
     const newOp = {
@@ -431,14 +410,6 @@ export function useIssues({ googleToken, activeProject }) {
       return issue;
     });
     updateLocalIssues(applyChange);
-
-    if (photoBase64) {
-      try {
-        localStorage.setItem(`jobscan_photo_${id}`, photoBase64);
-      } catch (e) {
-        console.warn('Failed to cache updated base64 photo locally:', e);
-      }
-    }
 
     if (googleToken && activeProject?.folderId) {
       try {
@@ -464,22 +435,23 @@ export function useIssues({ googleToken, activeProject }) {
     let proofPhotoBase64 = null;
 
     if (proofPhotoFile) {
+      const preparedProofFile = await compressImage(proofPhotoFile, 1200, 1200, 0.8);
       const isOnline = !!(googleToken && activeProject?.folderId);
       if (isOnline) {
         setLoading(true);
         try {
-          const uploadResult = await uploadIssueProofPhoto(googleToken, activeProject.folderId, proofPhotoFile);
+          const uploadResult = await uploadIssueProofPhoto(googleToken, activeProject.folderId, preparedProofFile);
           proofPhotoUrl = uploadResult.url;
           proofPhotoFileId = uploadResult.id;
         } catch (uploadErr) {
           console.error('Failed to upload proof photo immediately:', uploadErr);
           setError('Failed to upload proof photo to Drive, saving locally...');
-          proofPhotoBase64 = await fileToBase64(proofPhotoFile);
+          proofPhotoBase64 = await fileToBase64(preparedProofFile);
         } finally {
           setLoading(false);
         }
       } else {
-        proofPhotoBase64 = await fileToBase64(proofPhotoFile);
+        proofPhotoBase64 = await fileToBase64(preparedProofFile);
       }
     }
 
