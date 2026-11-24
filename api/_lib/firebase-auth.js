@@ -18,6 +18,18 @@ const rateLimitMap = new Map();
 export function checkRateLimit(key, limit = 30, windowMs = 60000) {
   if (!key) return true;
   const now = Date.now();
+
+  if (rateLimitMap.size > 500) {
+    for (const [k, v] of rateLimitMap) {
+      if (now > v.resetAt) {
+        rateLimitMap.delete(k);
+      }
+    }
+    if (rateLimitMap.size > 500) {
+      rateLimitMap.delete(rateLimitMap.keys().next().value);
+    }
+  }
+
   const entry = rateLimitMap.get(key) || { count: 0, resetAt: now + windowMs };
 
   if (now > entry.resetAt) {

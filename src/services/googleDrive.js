@@ -324,6 +324,29 @@ export async function copyDriveFile(accessToken, fileId, { name, parentId }) {
 }
 
 const inFlightFolderPromises = new Map();
+let resolvedFolderCacheByFetch = new WeakMap();
+const fallbackResolvedFolderCache = new Map();
+
+function getResolvedFolderCache() {
+  const fn = globalThis.fetch;
+  if (typeof fn !== 'function') return fallbackResolvedFolderCache;
+  let map = resolvedFolderCacheByFetch.get(fn);
+  if (!map) {
+    map = new Map();
+    resolvedFolderCacheByFetch.set(fn, map);
+  }
+  return map;
+}
+
+/** Clears the in-memory Drive folder-ID cache (e.g., after a 404 or in tests). */
+export function clearResolvedFolderCache() {
+  resolvedFolderCacheByFetch = new WeakMap();
+  fallbackResolvedFolderCache.clear();
+}
+
+function getFolderCacheKey(accessToken, parentId, folderName) {
+  return `${accessToken || ''}_${parentId}_${String(folderName).trim().toLowerCase()}`;
+}
 
 export const APP_FOLDERS_CONTAINER_NAME = 'App Folders';
 export const VENDORS_STORES_FOLDER_NAME = 'Vendors / Stores';
@@ -470,7 +493,12 @@ export async function ensureUnknownVendorsFolder(accessToken, projectFolderId) {
 export async function findOrCreateFolder(accessToken, folderName, parentId) {
   assertDriveFolderParent(parentId, `find or create folder ${folderName}`);
 
-  const lockKey = `${parentId}_${String(folderName).trim().toLowerCase()}`;
+  const lockKey = getFolderCacheKey(accessToken, parentId, folderName);
+  const folderCache = getResolvedFolderCache();
+
+  if (folderCache.has(lockKey)) {
+    return folderCache.get(lockKey);
+  }
 
   if (inFlightFolderPromises.has(lockKey)) {
     return await inFlightFolderPromises.get(lockKey);
@@ -499,11 +527,14 @@ export async function findOrCreateFolder(accessToken, folderName, parentId) {
 
       const data = await response.json();
       if (data.files && data.files.length > 0) {
-        return data.files[0].id;
+        const existingId = data.files[0].id;
+        folderCache.set(lockKey, existingId);
+        return existingId;
       }
 
       // Create it
       const created = await createFolder(accessToken, folderName, parentId);
+      folderCache.set(lockKey, created.id);
       return created.id;
     } finally {
       inFlightFolderPromises.delete(lockKey);
@@ -548,6 +579,12 @@ export function phasePhotoFolderName(name) {
 export async function findFolder(accessToken, folderName, parentId) {
   assertDriveFolderParent(parentId, `find folder ${folderName}`);
 
+  const cacheKey = getFolderCacheKey(accessToken, parentId, folderName);
+  const folderCache = getResolvedFolderCache();
+  if (folderCache.has(cacheKey)) {
+    return folderCache.get(cacheKey);
+  }
+
   const safeFolderName = escapeDriveQueryString(folderName);
   const safeParentId = escapeDriveQueryString(parentId);
   const query = `name='${safeFolderName}' and mimeType='application/vnd.google-apps.folder' and '${safeParentId}' in parents and trashed=false`;
@@ -566,7 +603,9 @@ export async function findFolder(accessToken, folderName, parentId) {
 
   const data = await response.json();
   if (data.files && data.files.length > 0) {
-    return data.files[0].id;
+    const folderId = data.files[0].id;
+    folderCache.set(cacheKey, folderId);
+    return folderId;
   }
   return null;
 }
@@ -576,7 +615,7 @@ export async function findFolder(accessToken, folderName, parentId) {
  * (App Folders / X-Ray Photos / Project_Photos / [Category] / [Phase], where uploadPhotoToPhaseFolder puts them).
  * Only looks: never creates a folder.
  */
-export async function listPhotosInPhase(accessToken, rootFolderId, categoryName, phaseName) {
+export async function listPhotosInPhase(accessToken, rootFolderId, categoryName, phaseName, _retrying = false) {
   try {
     const appFoldersId = await findFolder(accessToken, APP_FOLDERS_CONTAINER_NAME, rootFolderId);
     if (!appFoldersId) return [];
@@ -594,13 +633,21 @@ export async function listPhotosInPhase(accessToken, rootFolderId, categoryName,
     if (!phaseFolderId) return [];
 
     const query = `'${escapeDriveQueryString(phaseFolderId)}' in parents and mimeType contains 'image/' and trashed=false`;
-    return await listAllDriveFiles(
-      accessToken,
-      query,
-      'id,name,webViewLink,thumbnailLink',
-      'Failed to list files in phase folder',
-      `&orderBy=${encodeURIComponent('createdTime desc')}`
-    );
+    try {
+      return await listAllDriveFiles(
+        accessToken,
+        query,
+        'id,name,webViewLink,thumbnailLink',
+        'Failed to list files in phase folder',
+        `&orderBy=${encodeURIComponent('createdTime desc')}`
+      );
+    } catch (listError) {
+      if (listError?.status === 404 && !_retrying) {
+        clearResolvedFolderCache();
+        return await listPhotosInPhase(accessToken, rootFolderId, categoryName, phaseName, true);
+      }
+      throw listError;
+    }
   } catch (error) {
     console.error('Failed to list photos in phase:', error);
     return [];

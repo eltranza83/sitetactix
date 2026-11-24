@@ -5,6 +5,7 @@ import SettingsProjectModal from './SettingsProjectModal';
 import SettingsAdminPanel from './SettingsAdminPanel';
 import SettingsGoogleConnectionCard from './SettingsGoogleConnectionCard';
 import SettingsProjectProfilesCard from './SettingsProjectProfilesCard';
+import ToastNotification from './ToastNotification';
 import { useSettingsAdmin } from '../hooks/useSettingsAdmin';
 import { useSettingsProjects } from '../hooks/useSettingsProjects';
 import { APP_BUILD_LABEL, APP_RELEASE_NAME } from '../config/appConfig';
@@ -41,8 +42,14 @@ export default function Settings({
     <div className="settings-section">
       <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '10px' }}>Application Settings</h2>
 
-      {success && <div className="alert-box alert-success">{success}</div>}
-      {error && <div className="alert-box alert-error">{error}</div>}
+      <ToastNotification
+        message={success || error}
+        type={success ? 'success' : 'error'}
+        onClose={() => {
+          setSuccess(null);
+          setError(null);
+        }}
+      />
 
       <SettingsGoogleConnectionCard
         googleToken={googleToken}

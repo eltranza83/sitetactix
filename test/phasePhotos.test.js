@@ -3,7 +3,7 @@ import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createFakeDrive } from './fakeDrive.js';
-import { listPhotosInPhase, phasePhotoFolderName, uploadPhotoToPhaseFolder } from '../src/services/googleDrive.js';
+import { clearResolvedFolderCache, listPhotosInPhase, phasePhotoFolderName, uploadPhotoToPhaseFolder } from '../src/services/googleDrive.js';
 import { listDashboardPhasePhotos } from '../src/services/dashboardDrive.js';
 import { listBlueprintPhasePhotos, uploadBlueprintAlbumPhoto } from '../src/services/blueprintDrive.js';
 
@@ -14,6 +14,7 @@ describe('phase album photos (real code, fake Drive)', () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
+    clearResolvedFolderCache();
     drive = createFakeDrive();
     globalThis.fetch = drive.fetch;
   });
@@ -65,6 +66,29 @@ describe('phase album photos (real code, fake Drive)', () => {
     assert.equal(phasePhotoFolderName('Slab / Foundation'), 'Slab _ Foundation');
     assert.equal(phasePhotoFolderName('Pre-Drywall'), 'Pre-Drywall');
   });
+
+  test('repeat listPhotosInPhase calls reuse cached folder IDs and clearResolvedFolderCache resets cache', async () => {
+    await uploadPhotoToPhaseFolder('token', 'lot99', 'Mechanicals_&_Utilities', 'Plumbing', 'p.jpg', 'image/jpeg', photo());
+
+    const callsBeforeFirstList = drive.calls.length;
+    const first = await listPhotosInPhase('token', 'lot99', 'Mechanicals_&_Utilities', 'Plumbing');
+    assert.equal(first.length, 1);
+    // Folder IDs were already cached during upload, so listing only issues 1 files query
+    assert.equal(drive.calls.length - callsBeforeFirstList, 1);
+
+    // Clearing the cache forces full 5-folder lookup + 1 file listing (6 calls total)
+    clearResolvedFolderCache();
+    const callsAfterClear = drive.calls.length;
+    const second = await listPhotosInPhase('token', 'lot99', 'Mechanicals_&_Utilities', 'Plumbing');
+    assert.equal(second.length, 1);
+    assert.equal(drive.calls.length - callsAfterClear, 6);
+
+    // Immediate repeat open skips the 5 parent lookups and makes only 1 Drive files list call
+    const callsBeforeRepeat = drive.calls.length;
+    const third = await listPhotosInPhase('token', 'lot99', 'Mechanicals_&_Utilities', 'Plumbing');
+    assert.equal(third.length, 1);
+    assert.equal(drive.calls.length - callsBeforeRepeat, 1);
+  });
 });
 
 describe('Drive searches (real code, fake Drive)', () => {
@@ -72,6 +96,7 @@ describe('Drive searches (real code, fake Drive)', () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
+    clearResolvedFolderCache();
     drive = createFakeDrive();
     globalThis.fetch = drive.fetch;
   });

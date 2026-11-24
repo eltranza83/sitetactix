@@ -72,33 +72,47 @@ function checkWarning(logs) {
 function writePdfLoadingState(newWindow) {
   if (!newWindow) return;
 
-  newWindow.document.write(`
-    <div style="
-      font-family: system-ui, -apple-system, sans-serif;
-      color: #fafafa;
-      background: #0a0a0a;
-      height: 100vh;
-      margin: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 16px;
-    ">
-      <div style="
-        width: 28px;
-        height: 28px;
-        border: 3px solid rgba(241, 215, 167, 0.2);
-        border-top-color: #F1D7A7;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-      "></div>
-      <span style="font-size: 0.95rem; font-weight: 500; letter-spacing: 0.02em;">${STATUS_MESSAGES.retrievingPdf}</span>
-      <style>
-        @keyframes spin { to { transform: rotate(360deg); } }
-      </style>
-    </div>
-  `);
+  try {
+    const doc = newWindow.document;
+    if (!doc || !doc.body) return;
+
+    doc.title = 'Loading PDF — SiteTactix';
+
+    if (doc.head) {
+      const style = doc.createElement('style');
+      style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+      doc.head.appendChild(style);
+    }
+
+    doc.body.style.margin = '0';
+    doc.body.style.background = '#090a0c';
+    doc.body.style.color = '#fafafa';
+    doc.body.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    doc.body.style.height = '100vh';
+    doc.body.style.display = 'flex';
+    doc.body.style.alignItems = 'center';
+    doc.body.style.justifyContent = 'center';
+    doc.body.style.flexDirection = 'column';
+    doc.body.style.gap = '16px';
+
+    const spinner = doc.createElement('div');
+    spinner.style.width = '28px';
+    spinner.style.height = '28px';
+    spinner.style.border = '3px solid rgba(241, 215, 167, 0.2)';
+    spinner.style.borderTopColor = '#F1D7A7';
+    spinner.style.borderRadius = '50%';
+    spinner.style.animation = 'spin 0.8s linear infinite';
+
+    const label = doc.createElement('div');
+    label.style.fontSize = '0.95rem';
+    label.style.fontWeight = '500';
+    label.style.letterSpacing = '0.02em';
+    label.textContent = STATUS_MESSAGES.retrievingPdf;
+
+    doc.body.replaceChildren(spinner, label);
+  } catch {
+    // Ignore cross-origin or blocked popup document manipulation errors
+  }
 }
 
 // Short note when the Sheet's phase sections could not add rows after a sync (the sync itself still succeeded)
@@ -448,6 +462,9 @@ export function useInvoiceSync({
     if (!item.link) return;
 
     const newWindow = window.open('about:blank', '_blank');
+    try {
+      if (newWindow) newWindow.opener = null;
+    } catch {}
     writePdfLoadingState(newWindow);
 
     if (googleToken) {
@@ -458,7 +475,7 @@ export function useInvoiceSync({
         if (newWindow) {
           newWindow.location.href = fileURL;
         } else {
-          window.open(fileURL, '_blank');
+          window.open(fileURL, '_blank', 'noopener,noreferrer');
         }
         setTimeout(() => {
           try {
@@ -477,7 +494,7 @@ export function useInvoiceSync({
     if (newWindow) {
       newWindow.location.href = item.link;
     } else {
-      window.open(item.link, '_blank');
+      window.open(item.link, '_blank', 'noopener,noreferrer');
     }
   };
 

@@ -781,6 +781,7 @@ export default function App() {
             googleToken={googleToken}
             activeProject={activeProject}
             selectedFolder={selectedFolder}
+            onSessionExpired={handleSessionExpired}
           />
         ) : (
           <Settings 

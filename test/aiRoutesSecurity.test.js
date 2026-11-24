@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { POST as postExtractDocument } from '../api/extract-document.js';
 import { sanitizeUpstreamAiError } from '../api/_lib/ai-auth.js';
 import { fetchWithExponentialBackoff } from '../api/_lib/ai-retry.js';
+import { checkRateLimit } from '../api/_lib/firebase-auth.js';
 
 describe('AI scan route: auth, keys, request limits and error sanitization', () => {
   const originalFetch = globalThis.fetch;
@@ -218,5 +219,17 @@ describe('scan timeouts', () => {
     assert.strictEqual(seen.method, 'POST');
     assert.strictEqual('timeoutMs' in seen, false);
     assert.strictEqual('deadlineMs' in seen, false);
+  });
+});
+
+describe('checkRateLimit pruning and enforcement', () => {
+  it('enforces per-key limits and stays healthy beyond 500 keys', () => {
+    for (let i = 0; i < 520; i += 1) {
+      assert.strictEqual(checkRateLimit(`prune-key-${i}`, 5, 60000), true);
+    }
+    const testKey = 'rate-limit-check-user';
+    assert.strictEqual(checkRateLimit(testKey, 2, 60000), true);
+    assert.strictEqual(checkRateLimit(testKey, 2, 60000), true);
+    assert.strictEqual(checkRateLimit(testKey, 2, 60000), false);
   });
 });

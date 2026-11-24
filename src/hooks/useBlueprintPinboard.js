@@ -437,6 +437,8 @@ export function useBlueprintPinboard({
     albumPhotos,
     blueprintInputRef,
     error,
+    clearError: () => setError(null),
+    clearSuccess: () => setSuccess(null),
     expandedCategory,
     fileInputRef,
     formData,

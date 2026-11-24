@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getStoredJson } from '../services/appStorage';
 import {
+  createSerialSyncRunner,
   filterRemainingOfflineQueue,
   loadIssuesVault,
   mergeActivityHistories,
@@ -11,12 +12,13 @@ import {
   uploadIssueProofPhoto,
   uploadQueuedIssuePhotos
 } from '../services/issuesDrive';
-import { getDriveErrorMessage } from '../services/appErrors';
+import { getDriveErrorMessage, isAuthError } from '../services/appErrors';
 import { compressImage, fileToBase64 } from '../services/imageFiles';
 import { pinCoordinate } from '../services/floorPlanPin';
 
 const OFFLINE_QUEUE_KEY = 'jobscan_offline_issues_queue';
 const CACHED_ISSUES_PREFIX = 'jobscan_cached_issues_';
+const SESSION_EXPIRED_LOCAL_MSG = 'Google Drive session expired. Saved locally — tap Reconnect Drive to sync.';
 
 function appendActivityHistoryEvent(history = [], newEvent) {
   const list = Array.isArray(history) ? history : [];
@@ -25,7 +27,7 @@ function appendActivityHistoryEvent(history = [], newEvent) {
 }
 
 // Helper to convert Base64 to Blob (for uploading when going online)
-export function useIssues({ googleToken, activeProject }) {
+export function useIssues({ googleToken, activeProject, onSessionExpired = null }) {
   const [issues, setIssues] = useState([]);
   const [contacts, setContacts] = useState({});
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,10 @@ export function useIssues({ googleToken, activeProject }) {
   const contactsCacheKey = `jobscan_cached_contacts_${projectId}`;
   const currentProjectIdRef = useRef(projectId);
   currentProjectIdRef.current = projectId;
+  const serialSyncRef = useRef(null);
+  if (!serialSyncRef.current) {
+    serialSyncRef.current = createSerialSyncRunner();
+  }
 
   // Get local queue
   const getOfflineQueue = () => {
@@ -105,28 +111,35 @@ export function useIssues({ googleToken, activeProject }) {
     setLoading(true);
     setError(null);
     try {
-      const { issuesDataFileId: fileId, issues: remoteList, contacts: remoteContacts } = await loadIssuesVault(
-        googleToken,
-        activeProject.folderId
-      );
-      // Another project was opened while this one loaded: do not show its punch list there
-      if (currentProjectIdRef.current !== loadingFor) return;
-      setContacts(remoteContacts || {});
-      localStorage.setItem(contactsCacheKey, JSON.stringify(remoteContacts || {}));
+      await serialSyncRef.current(async () => {
+        const { issuesDataFileId: fileId, issues: remoteList, contacts: remoteContacts } = await loadIssuesVault(
+          googleToken,
+          activeProject.folderId
+        );
+        // Another project was opened while this one loaded: do not show its punch list there
+        if (currentProjectIdRef.current !== loadingFor) return;
+        setContacts(remoteContacts || {});
+        localStorage.setItem(contactsCacheKey, JSON.stringify(remoteContacts || {}));
 
-      const queue = getOfflineQueue();
-      if (queue.length > 0 || forceSync) {
-        // We have pending offline operations, trigger merge & upload
-        await processAndSyncQueue(remoteList, fileId, remoteContacts || {});
-      } else {
-        setIssues(remoteList);
-        localStorage.setItem(cacheKey, JSON.stringify(remoteList));
-      }
+        const queue = getOfflineQueue();
+        if (queue.length > 0 || forceSync) {
+          // We have pending offline operations, trigger merge & upload
+          await processAndSyncQueue(remoteList, fileId, remoteContacts || {});
+        } else {
+          setIssues(remoteList);
+          localStorage.setItem(cacheKey, JSON.stringify(remoteList));
+        }
+      });
     } catch (err) {
       // Another project was opened meanwhile: its own load shows its own list
       if (currentProjectIdRef.current !== loadingFor) return;
       console.error(err);
-      setError(getDriveErrorMessage(err, 'load issues from Google Drive'));
+      if (isAuthError(err)) {
+        onSessionExpired?.({ interactive: false });
+        setError(SESSION_EXPIRED_LOCAL_MSG);
+      } else {
+        setError(getDriveErrorMessage(err, 'load issues from Google Drive'));
+      }
       // Fallback to cache on error
       const cached = getStoredJson(cacheKey, null);
       if (cached) setIssues(cached);
@@ -140,7 +153,7 @@ export function useIssues({ googleToken, activeProject }) {
   // Sync effect on project/auth state changes
   useEffect(() => {
     loadIssues();
-  }, [googleToken, activeProject?.id]);
+  }, [googleToken, activeProject?.id, activeProject?.folderId]);
 
   // Execute and upload the merged operations to Drive & Sheets
   const processAndSyncQueue = async (remoteList, fileId, updatedContacts = contacts) => {
@@ -181,7 +194,12 @@ export function useIssues({ googleToken, activeProject }) {
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error(err);
-      setError(getDriveErrorMessage(err, 'sync offline issues to Google Drive'));
+      if (isAuthError(err)) {
+        onSessionExpired?.({ interactive: false });
+        setError(SESSION_EXPIRED_LOCAL_MSG);
+      } else {
+        setError(getDriveErrorMessage(err, 'sync offline issues to Google Drive'));
+      }
     } finally {
       setSyncing(false);
     }
@@ -228,7 +246,12 @@ export function useIssues({ googleToken, activeProject }) {
           photoFileId = uploadResult.id;
         } catch (uploadErr) {
           console.error('Failed to upload photo immediately:', uploadErr);
-          setError('Failed to upload photo to Drive, queuing issue locally...');
+          if (isAuthError(uploadErr)) {
+            onSessionExpired?.({ interactive: false });
+            setError(SESSION_EXPIRED_LOCAL_MSG);
+          } else {
+            setError('Failed to upload photo to Drive, queuing issue locally...');
+          }
           // Fallback to offline mode for photo
           photoBase64 = await fileToBase64(photoFile);
         } finally {
@@ -309,11 +332,16 @@ export function useIssues({ googleToken, activeProject }) {
     // Try to trigger online sync
     if (googleToken && activeProject?.folderId) {
       try {
-        // Save into the file just read (never one remembered from earlier, which may be another house's)
-        const { issues: latestRemote, issuesDataFileId: latestFileId } = await loadIssuesVault(googleToken, activeProject.folderId);
-        await processAndSyncQueue(latestRemote, latestFileId, updatedContacts);
-      } catch {
-        // If sync fails, it will remain in queue and sync next time
+        await serialSyncRef.current(async () => {
+          // Save into the file just read (never one remembered from earlier, which may be another house's)
+          const { issues: latestRemote, issuesDataFileId: latestFileId } = await loadIssuesVault(googleToken, activeProject.folderId);
+          await processAndSyncQueue(latestRemote, latestFileId, updatedContacts);
+        });
+      } catch (syncErr) {
+        if (isAuthError(syncErr)) {
+          onSessionExpired?.({ interactive: false });
+          setError(SESSION_EXPIRED_LOCAL_MSG);
+        }
       }
     } else {
       setSuccess('Issue saved locally. Will sync when online.');
@@ -350,7 +378,12 @@ export function useIssues({ googleToken, activeProject }) {
           photoBase64 = null;
         } catch (uploadErr) {
           console.error('Failed to upload updated issue photo immediately:', uploadErr);
-          setError('Failed to upload photo to Drive, queuing issue update locally...');
+          if (isAuthError(uploadErr)) {
+            onSessionExpired?.({ interactive: false });
+            setError(SESSION_EXPIRED_LOCAL_MSG);
+          } else {
+            setError('Failed to upload photo to Drive, queuing issue update locally...');
+          }
           photoBase64 = await fileToBase64(updates.photoFile);
         } finally {
           setLoading(false);
@@ -413,11 +446,16 @@ export function useIssues({ googleToken, activeProject }) {
 
     if (googleToken && activeProject?.folderId) {
       try {
-        // Save into the file just read (never one remembered from earlier, which may be another house's)
-        const { issues: latestRemote, issuesDataFileId: latestFileId } = await loadIssuesVault(googleToken, activeProject.folderId);
-        await processAndSyncQueue(latestRemote, latestFileId, updatedContacts);
-      } catch {
-        // Remains in queue
+        await serialSyncRef.current(async () => {
+          // Save into the file just read (never one remembered from earlier, which may be another house's)
+          const { issues: latestRemote, issuesDataFileId: latestFileId } = await loadIssuesVault(googleToken, activeProject.folderId);
+          await processAndSyncQueue(latestRemote, latestFileId, updatedContacts);
+        });
+      } catch (syncErr) {
+        if (isAuthError(syncErr)) {
+          onSessionExpired?.({ interactive: false });
+          setError(SESSION_EXPIRED_LOCAL_MSG);
+        }
       }
     } else {
       setSuccess('Issue updated locally. Will sync when online.');
@@ -445,7 +483,12 @@ export function useIssues({ googleToken, activeProject }) {
           proofPhotoFileId = uploadResult.id;
         } catch (uploadErr) {
           console.error('Failed to upload proof photo immediately:', uploadErr);
-          setError('Failed to upload proof photo to Drive, saving locally...');
+          if (isAuthError(uploadErr)) {
+            onSessionExpired?.({ interactive: false });
+            setError(SESSION_EXPIRED_LOCAL_MSG);
+          } else {
+            setError('Failed to upload proof photo to Drive, saving locally...');
+          }
           proofPhotoBase64 = await fileToBase64(preparedProofFile);
         } finally {
           setLoading(false);
@@ -569,11 +612,16 @@ export function useIssues({ googleToken, activeProject }) {
     // Try sync
     if (googleToken && activeProject?.folderId) {
       try {
-        // Save into the file just read (never one remembered from earlier, which may be another house's)
-        const { issues: latestRemote, issuesDataFileId: latestFileId } = await loadIssuesVault(googleToken, activeProject.folderId);
-        await processAndSyncQueue(latestRemote, latestFileId);
-      } catch {
-        // Remains in queue
+        await serialSyncRef.current(async () => {
+          // Save into the file just read (never one remembered from earlier, which may be another house's)
+          const { issues: latestRemote, issuesDataFileId: latestFileId } = await loadIssuesVault(googleToken, activeProject.folderId);
+          await processAndSyncQueue(latestRemote, latestFileId);
+        });
+      } catch (syncErr) {
+        if (isAuthError(syncErr)) {
+          onSessionExpired?.({ interactive: false });
+          setError(SESSION_EXPIRED_LOCAL_MSG);
+        }
       }
     }
   };
@@ -590,6 +638,8 @@ export function useIssues({ googleToken, activeProject }) {
     syncing,
     error,
     success,
+    clearError: () => setError(null),
+    clearSuccess: () => setSuccess(null),
     addIssue,
     updateIssue,
     markIssueFixed,

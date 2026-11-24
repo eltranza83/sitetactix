@@ -211,14 +211,14 @@ export default function InviteScreen({ onUnlocked, googleUser, authError, signin
         </div>
 
         {(error || authError) && (
-          <div className="alert-box alert-error" style={{ fontSize: '0.82rem', padding: '10px 12px', borderRadius: '8px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          <div className="inline-alert alert-error">
             <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
             <span>{error || authError}</span>
           </div>
         )}
 
         {success && (
-          <div className="alert-box alert-success" style={{ fontSize: '0.82rem', padding: '10px 12px', borderRadius: '8px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          <div className="inline-alert alert-success">
             <CheckCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
             <span>{success}</span>
           </div>

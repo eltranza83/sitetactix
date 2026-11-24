@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.15",
-  "releaseName": "CSS polish and dependency updates",
+  "version": "1.14.16",
+  "releaseName": "Field sync hardening, security tightening, and UI polish",
   "type": "module",
   "scripts": {
     "dev": "vite",
