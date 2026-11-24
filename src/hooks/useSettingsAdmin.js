@@ -3,6 +3,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/fi
 import { getFirebaseAuthInstance, getFirebaseDb } from '../services/firebase';
 import { isBuiltInAdmin } from '../config/appConfig';
 import { confirmAction } from '../services/confirmAction';
+import { generateInviteCode } from '../services/inviteAccess';
 
 export function useSettingsAdmin({ setError, setSuccess }) {
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
@@ -94,9 +95,7 @@ export function useSettingsAdmin({ setError, setSuccess }) {
     setError(null);
     setSuccess(null);
     try {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345689';
-      const genPart = () => Array.from({ length: 4 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
-      const code = `ADPC-${genPart()}-${genPart()}`;
+      const code = generateInviteCode();
       const authUser = getFirebaseAuthInstance()?.currentUser;
 
       await setDoc(doc(db, 'invites', code), {

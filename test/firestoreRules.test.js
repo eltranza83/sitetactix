@@ -251,6 +251,82 @@ describe('Firestore Security Rules Emulator Test Suite', { skip: !hasEmulator ? 
     // User B (invited email) can read the invite
     await assertSucceeds(getDoc(doc(userBDb, 'project_invites', 'inv-1')));
   });
+
+  // 12. Admin email enumeration blocked; mixed-case admin email normalized
+  it('12. Blocks non-admin from probing another email in admins, while mixed-case admin email passes isAdmin()', async () => {
+    const userADb = getContext({ uid: USER_A_UID, email: USER_A_EMAIL }).firestore();
+    const mixedCaseAdminDb = getContext({ uid: ADMIN_UID, email: 'AdepecGroup@Gmail.com' }).firestore();
+
+    // Non-admin user can check their own admin entry, but CANNOT enumerate another user's admin entry
+    await assertSucceeds(getDoc(doc(userADb, 'admins', USER_A_EMAIL)));
+    await assertFails(getDoc(doc(userADb, 'admins', ADMIN_EMAIL)));
+
+    // Admin signed in with mixed-case email CAN read /admins/adepecgroup@gmail.com
+    await assertSucceeds(getDoc(doc(mixedCaseAdminDb, 'admins', ADMIN_EMAIL)));
+
+    // Mixed-case admin passes isAdmin() to list user_access and manage invites
+    await assertSucceeds(getDocs(collection(mixedCaseAdminDb, 'user_access')));
+    await assertSucceeds(setDoc(doc(mixedCaseAdminDb, 'invites', 'ADPC-MIXD-ADMN'), {
+      used: false,
+      createdAt: new Date().toISOString(),
+      usedAt: null,
+      createdByUid: ADMIN_UID,
+      createdByEmail: 'AdepecGroup@Gmail.com'
+    }));
+    await assertSucceeds(getDocs(collection(mixedCaseAdminDb, 'invites')));
+    await assertSucceeds(deleteDoc(doc(mixedCaseAdminDb, 'invites', 'ADPC-MIXD-ADMN')));
+  });
+
+  // 13. Mixed-case auth token email normalized during invite claim and project_invites read
+  it('13. Allows mixed-case auth token email to claim invite with lowercase email and read project_invites', async () => {
+    const MIXED_CLAIMER_UID = 'claimer-mixed-uid';
+    const MIXED_AUTH_EMAIL = 'Claimer.Mixed@Example.com';
+    const LOWER_CLAIMER_EMAIL = 'claimer.mixed@example.com';
+    const INVITE_CODE = 'INVITE-MIXED-100';
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'invites', INVITE_CODE), {
+        code: INVITE_CODE,
+        used: false,
+        usedAt: null,
+        claimedByUid: null,
+        claimedByEmail: null
+      });
+      await setDoc(doc(db, 'projects', 'proj-for-mixed'), {
+        id: 'proj-for-mixed',
+        ownerUid: USER_A_UID,
+        name: 'Lot 88'
+      });
+      await setDoc(doc(db, 'project_invites', 'proj-inv-lower'), {
+        projectId: 'proj-for-mixed',
+        invitedByUid: USER_A_UID,
+        invitedEmail: LOWER_CLAIMER_EMAIL
+      });
+    });
+
+    const mixedClaimerDb = getContext({ uid: MIXED_CLAIMER_UID, email: MIXED_AUTH_EMAIL }).firestore();
+
+    // Atomic invite claim storing lowercase email and claimedByEmail
+    const batch = writeBatch(mixedClaimerDb);
+    batch.update(doc(mixedClaimerDb, 'invites', INVITE_CODE), {
+      used: true,
+      usedAt: new Date().toISOString(),
+      claimedByUid: MIXED_CLAIMER_UID,
+      claimedByEmail: LOWER_CLAIMER_EMAIL
+    });
+    batch.set(doc(mixedClaimerDb, 'user_access', MIXED_CLAIMER_UID), {
+      uid: MIXED_CLAIMER_UID,
+      email: LOWER_CLAIMER_EMAIL,
+      sourceInviteId: INVITE_CODE,
+      createdAt: new Date().toISOString()
+    });
+
+    await assertSucceeds(batch.commit());
+
+    // Can read project_invites addressed to lowercase 'claimer.mixed@example.com'
+    await assertSucceeds(getDoc(doc(mixedClaimerDb, 'project_invites', 'proj-inv-lower')));
+  });
 });
 
 

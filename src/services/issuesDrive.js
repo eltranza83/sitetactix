@@ -15,6 +15,19 @@ const ISSUES_CONFIG_MIME_TYPE = 'application/json';
 const LEGACY_PHOTO_KEY_PREFIX = 'jobscan_photo_';
 
 /**
+ * Queues async sync tasks sequentially so rapid consecutive punch-list edits
+ * never race reading and writing `issues_data.json` in Drive.
+ */
+export function createSerialSyncRunner() {
+  let chain = Promise.resolve();
+  return (fn) => {
+    const run = chain.then(fn, fn);
+    chain = run.catch(() => {});
+    return run;
+  };
+}
+
+/**
  * Removes old write-only `jobscan_photo_*` entries from localStorage so phones recover that space.
  */
 export function removeLegacyCachedIssuePhotos(storage) {

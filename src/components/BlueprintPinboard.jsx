@@ -9,6 +9,7 @@ import BlueprintSetupPrompt from './BlueprintSetupPrompt';
 import { useIssues } from '../hooks/useIssues';
 import DashboardPunchList from './DashboardPunchList';
 import IssueFormModal from './IssueFormModal';
+import ToastNotification from './ToastNotification';
 import {
   getCachedDashboardSpreadsheetId,
   loadCachedDashboard,
@@ -114,7 +115,7 @@ function BlueprintLoadingState({ message }) {
   );
 }
 
-export default function BlueprintPinboard({ googleToken, activeProject, selectedFolder }) {
+export default function BlueprintPinboard({ googleToken, activeProject, selectedFolder, onSessionExpired }) {
   const [isIssueAddMode, setIsIssueAddMode] = useState(false);
   const [pendingIssueLocation, setPendingIssueLocation] = useState(null);
   const [selectedIssueId, setSelectedIssueId] = useState(null);
@@ -130,7 +131,7 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
     tradeSectionsConfig: TRADE_SECTIONS_CONFIG
   });
 
-  const issuesState = useIssues({ googleToken, activeProject });
+  const issuesState = useIssues({ googleToken, activeProject, onSessionExpired });
 
   // Read subcontractor payee directory from cached dashboard data
   const cachedDashboard = useMemo(
@@ -267,8 +268,14 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
-      {pinboard.success && <div className="alert-box alert-success">{pinboard.success}</div>}
-      {pinboard.error && <div className="alert-box alert-error">{pinboard.error}</div>}
+      <ToastNotification
+        message={pinboard.success || pinboard.error}
+        type={pinboard.success ? 'success' : 'error'}
+        onClose={() => {
+          pinboard.clearSuccess?.();
+          pinboard.clearError?.();
+        }}
+      />
 
       {!pinboard.loading && (
         <BlueprintViewModeToggle

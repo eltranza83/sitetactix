@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import {
+  createSerialSyncRunner,
   filterRemainingOfflineQueue,
   mergeIssues,
   removeLegacyCachedIssuePhotos,
@@ -256,4 +257,38 @@ test('filterRemainingOfflineQueue removes only synced operations and preserves c
   const remaining = filterRemainingOfflineQueue(currentQueue, syncedBatch);
   assert.equal(remaining.length, 1);
   assert.equal(remaining[0].id, 'issue_2');
+});
+
+test('createSerialSyncRunner executes overlapping async tasks strictly in order and recovers after rejections', async () => {
+  const runSerial = createSerialSyncRunner();
+  const events = [];
+
+  let releaseFirst;
+  const firstGate = new Promise(resolve => { releaseFirst = resolve; });
+
+  const p1 = runSerial(async () => {
+    events.push('start-1');
+    await firstGate;
+    events.push('end-1');
+    return 'ok-1';
+  });
+
+  const p2 = runSerial(async () => {
+    events.push('start-2');
+    throw new Error('boom-2');
+  });
+
+  const p3 = runSerial(async () => {
+    events.push('start-3');
+    return 'ok-3';
+  });
+
+  await Promise.resolve();
+  assert.deepEqual(events, ['start-1']);
+
+  releaseFirst();
+  assert.equal(await p1, 'ok-1');
+  await assert.rejects(p2, /boom-2/);
+  assert.equal(await p3, 'ok-3');
+  assert.deepEqual(events, ['start-1', 'end-1', 'start-2', 'start-3']);
 });

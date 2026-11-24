@@ -47,7 +47,7 @@ async function canvasToJpegUnderLimit(canvas) {
  * Performs a perspective projection warp on a source image
  * using 4 arbitrary coordinates and scales to a rectangular destination canvas.
  */
-function warpPerspective(srcImgData, srcWidth, srcHeight, corners) {
+async function warpPerspective(srcImgData, srcWidth, srcHeight, corners) {
   const [p0, p1, p2, p3] = corners;
   
   const w1 = Math.hypot(p1.x - p0.x, p1.y - p0.y);
@@ -109,27 +109,43 @@ function warpPerspective(srcImgData, srcWidth, srcHeight, corners) {
 
   const srcData = srcImgData.data;
   const dstData = dstImgData.data;
+  const maxSrcX = srcWidth - 1;
+  const maxSrcY = srcHeight - 1;
 
   for (let r = 0; r < H; r++) {
+    if (r > 0 && (r & 255) === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
     const v = r / H;
     const offsetDstRow = r * W * 4;
     for (let c_idx = 0; c_idx < W; c_idx++) {
       const u = c_idx / W;
       const den = g * u + h * v + 1;
-      
-      const x = Math.round((a * u + b * v + c) / den);
-      const y = Math.round((d * u + e * v + f) / den);
 
-      const clampedX = Math.max(0, Math.min(srcWidth - 1, x));
-      const clampedY = Math.max(0, Math.min(srcHeight - 1, y));
+      const fx = Math.max(0, Math.min(maxSrcX, (a * u + b * v + c) / den));
+      const fy = Math.max(0, Math.min(maxSrcY, (d * u + e * v + f) / den));
 
-      const srcIdx = (clampedY * srcWidth + clampedX) * 4;
+      const ix0 = Math.floor(fx);
+      const iy0 = Math.floor(fy);
+      const ix1 = Math.min(maxSrcX, ix0 + 1);
+      const iy1 = Math.min(maxSrcY, iy0 + 1);
+      const wx = fx - ix0;
+      const wy = fy - iy0;
+      const w00 = (1 - wx) * (1 - wy);
+      const w10 = wx * (1 - wy);
+      const w01 = (1 - wx) * wy;
+      const w11 = wx * wy;
+
+      const i00 = (iy0 * srcWidth + ix0) * 4;
+      const i10 = (iy0 * srcWidth + ix1) * 4;
+      const i01 = (iy1 * srcWidth + ix0) * 4;
+      const i11 = (iy1 * srcWidth + ix1) * 4;
       const dstIdx = offsetDstRow + c_idx * 4;
 
-      dstData[dstIdx] = srcData[srcIdx];         // R
-      dstData[dstIdx + 1] = srcData[srcIdx + 1]; // G
-      dstData[dstIdx + 2] = srcData[srcIdx + 2]; // B
-      dstData[dstIdx + 3] = srcData[srcIdx + 3]; // A
+      dstData[dstIdx]     = srcData[i00]     * w00 + srcData[i10]     * w10 + srcData[i01]     * w01 + srcData[i11]     * w11; // R
+      dstData[dstIdx + 1] = srcData[i00 + 1] * w00 + srcData[i10 + 1] * w10 + srcData[i01 + 1] * w01 + srcData[i11 + 1] * w11; // G
+      dstData[dstIdx + 2] = srcData[i00 + 2] * w00 + srcData[i10 + 2] * w10 + srcData[i01 + 2] * w01 + srcData[i11 + 2] * w11; // B
+      dstData[dstIdx + 3] = srcData[i00 + 3] * w00 + srcData[i10 + 3] * w10 + srcData[i01 + 3] * w01 + srcData[i11 + 3] * w11; // A
     }
   }
 
@@ -293,52 +309,55 @@ export default function Scanner({ onDataExtracted, onError }) {
     setStatusMessage('Warping perspective...');
     
     const img = new Image();
-    img.onload = () => {
-      const srcCanvas = document.createElement('canvas');
-      srcCanvas.width = img.width;
-      srcCanvas.height = img.height;
-      const srcCtx = srcCanvas.getContext('2d');
-      srcCtx.drawImage(img, 0, 0);
-      const srcImgData = srcCtx.getImageData(0, 0, img.width, img.height);
-      
-      const rawCorners = corners.map(c => ({
-        x: c.x * img.width,
-        y: c.y * img.height
-      }));
-      
-      const warpedCanvas = warpPerspective(srcImgData, img.width, img.height, rawCorners);
-      
-      if (!warpedCanvas) {
-        setLoading(false);
-        const cropErr = 'Failed to crop the document. Try adjusting the corners.';
-        if (onError) onError(cropErr);
-        return;
-      }
-      
-      if (croppingImageSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(croppingImageSrc);
-      }
-      setCroppingImageSrc(null);
-      setOriginalFile(null);
-      
-      setStatusMessage('Analyzing document with Gemini AI...');
-      
-      canvasToJpegUnderLimit(rotateCanvas(warpedCanvas, rotationForTextDirection(textDirection))).then(async (blob) => {
+    img.onload = async () => {
+      try {
+        const srcCanvas = document.createElement('canvas');
+        srcCanvas.width = img.width;
+        srcCanvas.height = img.height;
+        const srcCtx = srcCanvas.getContext('2d');
+        srcCtx.drawImage(img, 0, 0);
+        const srcImgData = srcCtx.getImageData(0, 0, img.width, img.height);
+
+        const rawCorners = corners.map(c => ({
+          x: c.x * img.width,
+          y: c.y * img.height
+        }));
+
+        const warpedCanvas = await warpPerspective(srcImgData, img.width, img.height, rawCorners);
+
+        if (!warpedCanvas) {
+          setLoading(false);
+          setStatusMessage('');
+          const cropErr = 'Failed to crop the document. Try adjusting the corners.';
+          if (onError) onError(cropErr);
+          return;
+        }
+
+        if (croppingImageSrc.startsWith('blob:')) {
+          URL.revokeObjectURL(croppingImageSrc);
+        }
+        setCroppingImageSrc(null);
+        setOriginalFile(null);
+
+        setStatusMessage('Analyzing document with Gemini AI...');
+
+        const blob = await canvasToJpegUnderLimit(rotateCanvas(warpedCanvas, rotationForTextDirection(textDirection)));
         if (blob) {
           const croppedFile = new File([blob], `cropped_${Date.now()}.jpg`, { type: 'image/jpeg' });
           await analyzeCroppedFile(croppedFile);
         } else {
           setLoading(false);
+          setStatusMessage('');
           const captureErr = 'Failed to capture cropped canvas.';
           if (onError) onError(captureErr);
         }
-      }).catch((err) => {
+      } catch (err) {
         // Without this the "Analyzing document" spinner would never stop
         console.error('Could not prepare the cropped photo:', err);
         setLoading(false);
         setStatusMessage('');
         if (onError) onError('Could not prepare the cropped photo. Please try again.');
-      });
+      }
     };
     img.onerror = failImageLoad;
     img.src = croppingImageSrc;

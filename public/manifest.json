@@ -1,6 +1,6 @@
 {
   "short_name": "SiteTactix",
-  "name": "SiteTactix by Adepec Homes",
+  "name": "SiteTactix by ADEPEC HOMES",
   "icons": [
     {
       "src": "/logo.svg",
@@ -22,8 +22,8 @@
     }
   ],
   "start_url": "/",
-  "background_color": "#0a0a0a",
-  "theme_color": "#F1D7A7",
+  "background_color": "#090a0c",
+  "theme_color": "#090a0c",
   "display": "standalone",
   "orientation": "portrait"
 }

@@ -4,13 +4,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
       return request.auth != null
-        && request.auth.token.email != null
+        && request.auth.token.email is string
         && request.auth.token.email_verified == true;
     }
 
     function isAdmin() {
       return signedIn()
-        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
     }
 
     function hasAccess() {
@@ -19,7 +19,7 @@ service cloud.firestore {
     }
 
     match /admins/{email} {
-      allow get: if signedIn();
+      allow get: if signedIn() && request.auth.token.email.lower() == email;
       allow list, write: if false;
     }
 
@@ -30,7 +30,7 @@ service cloud.firestore {
         && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['uid', 'email', 'sourceInviteId', 'createdAt'])
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.email == request.auth.token.email.lower()
         && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.sourceInviteId)).data.claimedByUid == request.auth.uid;
       allow update, delete: if isAdmin();
     }
@@ -53,7 +53,7 @@ service cloud.firestore {
           && resource.data.used == false
           && request.resource.data.used == true
           && request.resource.data.claimedByUid == request.auth.uid
-          && request.resource.data.claimedByEmail == request.auth.token.email
+          && request.resource.data.claimedByEmail == request.auth.token.email.lower()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'used',
             'usedAt',
@@ -85,7 +85,7 @@ service cloud.firestore {
 
     match /project_invites/{inviteId} {
       allow get, list: if hasAccess() && (
-        resource.data.invitedEmail == request.auth.token.email
+        (resource.data.invitedEmail is string && resource.data.invitedEmail.lower() == request.auth.token.email.lower())
         || resource.data.invitedByUid == request.auth.uid
       );
       allow create: if hasAccess()

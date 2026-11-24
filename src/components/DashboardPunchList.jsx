@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertCircle, CheckCircle2, Plus, RefreshCw } from 'lucide-react';
 import IssueCard from './IssueCard';
 import IssueFormModal from './IssueFormModal';
+import ToastNotification from './ToastNotification';
 import { TRADE_SECTIONS_CONFIG } from '../services/editFormHelpers';
 import { ISSUE_STATUS_LABELS } from '../services/issueStatus';
 
@@ -20,6 +21,8 @@ export default function DashboardPunchList({
     syncing,
     error,
     success,
+    clearError,
+    clearSuccess,
     addIssue,
     updateIssue,
     softDeleteIssue,
@@ -71,18 +74,14 @@ export default function DashboardPunchList({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       
       {/* Toast notifications */}
-      {error && (
-        <div className="alert-box alert-error">
-          <AlertCircle size={16} />
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="alert-box alert-success">
-          <CheckCircle2 size={16} />
-          <span>{success}</span>
-        </div>
-      )}
+      <ToastNotification
+        message={success || error}
+        type={success ? 'success' : 'error'}
+        onClose={() => {
+          clearSuccess?.();
+          clearError?.();
+        }}
+      />
 
       {/* Summary KPI Widgets */}
       <div style={{
