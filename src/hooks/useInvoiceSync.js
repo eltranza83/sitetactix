@@ -14,8 +14,9 @@ import { syncUploadedInvoicesForFolders } from '../services/directSyncService';
 import { draftSyncProblem } from '../services/editFormHelpers';
 import { draftPhotoProblem } from '../services/draftPhotoStore';
 import { fetchTransactionRows, parseTransactions } from '../services/sheetV2';
-import { checkSyncedEntries, describeSheetMatch, findReceiptInSheet } from '../services/dailyCheck';
+import { applySheetRowToHistoryEntry, checkSyncedEntries, describeSheetMatch, findReceiptInSheet } from '../services/dailyCheck';
 import { confirmAction } from '../services/confirmAction';
+import { formatMoney } from '../services/money';
 
 /** Reads the Sheet back and marks each synced entry as recorded or not. Never throws (entries stay unchecked). */
 async function checkAgainstSheet(googleToken, spreadsheetId, logs) {
@@ -507,9 +508,41 @@ export function useInvoiceSync({
     saveHistory([]);
   };
 
-  const handleDeleteHistoryItem = (id) => {
-    const nextHistory = (history || []).filter(item => item.id !== id);
-    saveHistory(nextHistory);
+  const handleDeleteHistoryItem = async (id) => {
+    const item = (history || []).find(entry => entry.id === id);
+    if (!item) return false;
+
+    const header = `${item.vendor || 'Receipt'} · ${formatMoney(item.amount)}${item.dateTransaction ? ` (${item.dateTransaction})` : ''}`;
+    const description = String(item.description || '').trim();
+    const message = [
+      header,
+      ...(description ? [description] : []),
+      '',
+      'This only removes the entry from History on this device. Nothing changes in your Google Sheet or Drive.'
+    ].join('\n');
+
+    if (!(await confirmAction({
+      title: 'Remove this History entry?',
+      message,
+      confirmLabel: 'Remove Entry'
+    }))) return false;
+
+    setHistory(prev => {
+      const next = (prev || []).filter(entry => entry.id !== id);
+      persistHistory(next);
+      return next;
+    });
+    return true;
+  };
+
+  const handleAcceptSheetHistoryEdit = (id, sheetRow) => {
+    if (!id || !sheetRow) return;
+    setHistory(prev => {
+      const next = (prev || []).map(entry => (entry.id === id ? applySheetRowToHistoryEntry(entry, sheetRow) : entry));
+      persistHistory(next);
+      return next;
+    });
+    setSuccess?.('Updated History on this device to match your Google Sheet.');
   };
 
   return {
@@ -520,6 +553,7 @@ export function useInvoiceSync({
     handleSyncAllDrafts,
     handleViewPDF,
     handleClearHistory,
-    handleDeleteHistoryItem
+    handleDeleteHistoryItem,
+    handleAcceptSheetHistoryEdit
   };
 }

@@ -21,7 +21,18 @@ import DashboardTradeSections from './DashboardTradeSections';
 import { auditSpreadsheetHealth } from '../services/spreadsheetHealth';
 import { compressSitePhoto } from '../services/imageFiles';
 
-export default function Dashboard({ googleToken, activeProject, selectedFolder, onSessionExpired, onRequestConnect, onShowToast, history, drafts }) {
+export default function Dashboard({
+  googleToken,
+  activeProject,
+  selectedFolder,
+  onSessionExpired,
+  onRequestConnect,
+  onShowToast,
+  history,
+  drafts,
+  onAcceptHistorySheetEdit,
+  onRemoveHistoryEntry
+}) {
   const [data, setData] = useState(() => loadCachedDashboard(localStorage, activeProject?.id));
   const [isCached, setIsCached] = useState(() => Boolean(loadCachedDashboard(localStorage, activeProject?.id)));
   const [loading, setLoading] = useState(false);
@@ -471,6 +482,8 @@ export default function Dashboard({ googleToken, activeProject, selectedFolder, 
             drafts={drafts}
             projectName={activeProject?.name || ''}
             isCached={isCached}
+            onAcceptHistorySheetEdit={onAcceptHistorySheetEdit}
+            onRemoveHistoryEntry={onRemoveHistoryEntry}
           />
 
           <DashboardOverpaidNotice

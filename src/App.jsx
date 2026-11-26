@@ -137,7 +137,8 @@ export default function App() {
     handleSyncAllDrafts,
     handleViewPDF,
     handleClearHistory,
-    handleDeleteHistoryItem
+    handleDeleteHistoryItem,
+    handleAcceptSheetHistoryEdit
   } = useInvoiceSync({
     activeProject,
     googleToken,
@@ -774,6 +775,8 @@ export default function App() {
               onShowToast={setSuccess}
               history={history}
               drafts={stagedItems}
+              onAcceptHistorySheetEdit={handleAcceptSheetHistoryEdit}
+              onRemoveHistoryEntry={handleDeleteHistoryItem}
             />
           </DashboardErrorBoundary>
         ) : activeTab === 'xray' ? (

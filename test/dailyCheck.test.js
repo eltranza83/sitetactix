@@ -5,6 +5,7 @@ import { buildHistoryLogs, buildSplitMetadata } from '../src/services/invoiceUpl
 import { buildAutoSplits } from '../src/services/editFormHelpers.js';
 import { buildTransactionRow, parseTransactions } from '../src/services/sheetV2.js';
 import {
+  applySheetRowToHistoryEntry,
   buildDailyCheck,
   checkSyncedEntries,
   parseSheetDashboardTotals
@@ -189,5 +190,92 @@ describe('Scanning into card (History only)', () => {
     assert.equal(summarizeScanTarget([log({ check: { status: 'missing' } })], 'Lot 99 -New Test', now).last.status, 'missing');
     assert.equal(summarizeScanTarget([log({})], 'Lot 99 -New Test', now).last.status, 'unchecked');
     assert.equal(summarizeScanTarget([], '', now).last, null);
+  });
+});
+
+describe('accepting Sheet edits into History', () => {
+  test('changing Category & Phase in the Sheet reconciles to ok after applySheetRowToHistoryEntry', () => {
+    const permit = sync('draft_permit', {
+      vendor: 'City Permits',
+      amount: 350,
+      costCategory: 'material',
+      date: '2026-10-11',
+      description: 'Building permit fee',
+      lotNumber: LOT,
+      tradeCategory: 'Paperwork_&_Permits',
+      tradePhase: 'Permits & Fees'
+    });
+    const editedRows = [
+      HEADER,
+      ...permit.rows.map(r => [...r.slice(0, 3), 'Project Overhead & Bills', 'Extra Costs & Misc', ...r.slice(5)])
+    ];
+    const transactions = parseTransactions(editedRows);
+
+    const before = buildDailyCheck({
+      history: permit.logs,
+      transactions,
+      projectName: LOT,
+      appTotals: { totalSpent: 350 },
+      now: NOW
+    });
+    assert.equal(before.ok, false);
+    assert.equal(before.different.length, 1);
+    assert.ok(before.different[0].row);
+    assert.equal(before.different[0].row.category, 'Project Overhead & Bills');
+    assert.equal(before.different[0].row.phase, 'Extra Costs & Misc');
+
+    const updatedHistory = permit.logs.map(entry =>
+      (entry.id === before.different[0].log.id ? applySheetRowToHistoryEntry(entry, before.different[0].row) : entry)
+    );
+    const after = buildDailyCheck({
+      history: updatedHistory,
+      transactions,
+      projectName: LOT,
+      appTotals: { totalSpent: 350 },
+      now: NOW
+    });
+    assert.equal(after.ok, true);
+    assert.equal(after.problemCount, 0);
+    assert.equal(updatedHistory[0].tradeCategory, 'Project Overhead & Bills');
+    assert.equal(updatedHistory[0].tradePhase, 'Extra Costs & Misc');
+    assert.equal(updatedHistory[0].check.status, 'ok');
+  });
+
+  test('changing amount and Material/Labor column in the Sheet reconciles to ok', () => {
+    const editedRows = ALL_ROWS.map(r => (
+      r[9] === 'draft_a' ? [...r.slice(0, 5), 2150.25, '', ...r.slice(7)] : r
+    ));
+    const transactions = parseTransactions(editedRows);
+
+    const before = buildDailyCheck({
+      history: HISTORY,
+      transactions,
+      projectName: LOT,
+      appTotals: { totalSpent: 4306.85 },
+      now: NOW
+    });
+    assert.equal(before.ok, false);
+    assert.equal(before.different.length, 1);
+    const diff = before.different[0];
+    assert.ok(diff.row);
+    assert.equal(diff.row.material, 2150.25);
+    assert.equal(diff.row.labor, 0);
+
+    const updatedHistory = HISTORY.map(entry =>
+      (entry.id === diff.log.id ? applySheetRowToHistoryEntry(entry, diff.row) : entry)
+    );
+    const after = buildDailyCheck({
+      history: updatedHistory,
+      transactions,
+      projectName: LOT,
+      appTotals: { totalSpent: 4306.85 },
+      now: NOW
+    });
+    assert.equal(after.ok, true);
+    assert.equal(after.problemCount, 0);
+    const updatedEntry = updatedHistory.find(entry => entry.id === diff.log.id);
+    assert.equal(updatedEntry.costCategory, 'material');
+    assert.equal(updatedEntry.amount, 2150.25);
+    assert.equal(updatedEntry.check.status, 'ok');
   });
 });
