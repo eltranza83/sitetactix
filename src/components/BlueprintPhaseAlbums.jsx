@@ -3,6 +3,32 @@ import { ArrowLeft, Camera, ChevronDown, ChevronUp, Image, Loader2 } from 'lucid
 import { STATUS_MESSAGES } from '../services/appErrors';
 import DrivePhoto from './DrivePhoto';
 
+export function getPhaseReminderTip(phaseName = '') {
+  const name = String(phaseName || '').toLowerCase();
+  if (name.includes('foundation')) {
+    return 'Remember to capture photos of the rebar grids and plumbing sleeves before concrete is poured!';
+  }
+  if (name.includes('framing')) {
+    return 'Take photos of studs, headers, and load-bearing columns before closing them up!';
+  }
+  if (name.includes('plumbing')) {
+    return 'Snap photos of PEX runs, drainage slopes, and supply lines behind the walls!';
+  }
+  if (name.includes('electrical')) {
+    return 'Photograph junction boxes, conduit routes, and panel layouts before drywall hides them!';
+  }
+  if (name.includes('hvac')) {
+    return 'Document duct paths, line sets, and boot locations for future reference!';
+  }
+  if (name.includes('insulation')) {
+    return 'Verify and document full insulation coverage behind batts or spray foam!';
+  }
+  if (name.includes('tile')) {
+    return 'Take pictures of water-proofing pans and mud beds before laying tile!';
+  }
+  return 'Ensure structural, layout, or utility work is fully photographed for reference!';
+}
+
 export default function BlueprintPhaseAlbums({
   activeAlbumPhase,
   albumFileInputRef,

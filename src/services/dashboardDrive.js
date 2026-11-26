@@ -13,12 +13,15 @@ export function buildDashboardPhotoFileName(originalName, now = new Date()) {
 /**
  * Contractor lookup: phases whose payee, phase or category contains the search text, or (new-layout Sheets)
  * whose contracts' Sub or Company does, so "Enrique" and "Lucen" both find "Enrique Vallejo (Lucen LLC)".
+ * On v2 Sheets (`Array.isArray(sub.contracts)`), phases without any contract are excluded so non-contractor
+ * phases (like Paperwork & Permits or Fuel & Gas) never appear as $0 contractor cards.
  */
 export function filterContractorSuggestions(subcontractors, searchTerm) {
   if (!Array.isArray(subcontractors)) return [];
   const query = String(searchTerm || '').toLowerCase();
   return subcontractors.filter(sub => {
     if (!sub) return false;
+    if (Array.isArray(sub.contracts) && sub.contracts.length === 0) return false;
     const names = [
       sub.payee,
       sub.phase,

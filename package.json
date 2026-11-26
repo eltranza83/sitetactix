@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.19",
-  "releaseName": "Overhead phases for Fuel, Food, Office & Tools",
+  "version": "1.15.0",
+  "releaseName": "Quote & Contract scanner, unified X-Ray photos, and Sheet-synced History",
   "type": "module",
   "scripts": {
     "dev": "vite",

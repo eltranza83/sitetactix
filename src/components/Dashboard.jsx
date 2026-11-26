@@ -1,25 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, AlertCircle, FileSpreadsheet, X } from 'lucide-react';
-import { STATUS_MESSAGES, getDriveErrorMessage, getUploadErrorMessage, isAuthError } from '../services/appErrors';
+import { STATUS_MESSAGES, getDriveErrorMessage, isAuthError } from '../services/appErrors';
 import {
   filterContractorSuggestions,
   getCachedDashboardSpreadsheetId,
   loadCachedDashboard,
-  listDashboardPhasePhotos,
   loadProjectDashboardFromFolder,
   persistDashboardCache,
-  persistDashboardSpreadsheetId,
-  uploadDashboardPhasePhoto
+  persistDashboardSpreadsheetId
 } from '../services/dashboardDrive';
+import { SHEET_LAYOUT_V2 } from '../services/sheetV2';
 import DashboardContractorSearch from './DashboardContractorSearch';
 import DashboardKpiCards from './DashboardKpiCards';
 import DashboardOverpaidNotice from './DashboardOverpaidNotice';
 import DashboardTodayCheck from './DashboardTodayCheck';
 import DashboardCostPerSqFt from './DashboardCostPerSqFt';
-import DashboardPhotoGallery from './DashboardPhotoGallery';
 import DashboardTradeSections from './DashboardTradeSections';
+import DashboardQuoteModal from './DashboardQuoteModal';
 import { auditSpreadsheetHealth } from '../services/spreadsheetHealth';
-import { compressSitePhoto } from '../services/imageFiles';
 
 export default function Dashboard({
   googleToken,
@@ -31,7 +29,10 @@ export default function Dashboard({
   history,
   drafts,
   onAcceptHistorySheetEdit,
-  onRemoveHistoryEntry
+  onRemoveHistoryEntry,
+  onViewPhasePhotos,
+  onOpenReceiptPdf,
+  onTransactionsLoaded
 }) {
   const [data, setData] = useState(() => loadCachedDashboard(localStorage, activeProject?.id));
   const [isCached, setIsCached] = useState(() => Boolean(loadCachedDashboard(localStorage, activeProject?.id)));
@@ -41,88 +42,11 @@ export default function Dashboard({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSub, setSelectedSub] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [resolvedSpreadsheetId, setResolvedSpreadsheetId] = useState(
+    () => activeProject?.spreadsheetId || getCachedDashboardSpreadsheetId(localStorage, activeProject?.id) || null
+  );
 
-  // Phase photo gallery state
-  const [activeGalleryPhase, setActiveGalleryPhase] = useState(null);
-  const [photos, setPhotos] = useState([]);
-  const [loadingPhotos, setLoadingPhotos] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [fullscreenPhoto, setFullscreenPhoto] = useState(null);
-
-  // Load photos lazily when active gallery phase opens
-  useEffect(() => {
-    const loadPhotos = async () => {
-      if (!googleToken || !selectedFolder || !activeGalleryPhase) return;
-      setLoadingPhotos(true);
-      try {
-        const list = await listDashboardPhasePhotos({
-          accessToken: googleToken,
-          projectFolderId: selectedFolder.id,
-          phase: activeGalleryPhase
-        });
-        setPhotos(list);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingPhotos(false);
-      }
-    };
-    loadPhotos();
-  }, [activeGalleryPhase, googleToken, selectedFolder]);
-
-  // Handle snapping/uploading a photo on-site
-  const handlePhotoUpload = async (e, targetPhase = activeGalleryPhase) => {
-    const file = e.target.files[0];
-    // Clear the picker so choosing the same photo again still counts as a change
-    e.target.value = '';
-    if (!file || !targetPhase) return;
-
-    setActiveGalleryPhase(targetPhase);
-
-    setUploadingPhoto(true);
-    try {
-      const updatedList = await uploadDashboardPhasePhoto({
-        accessToken: googleToken,
-        projectFolderId: selectedFolder.id,
-        phase: targetPhase,
-        file: await compressSitePhoto(file)
-      });
-      setPhotos(updatedList);
-    } catch (err) {
-      console.error(err);
-      setError(getUploadErrorMessage(err, 'photo'));
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
-
-  const getPhaseReminderTip = (phaseName) => {
-    const name = phaseName.toLowerCase();
-    if (name.includes('foundation')) {
-      return 'Remember to capture photos of the rebar grids and plumbing sleeves before concrete is poured!';
-    }
-    if (name.includes('framing')) {
-      return 'Take photos of studs, headers, and load-bearing columns before closing them up!';
-    }
-    if (name.includes('plumbing')) {
-      return 'Snap photos of PEX runs, drainage slopes, and supply lines behind the walls!';
-    }
-    if (name.includes('electrical')) {
-      return 'Photograph junction boxes, conduit routes, and panel layouts before drywall hides them!';
-    }
-    if (name.includes('hvac')) {
-      return 'Document duct paths, line sets, and boot locations for future reference!';
-    }
-    if (name.includes('insulation')) {
-      return 'Verify and document full insulation coverage behind batts or spray foam!';
-    }
-    if (name.includes('tile')) {
-      return 'Take pictures of water-proofing pans and mud beds before laying tile!';
-    }
-    return `Ensure structural, layout, or utility work is fully photographed for reference!`;
-  };
-
-  // Fetch dashboard data
   const loadDashboardData = async (forceInteractive = false) => {
     const cached = loadCachedDashboard(localStorage, activeProject?.id);
 
@@ -150,6 +74,7 @@ export default function Dashboard({
         projectFolderId: selectedFolder.id,
         cachedSpreadsheetId
       });
+      setResolvedSpreadsheetId(spreadsheetId);
       if (spreadsheetId !== cachedSpreadsheetId) {
         persistDashboardSpreadsheetId(localStorage, activeProject.id, spreadsheetId);
       }
@@ -158,9 +83,10 @@ export default function Dashboard({
       const healthAudit = auditSpreadsheetHealth(parsedData);
       setSheetWarnings(healthAudit.warnings);
 
-      // Cache values for offline usage
       persistDashboardCache(localStorage, activeProject.id, parsedData);
-
+      if (parsedData?.layout === SHEET_LAYOUT_V2 && Array.isArray(parsedData.transactions)) {
+        onTransactionsLoaded?.(activeProject, parsedData.transactions);
+      }
     } catch (err) {
       console.error(err);
       if (isAuthError(err)) {
@@ -176,7 +102,7 @@ export default function Dashboard({
         }
         return;
       }
-      
+
       const rawError = getDriveErrorMessage(err, 'load dashboard data');
       const isMissingSpreadsheet = String(err?.message || '').toLowerCase().includes('no spreadsheet found');
       const isFailedFetch = String(err?.message || '').toLowerCase().includes('failed to fetch');
@@ -190,12 +116,10 @@ export default function Dashboard({
         customError = rawError;
       }
 
-      // If user deliberately clicked Refresh and it failed to fetch, prompt to renew token
       if (forceInteractive && isFailedFetch && onRequestConnect) {
         onRequestConnect({ interactive: true });
       }
 
-      // Try to load cached data offline
       if (cached) {
         setData(cached);
         setIsCached(true);
@@ -209,12 +133,15 @@ export default function Dashboard({
     }
   };
 
-  // Load on mount or active project change
   useEffect(() => {
     const cached = loadCachedDashboard(localStorage, activeProject?.id);
+    setResolvedSpreadsheetId(activeProject?.spreadsheetId || getCachedDashboardSpreadsheetId(localStorage, activeProject?.id) || null);
     if (cached) {
       setData(cached);
       setIsCached(true);
+      if (cached?.layout === SHEET_LAYOUT_V2 && Array.isArray(cached.transactions)) {
+        onTransactionsLoaded?.(activeProject, cached.transactions);
+      }
     } else {
       setData(null);
       setIsCached(false);
@@ -232,8 +159,11 @@ export default function Dashboard({
     }
   }, [activeProject?.id, selectedFolder?.id, googleToken]);
 
-  // Autocomplete suggestions for contractor search
   const suggestions = filterContractorSuggestions(data?.subcontractors, searchTerm);
+  const isV2Layout = data?.layout === SHEET_LAYOUT_V2 || data?.projectInfo?.layout === SHEET_LAYOUT_V2;
+  const hasAnyContracts = isV2Layout
+    ? (Array.isArray(data?.contracts) && data.contracts.length > 0)
+    : (Array.isArray(data?.subcontractors) && data.subcontractors.length > 0);
 
   const toggleCategory = (catName) => {
     setExpandedCategories(prev => ({
@@ -245,7 +175,6 @@ export default function Dashboard({
   const selectSubcontractor = (sub) => {
     setSelectedSub(sub);
     setSearchTerm('');
-    // Smooth scroll the lookup box into comfortable view without slamming against top edge
     setTimeout(() => {
       const el = document.getElementById('contractor-lookup-container');
       if (el) {
@@ -291,19 +220,18 @@ export default function Dashboard({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
       {/* Header Info */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.35rem', fontWeight: 700, color: 'var(--st-text)', letterSpacing: '-0.02em' }}>Financial Dashboard</h2>
             {isCached && (
-              <span style={{ 
-                fontSize: '0.68rem', 
-                padding: '2px 8px', 
-                borderRadius: '6px', 
+              <span style={{
+                fontSize: '0.68rem',
+                padding: '2px 8px',
+                borderRadius: '6px',
                 backgroundColor: 'rgba(212, 183, 135, 0.12)',
-                color: 'var(--st-gold)', 
+                color: 'var(--st-gold)',
                 border: '1px solid rgba(212, 183, 135, 0.3)',
                 fontWeight: 600
               }}>
@@ -357,7 +285,7 @@ export default function Dashboard({
           </div>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#ffffff' }}>No Spreadsheet Found in Drive Folder</h3>
           <p style={{ fontSize: '0.84rem', color: 'var(--color-zinc-300)', maxWidth: '440px', lineHeight: '1.5', margin: 0 }}>
-            The Google Drive folder for <strong style={{ color: 'var(--color-amber-400)' }}>"{activeProject?.name || 'this project'}"</strong> does not contain a tracking spreadsheet.
+            The Google Drive folder for <strong style={{ color: 'var(--color-amber-400)' }}>&ldquo;{activeProject?.name || 'this project'}&rdquo;</strong> does not contain a tracking spreadsheet.
           </p>
           <div style={{
             fontSize: '0.78rem',
@@ -371,7 +299,7 @@ export default function Dashboard({
             marginTop: '4px',
             lineHeight: '1.4'
           }}>
-            💡 <strong>How to fix:</strong> Move or copy your project expense spreadsheet into this project's Google Drive folder, then click <strong>Refresh</strong> above.
+            💡 <strong>How to fix:</strong> Move or copy your project expense spreadsheet into this project&rsquo;s Google Drive folder, then click <strong>Refresh</strong> above.
           </div>
         </div>
       )}
@@ -394,9 +322,7 @@ export default function Dashboard({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
             <AlertCircle size={15} style={{ color: 'var(--color-amber-400)', flexShrink: 0 }} />
-            <span style={{ lineHeight: 1.4 }}>
-              {error}
-            </span>
+            <span style={{ lineHeight: 1.4 }}>{error}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             {onRequestConnect && (
@@ -462,7 +388,6 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Loading Placeholder */}
       {loading && !data && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '40px 0', alignItems: 'center' }}>
           <div className="spinner" style={{ width: '28px', height: '28px', borderWidth: '3px' }}></div>
@@ -472,9 +397,7 @@ export default function Dashboard({
 
       {data && (
         <>
-          <DashboardKpiCards
-            projectInfo={data?.projectInfo || {}}
-          />
+          <DashboardKpiCards projectInfo={data?.projectInfo || {}} />
 
           <DashboardTodayCheck
             data={data}
@@ -486,9 +409,7 @@ export default function Dashboard({
             onRemoveHistoryEntry={onRemoveHistoryEntry}
           />
 
-          <DashboardOverpaidNotice
-            overpaidSubs={data?.projectInfo?.overpaidSubs}
-          />
+          <DashboardOverpaidNotice overpaidSubs={data?.projectInfo?.overpaidSubs} />
 
           <DashboardCostPerSqFt projectInfo={data?.projectInfo || {}} />
 
@@ -496,38 +417,42 @@ export default function Dashboard({
             searchTerm={searchTerm}
             suggestions={suggestions}
             selectedSub={selectedSub}
+            hasAnyContracts={hasAnyContracts}
+            isV2Layout={isV2Layout}
             onSearchTermChange={(value) => {
               setSearchTerm(value);
               setSelectedSub(null);
             }}
             onSelectSubcontractor={selectSubcontractor}
             onClearSelection={() => setSelectedSub(null)}
-            onViewPhasePhotos={setActiveGalleryPhase}
+            onViewPhasePhotos={onViewPhasePhotos}
+            onOpenQuoteModal={() => setShowQuoteModal(true)}
             onShowToast={onShowToast}
           />
 
-          {/* Trade Phase Categories Accordion List */}
           <DashboardTradeSections
             categories={data?.categories || []}
             subcontractors={data?.subcontractors || []}
             expandedCategories={expandedCategories}
             onToggleCategory={toggleCategory}
             onSelectSubcontractor={selectSubcontractor}
+            onViewPhasePhotos={onViewPhasePhotos}
+            onOpenReceiptPdf={onOpenReceiptPdf}
           />
         </>
       )}
-      <DashboardPhotoGallery
+
+      <DashboardQuoteModal
+        isOpen={showQuoteModal}
+        onClose={() => setShowQuoteModal(false)}
         googleToken={googleToken}
-        activeGalleryPhase={activeGalleryPhase}
-        photos={photos}
-        loadingPhotos={loadingPhotos}
-        uploadingPhoto={uploadingPhoto}
-        fullscreenPhoto={fullscreenPhoto}
-        onCloseGallery={() => setActiveGalleryPhase(null)}
-        onPhotoUpload={handlePhotoUpload}
-        onOpenPhoto={setFullscreenPhoto}
-        onClosePhoto={() => setFullscreenPhoto(null)}
-        getPhaseReminderTip={getPhaseReminderTip}
+        activeProject={activeProject}
+        selectedFolder={selectedFolder}
+        spreadsheetId={resolvedSpreadsheetId || activeProject?.spreadsheetId}
+        existingContracts={data?.contracts || []}
+        onSaved={() => loadDashboardData(false)}
+        onSessionExpired={onSessionExpired}
+        onShowToast={onShowToast}
       />
     </div>
   );

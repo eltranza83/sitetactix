@@ -13,6 +13,14 @@ import {
 const BLUEPRINT_CONFIG_FILE = 'blueprint_data.json';
 const BLUEPRINT_CONFIG_MIME_TYPE = 'application/json';
 
+export function resolveAlbumCategoryKey(tradeSectionsConfig, rawCategory) {
+  if (!tradeSectionsConfig || !rawCategory) return rawCategory || '';
+  const norm = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]+/gi, '');
+  const target = norm(rawCategory);
+  const keys = Object.keys(tradeSectionsConfig);
+  return keys.find((key) => norm(key) === target || norm(tradeSectionsConfig[key]?.label) === target) || rawCategory;
+}
+
 
 function buildBlueprintConfig({ blueprintFileId = null, blueprintFileName = null, pins = [] } = {}) {
   return {

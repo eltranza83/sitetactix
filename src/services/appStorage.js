@@ -11,6 +11,7 @@ export const APP_STORAGE_KEYS = {
   activeProject: 'jobscan_active_project',
   activeProjectId: 'jobscan_active_project_id',
   history: 'jobscan_history',
+  dismissedHistory: 'jobscan_dismissed_history',
   stagedItems: 'jobscan_staged_items',
   authorizedEmail: 'jobscan_authorized_email',
   invited: 'jobscan_invited',

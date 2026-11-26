@@ -10,12 +10,7 @@ function getExtractionError(status, payload) {
   return 'AI extraction failed. Please try again.';
 }
 
-/**
- * Reads a receipt, invoice or check through the server's /api/extract-document route.
- * The AI key only lives on the server; the browser never holds one.
- * Returns { data, readByBackupAi } (true when Google's main model was busy and the backup read it).
- */
-export async function extractDocumentData(fileOrBlob, fetchImpl = fetch) {
+async function postDocumentExtraction(fileOrBlob, extraHeaders = {}, fetchImpl = fetch) {
   if (!fileOrBlob || fileOrBlob.size === 0) {
     throw new Error('The selected document is empty.');
   }
@@ -36,7 +31,8 @@ export async function extractDocumentData(fileOrBlob, fetchImpl = fetch) {
       headers: {
         authorization: `Bearer ${idToken}`,
         'content-type': 'application/octet-stream',
-        'x-document-mime': fileOrBlob.type || 'image/jpeg'
+        'x-document-mime': fileOrBlob.type || 'image/jpeg',
+        ...extraHeaders
       },
       body: fileOrBlob
     });
@@ -55,4 +51,21 @@ export async function extractDocumentData(fileOrBlob, fetchImpl = fetch) {
     return { data: payload.data, readByBackupAi: payload.readByBackupAi === true };
   }
   throw new Error(getExtractionError(response.status, payload));
+}
+
+/**
+ * Reads a receipt, invoice or check through the server's /api/extract-document route.
+ * The AI key only lives on the server; the browser never holds one.
+ * Returns { data, readByBackupAi } (true when Google's main model was busy and the backup read it).
+ */
+export async function extractDocumentData(fileOrBlob, fetchImpl = fetch) {
+  return postDocumentExtraction(fileOrBlob, {}, fetchImpl);
+}
+
+/**
+ * Reads a subcontractor PDF quote or photo of a written estimate through /api/extract-document
+ * in quote mode ('x-document-mode': 'quote').
+ */
+export async function extractQuoteData(fileOrBlob, fetchImpl = fetch) {
+  return postDocumentExtraction(fileOrBlob, { 'x-document-mode': 'quote' }, fetchImpl);
 }

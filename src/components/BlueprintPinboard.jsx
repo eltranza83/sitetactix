@@ -115,7 +115,14 @@ function BlueprintLoadingState({ message }) {
   );
 }
 
-export default function BlueprintPinboard({ googleToken, activeProject, selectedFolder, onSessionExpired }) {
+export default function BlueprintPinboard({
+  googleToken,
+  activeProject,
+  selectedFolder,
+  onSessionExpired,
+  initialAlbumPhase = null,
+  onConsumeInitialAlbumPhase = null
+}) {
   const [isIssueAddMode, setIsIssueAddMode] = useState(false);
   const [pendingIssueLocation, setPendingIssueLocation] = useState(null);
   const [selectedIssueId, setSelectedIssueId] = useState(null);
@@ -128,7 +135,9 @@ export default function BlueprintPinboard({ googleToken, activeProject, selected
     activeProject,
     googleToken,
     selectedFolder,
-    tradeSectionsConfig: TRADE_SECTIONS_CONFIG
+    tradeSectionsConfig: TRADE_SECTIONS_CONFIG,
+    initialAlbumPhase,
+    onConsumeInitialAlbumPhase
   });
 
   const issuesState = useIssues({ googleToken, activeProject, onSessionExpired });

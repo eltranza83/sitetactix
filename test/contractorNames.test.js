@@ -41,6 +41,8 @@ describe('contractor names on the Dashboard', () => {
     }
     assert.ok(filterContractorSuggestions(data.subcontractors, 'Pedro').some(s => s.phase === 'Tile & Flooring'));
     assert.equal(filterContractorSuggestions(data.subcontractors, 'Nobody Here').length, 0);
+    // v2 phases without a contract (e.g. Paperwork & Permits) are excluded from Contractor Balance Lookup
+    assert.equal(filterContractorSuggestions(data.subcontractors, 'Paperwork').length, 0);
   });
 
   test('old-layout entries (no contracts list) are still searched by payee, phase and category', () => {

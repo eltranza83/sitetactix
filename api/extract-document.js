@@ -1,4 +1,5 @@
 import { DOCUMENT_EXTRACTION_PROMPT, GEMINI_RESPONSE_SCHEMA } from './_lib/document-prompt.js';
+import { QUOTE_EXTRACTION_PROMPT, QUOTE_RESPONSE_SCHEMA } from './_lib/quote-prompt.js';
 import { AI_CONFIG } from './_lib/ai-config.js';
 import { fetchWithBackupModel, geminiUrl } from './_lib/ai-retry.js';
 import {
@@ -30,7 +31,14 @@ function parseGeminiJson(text) {
  * Reads one document with Gemini. Returns the extracted fields and which model read them
  * (the backup model when Google said the main one was busy).
  */
-export async function generateDocumentData({ bytes, mimeType, apiKey, fetchImpl = fetch }) {
+export async function generateDocumentData({
+  bytes,
+  mimeType,
+  apiKey,
+  prompt = DOCUMENT_EXTRACTION_PROMPT,
+  schema = GEMINI_RESPONSE_SCHEMA,
+  fetchImpl = fetch
+}) {
   const { response, model } = await fetchWithBackupModel(
     [AI_CONFIG.primaryModel, AI_CONFIG.backupModel],
     geminiUrl,
@@ -47,7 +55,7 @@ export async function generateDocumentData({ bytes, mimeType, apiKey, fetchImpl 
         contents: [{
           role: 'user',
           parts: [
-            { text: DOCUMENT_EXTRACTION_PROMPT },
+            { text: prompt },
             {
               inlineData: {
                 data: Buffer.from(bytes).toString('base64'),
@@ -58,7 +66,7 @@ export async function generateDocumentData({ bytes, mimeType, apiKey, fetchImpl 
         }],
         generationConfig: {
           responseMimeType: 'application/json',
-          responseSchema: GEMINI_RESPONSE_SCHEMA,
+          responseSchema: schema,
           temperature: 0
         }
       })
@@ -124,7 +132,14 @@ export async function POST(request) {
       return jsonResponse({ corners });
     }
 
-    const { data, model } = await generateDocumentData({ bytes, mimeType, apiKey });
+    const isQuoteMode = (request.headers.get('x-document-mode') || '').toLowerCase() === 'quote';
+    const { data, model } = await generateDocumentData({
+      bytes,
+      mimeType,
+      apiKey,
+      prompt: isQuoteMode ? QUOTE_EXTRACTION_PROMPT : DOCUMENT_EXTRACTION_PROMPT,
+      schema: isQuoteMode ? QUOTE_RESPONSE_SCHEMA : GEMINI_RESPONSE_SCHEMA
+    });
     // Lets the draft show that the backup model read this receipt (worth a closer look)
     return jsonResponse({ data, readByBackupAi: model !== AI_CONFIG.primaryModel });
   } catch (error) {

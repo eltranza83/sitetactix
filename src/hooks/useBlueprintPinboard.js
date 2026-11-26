@@ -6,6 +6,7 @@ import {
   listBlueprintPhasePhotos,
   loadBlueprintVault,
   resetBlueprintVault,
+  resolveAlbumCategoryKey,
   updateBlueprintPin,
   uploadBlueprintAlbumPhoto,
   uploadBlueprintVaultFile
@@ -34,11 +35,15 @@ function buildPinFormData(pin) {
   };
 }
 
+export { resolveAlbumCategoryKey };
+
 export function useBlueprintPinboard({
   activeProject,
   googleToken,
   selectedFolder,
-  tradeSectionsConfig
+  tradeSectionsConfig,
+  initialAlbumPhase = null,
+  onConsumeInitialAlbumPhase = null
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -61,9 +66,18 @@ export function useBlueprintPinboard({
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [savingPin, setSavingPin] = useState(false);
-  const [viewMode, setViewMode] = useState('blueprint');
-  const [expandedCategory, setExpandedCategory] = useState(null);
-  const [activeAlbumPhase, setActiveAlbumPhase] = useState(null);
+  const [viewMode, setViewMode] = useState(() => (initialAlbumPhase ? 'albums' : 'blueprint'));
+  const [expandedCategory, setExpandedCategory] = useState(() => (
+    initialAlbumPhase ? resolveAlbumCategoryKey(tradeSectionsConfig, initialAlbumPhase.category) : null
+  ));
+  const [activeAlbumPhase, setActiveAlbumPhase] = useState(() => (
+    initialAlbumPhase
+      ? {
+          category: resolveAlbumCategoryKey(tradeSectionsConfig, initialAlbumPhase.category),
+          phase: initialAlbumPhase.phase
+        }
+      : null
+  ));
   const [albumPhotos, setAlbumPhotos] = useState([]);
   const [loadingAlbumPhotos, setLoadingAlbumPhotos] = useState(false);
   const [uploadingAlbumPhoto, setUploadingAlbumPhoto] = useState(false);
@@ -75,6 +89,9 @@ export function useBlueprintPinboard({
   const albumFileInputRef = useRef(null);
   const imageSrcRef = useRef(null);
   const loadCountRef = useRef(0);
+  const preserveAlbumsViewRef = useRef(Boolean(initialAlbumPhase));
+  const activeAlbumPhaseRef = useRef(activeAlbumPhase);
+  activeAlbumPhaseRef.current = activeAlbumPhase;
 
   const clearBlueprintImage = () => {
     if (imageSrcRef.current) {
@@ -154,8 +171,20 @@ export function useBlueprintPinboard({
   }, [googleToken, selectedFolder?.id, activeProject?.id]);
 
   useEffect(() => {
+    if (!initialAlbumPhase) return;
+    const categoryKey = resolveAlbumCategoryKey(tradeSectionsConfig, initialAlbumPhase.category);
+    preserveAlbumsViewRef.current = true;
+    setViewMode('albums');
+    setExpandedCategory(categoryKey);
+    setActiveAlbumPhase({ category: categoryKey, phase: initialAlbumPhase.phase });
+    onConsumeInitialAlbumPhase?.();
+  }, [initialAlbumPhase, tradeSectionsConfig, onConsumeInitialAlbumPhase]);
+
+  useEffect(() => {
     if (imageSrc) {
-      setViewMode('blueprint');
+      if (!preserveAlbumsViewRef.current && !activeAlbumPhaseRef.current) {
+        setViewMode('blueprint');
+      }
     } else {
       setViewMode('albums');
     }

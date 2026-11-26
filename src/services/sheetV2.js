@@ -313,10 +313,15 @@ export function computeV2Dashboard({ projectInfoRows = [], transactionRows = [],
     entry.labor += t.labor;
     entry.payments.push({
       vendor: t.payee || 'Unknown Vendor',
+      description: t.description || '',
       materialCost: formatMoney(t.material),
       laborCost: formatMoney(t.labor),
+      rawMaterial: t.material,
+      rawLabor: t.labor,
       date: t.date || 'N/A',
       checkNumber: t.check || 'N/A',
+      receiptUrl: t.receipt || '',
+      receiptId: t.receiptId || '',
       rowNumber: t.rowNumber
     });
   });
@@ -401,10 +406,13 @@ export function computeV2Dashboard({ projectInfoRows = [], transactionRows = [],
       rowNumber: t.rowNumber,
       date: t.date,
       payee: t.payee,
+      description: t.description,
       category: t.category,
       phase: t.phase,
       material: t.material,
       labor: t.labor,
+      check: t.check,
+      receipt: t.receipt,
       receiptId: t.receiptId
     }))
   };
