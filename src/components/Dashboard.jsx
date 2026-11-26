@@ -287,20 +287,6 @@ export default function Dashboard({
           <p style={{ fontSize: '0.84rem', color: 'var(--color-zinc-300)', maxWidth: '440px', lineHeight: '1.5', margin: 0 }}>
             The Google Drive folder for <strong style={{ color: 'var(--color-amber-400)' }}>&ldquo;{activeProject?.name || 'this project'}&rdquo;</strong> does not contain a tracking spreadsheet.
           </p>
-          <div style={{
-            fontSize: '0.78rem',
-            color: 'var(--color-zinc-300)',
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '8px',
-            padding: '12px 14px',
-            maxWidth: '460px',
-            textAlign: 'left',
-            marginTop: '4px',
-            lineHeight: '1.4'
-          }}>
-            💡 <strong>How to fix:</strong> Move or copy your project expense spreadsheet into this project&rsquo;s Google Drive folder, then click <strong>Refresh</strong> above.
-          </div>
         </div>
       )}
 
@@ -426,6 +412,7 @@ export default function Dashboard({
             onSelectSubcontractor={selectSubcontractor}
             onClearSelection={() => setSelectedSub(null)}
             onViewPhasePhotos={onViewPhasePhotos}
+            onOpenReceiptPdf={onOpenReceiptPdf}
             onOpenQuoteModal={() => setShowQuoteModal(true)}
             onShowToast={onShowToast}
           />

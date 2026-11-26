@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.15.0",
-  "releaseName": "Quote & Contract scanner, unified X-Ray photos, and Sheet-synced History",
+  "version": "1.15.1",
+  "releaseName": "Master Category headers, smart $0 phases, and mobile Dashboard polish",
   "type": "module",
   "scripts": {
     "dev": "vite",
