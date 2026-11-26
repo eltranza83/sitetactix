@@ -54,6 +54,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('invoices');
   const [invoicesSubTab, setInvoicesSubTab] = useState('scan'); // 'scan', 'staged', or 'history'
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const [pendingXrayAlbumPhase, setPendingXrayAlbumPhase] = useState(null);
   // Top bar slides away while scrolling down and comes back when scrolling up
   const [headerHidden, setHeaderHidden] = useState(false);
   useEffect(() => {
@@ -133,6 +134,8 @@ export default function App() {
     uploading,
     uploadStatusText,
     history,
+    deviceHistory,
+    ingestProjectTransactions,
     handleOneShotSync,
     handleSyncAllDrafts,
     handleViewPDF,
@@ -773,10 +776,16 @@ export default function App() {
               onSessionExpired={handleSessionExpired}
               onRequestConnect={requestDriveAccessToken}
               onShowToast={setSuccess}
-              history={history}
+              history={deviceHistory}
               drafts={stagedItems}
               onAcceptHistorySheetEdit={handleAcceptSheetHistoryEdit}
               onRemoveHistoryEntry={handleDeleteHistoryItem}
+              onViewPhasePhotos={(phaseTarget) => {
+                setPendingXrayAlbumPhase(phaseTarget);
+                setActiveTab('xray');
+              }}
+              onOpenReceiptPdf={handleViewPDF}
+              onTransactionsLoaded={ingestProjectTransactions}
             />
           </DashboardErrorBoundary>
         ) : activeTab === 'xray' ? (
@@ -785,6 +794,8 @@ export default function App() {
             activeProject={activeProject}
             selectedFolder={selectedFolder}
             onSessionExpired={handleSessionExpired}
+            initialAlbumPhase={pendingXrayAlbumPhase}
+            onConsumeInitialAlbumPhase={() => setPendingXrayAlbumPhase(null)}
           />
         ) : (
           <Settings 

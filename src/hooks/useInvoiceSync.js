@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { loadStoredAppState, persistHistory } from '../services/appStorage';
 import { STATUS_MESSAGES, getDriveErrorMessage, isAuthError } from '../services/appErrors';
-import { fetchDriveFileBlob } from '../services/googleDrive';
+import { fetchDriveFileBlob, findSpreadsheetInFolder } from '../services/googleDrive';
 import { syncInvoiceDocument } from '../services/invoiceUpload';
 import {
   draftSyncFailure,
@@ -13,10 +13,22 @@ import {
 import { syncUploadedInvoicesForFolders } from '../services/directSyncService';
 import { draftSyncProblem } from '../services/editFormHelpers';
 import { draftPhotoProblem } from '../services/draftPhotoStore';
-import { fetchTransactionRows, parseTransactions } from '../services/sheetV2';
+import { SHEET_LAYOUT_V2, fetchSheetLayout, fetchTransactionRows, parseTransactions } from '../services/sheetV2';
 import { applySheetRowToHistoryEntry, checkSyncedEntries, describeSheetMatch, findReceiptInSheet } from '../services/dailyCheck';
 import { confirmAction } from '../services/confirmAction';
 import { formatMoney } from '../services/money';
+import { getCachedDashboardSpreadsheetId, loadCachedDashboard } from '../services/dashboardDrive';
+import {
+  buildProjectHistory,
+  entryBelongsToProject,
+  getHistoryDismissKey,
+  getProjectDismissScope,
+  loadCachedSheetTransactions,
+  loadDismissedHistoryMap,
+  normalizeSheetTransactions,
+  persistCachedSheetTransactions,
+  persistDismissedHistoryMap
+} from '../services/historySync';
 
 /** Reads the Sheet back and marks each synced entry as recorded or not. Never throws (entries stay unchecked). */
 async function checkAgainstSheet(googleToken, spreadsheetId, logs) {
@@ -151,16 +163,78 @@ export function useInvoiceSync({
 }) {
   const [uploading, setUploading] = useState(null);
   const [uploadStatusText, setUploadStatusText] = useState('');
-  const [history, setHistory] = useState(() => loadStoredAppState().history);
+  const [deviceHistory, setDeviceHistory] = useState(() => loadStoredAppState().history);
+  const [dismissedMap, setDismissedMap] = useState(() => loadDismissedHistoryMap());
+  const [sheetTransactions, setSheetTransactions] = useState(() => {
+    const stored = loadCachedSheetTransactions(localStorage, activeProject?.id);
+    if (stored) return stored;
+    const cachedDash = loadCachedDashboard(localStorage, activeProject?.id);
+    return cachedDash?.layout === SHEET_LAYOUT_V2 && Array.isArray(cachedDash.transactions)
+      ? cachedDash.transactions
+      : null;
+  });
 
-  const saveHistory = (newHistory) => {
-    setHistory(newHistory);
-    persistHistory(newHistory);
-  };
+  const ingestProjectTransactions = useCallback((project, rawOrParsedRows) => {
+    if (!project?.id || !Array.isArray(rawOrParsedRows)) return;
+    const normalized = normalizeSheetTransactions(rawOrParsedRows);
+    persistCachedSheetTransactions(localStorage, project.id, normalized);
+    if (project.id === activeProject?.id) {
+      setSheetTransactions(normalized);
+    }
+  }, [activeProject?.id]);
+
+  // Hydrate Sheet transactions whenever the active project or Google session changes
+  useEffect(() => {
+    if (!activeProject?.id) {
+      setSheetTransactions(null);
+      return;
+    }
+
+    const cachedRows = loadCachedSheetTransactions(localStorage, activeProject.id);
+    const cachedDash = loadCachedDashboard(localStorage, activeProject.id);
+    const dashRows = cachedDash?.layout === SHEET_LAYOUT_V2 && Array.isArray(cachedDash.transactions)
+      ? cachedDash.transactions
+      : null;
+    setSheetTransactions(cachedRows || dashRows || null);
+
+    if (!googleToken) return;
+
+    let cancelled = false;
+    const targetProject = activeProject;
+    const folderId = targetProject.folderId || selectedFolder?.id;
+
+    (async () => {
+      try {
+        let sheetId = targetProject.spreadsheetId || getCachedDashboardSpreadsheetId(localStorage, targetProject.id);
+        if (!sheetId && folderId) {
+          const found = await findSpreadsheetInFolder(googleToken, folderId);
+          sheetId = found?.id || null;
+        }
+        if (!sheetId || cancelled) return;
+        const layout = await fetchSheetLayout(googleToken, sheetId);
+        if (cancelled) return;
+        if (layout !== SHEET_LAYOUT_V2) {
+          setSheetTransactions(null);
+          return;
+        }
+        const rows = await fetchTransactionRows(googleToken, sheetId);
+        if (cancelled) return;
+        const parsed = parseTransactions(rows);
+        persistCachedSheetTransactions(localStorage, targetProject.id, parsed);
+        setSheetTransactions(parsed);
+      } catch (err) {
+        console.warn('[useInvoiceSync] Could not refresh History from Transactions:', err?.message || err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProject?.id, activeProject?.spreadsheetId, activeProject?.folderId, selectedFolder?.id, googleToken]);
 
   // Adds entries on top of the latest History (a sync can take a while; never use a stale list)
   const addToHistory = (logs) => {
-    setHistory(prev => {
+    setDeviceHistory(prev => {
       const next = [...logs, ...(prev || [])];
       persistHistory(next);
       return next;
@@ -246,6 +320,12 @@ export function useInvoiceSync({
       setUploadStatusText('Checking the spreadsheet...');
       const checkedLogs = await checkAgainstSheets(googleToken, result.spreadsheetByFolder, driveUploadResult.logs);
       addToHistory(checkedLogs);
+      const activeSheetId = result.spreadsheetByFolder?.[targetFolderId] || activeProject?.spreadsheetId;
+      if (activeProject?.id && activeSheetId) {
+        fetchTransactionRows(googleToken, activeSheetId)
+          .then(rows => ingestProjectTransactions(activeProject, rows))
+          .catch(() => {});
+      }
       removeStagedItem(id);
       const oneShotWarning = checkWarning(checkedLogs);
 
@@ -407,6 +487,12 @@ export function useInvoiceSync({
       setUploadStatusText('Checking the spreadsheet...');
       const checkedLogs = await checkAgainstSheets(googleToken, result.spreadsheetByFolder, successfulLogs);
       addToHistory(checkedLogs);
+      const activeSheetId = result.spreadsheetByFolder?.[targetFolderId] || activeProject?.spreadsheetId;
+      if (activeProject?.id && activeSheetId) {
+        fetchTransactionRows(googleToken, activeSheetId)
+          .then(rows => ingestProjectTransactions(activeProject, rows))
+          .catch(() => {});
+      }
       const syncAllWarning = checkWarning(checkedLogs);
       if (typeof removeStagedItems === 'function' && successfulIds.length > 0) {
         removeStagedItems(successfulIds);
@@ -499,17 +585,48 @@ export function useInvoiceSync({
     }
   };
 
+  const dismissScope = getProjectDismissScope(activeProject);
+  const dismissedKeysForProject = useMemo(
+    () => dismissedMap[dismissScope] || [],
+    [dismissedMap, dismissScope]
+  );
+
+  const history = useMemo(
+    () => buildProjectHistory({
+      activeProject,
+      sheetTransactions,
+      localHistory: deviceHistory,
+      dismissedKeys: dismissedKeysForProject
+    }),
+    [activeProject, sheetTransactions, deviceHistory, dismissedKeysForProject]
+  );
+
   const handleClearHistory = async () => {
+    const projectLabel = activeProject?.name ? ` for "${activeProject.name}"` : '';
     if (!(await confirmAction({
-      title: 'Clear all History?',
-      message: 'This removes every History entry from this device. Nothing changes in the Sheet or Drive.',
+      title: 'Clear History on this device?',
+      message: `This hides all ${history.length} History entries${projectLabel} on this device. Nothing changes in your Google Sheet or Drive.`,
       confirmLabel: 'Clear History'
     }))) return;
-    saveHistory([]);
+
+    const keysToDismiss = history.map(getHistoryDismissKey).filter(Boolean);
+    setDismissedMap(prev => {
+      const existing = new Set(prev[dismissScope] || []);
+      keysToDismiss.forEach(k => existing.add(k));
+      const next = { ...prev, [dismissScope]: [...existing] };
+      persistDismissedHistoryMap(next);
+      return next;
+    });
+
+    setDeviceHistory(prev => {
+      const next = (prev || []).filter(entry => !entryBelongsToProject(entry, activeProject));
+      persistHistory(next);
+      return next;
+    });
   };
 
   const handleDeleteHistoryItem = async (id) => {
-    const item = (history || []).find(entry => entry.id === id);
+    const item = history.find(entry => entry.id === id) || (deviceHistory || []).find(entry => entry.id === id);
     if (!item) return false;
 
     const header = `${item.vendor || 'Receipt'} · ${formatMoney(item.amount)}${item.dateTransaction ? ` (${item.dateTransaction})` : ''}`;
@@ -518,7 +635,7 @@ export function useInvoiceSync({
       header,
       ...(description ? [description] : []),
       '',
-      'This only removes the entry from History on this device. Nothing changes in your Google Sheet or Drive.'
+      'This only hides/removes the entry from History on this device. Nothing changes in your Google Sheet or Drive.'
     ].join('\n');
 
     if (!(await confirmAction({
@@ -527,7 +644,18 @@ export function useInvoiceSync({
       confirmLabel: 'Remove Entry'
     }))) return false;
 
-    setHistory(prev => {
+    const dismissKey = getHistoryDismissKey(item);
+    if (dismissKey) {
+      setDismissedMap(prev => {
+        const existing = new Set(prev[dismissScope] || []);
+        existing.add(dismissKey);
+        const next = { ...prev, [dismissScope]: [...existing] };
+        persistDismissedHistoryMap(next);
+        return next;
+      });
+    }
+
+    setDeviceHistory(prev => {
       const next = (prev || []).filter(entry => entry.id !== id);
       persistHistory(next);
       return next;
@@ -537,7 +665,7 @@ export function useInvoiceSync({
 
   const handleAcceptSheetHistoryEdit = (id, sheetRow) => {
     if (!id || !sheetRow) return;
-    setHistory(prev => {
+    setDeviceHistory(prev => {
       const next = (prev || []).map(entry => (entry.id === id ? applySheetRowToHistoryEntry(entry, sheetRow) : entry));
       persistHistory(next);
       return next;
@@ -549,6 +677,8 @@ export function useInvoiceSync({
     uploading,
     uploadStatusText,
     history,
+    deviceHistory,
+    ingestProjectTransactions,
     handleOneShotSync,
     handleSyncAllDrafts,
     handleViewPDF,

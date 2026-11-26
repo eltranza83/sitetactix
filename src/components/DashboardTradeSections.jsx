@@ -1,5 +1,5 @@
-import React from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { Camera, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 
 import { categoryRank } from '../config/tradeCategories.js';
 import { formatMoney, parseMoney as parseCurrencyNumber } from '../services/money.js';
@@ -84,8 +84,16 @@ export default function DashboardTradeSections({
   subcontractors = [],
   expandedCategories = {},
   onToggleCategory,
-  onSelectSubcontractor
+  onSelectSubcontractor,
+  onViewPhasePhotos,
+  onOpenReceiptPdf
 }) {
+  const [expandedPhases, setExpandedPhases] = useState({});
+
+  const togglePhase = (phaseId) => {
+    setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
+  };
+
   const safeCategories = Array.isArray(categories) ? categories : [];
   const safeSubcontractors = Array.isArray(subcontractors) ? subcontractors : [];
 
@@ -99,7 +107,7 @@ export default function DashboardTradeSections({
   return (
     <div>
       <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '0.95rem', fontWeight: 700, color: 'var(--st-text)', marginBottom: '10px' }}>
-        Trade Sections & Phase Totals
+        Trade Sections &amp; Phase Totals
       </h3>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -144,7 +152,6 @@ export default function DashboardTradeSections({
                   transition: 'background-color 0.2s ease'
                 }}
               >
-                {/* Row 1: Category Title + Phase Count & Expand Arrow */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{
                     fontFamily: 'var(--font-display)',
@@ -169,7 +176,6 @@ export default function DashboardTradeSections({
                   </div>
                 </div>
 
-                {/* Row 2: Fixed 3-Column Pill Bar (Mat, Lab, Spent) */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
                   <div style={{
                     fontWeight: 600,
@@ -241,38 +247,45 @@ export default function DashboardTradeSections({
                   flexDirection: 'column',
                   gap: '8px'
                 }}>
-                    {catSubs.map(sub => {
-                      const cleanPayee = String(sub.payee || '').trim();
-                      const cleanPhase = String(sub.phase || '').trim();
-                      const isPlaceholder = !cleanPayee ||
-                        cleanPayee.toLowerCase() === cleanPhase.toLowerCase() ||
-                        cleanPayee.toLowerCase().endsWith('payee') ||
-                        cleanPayee.toLowerCase() === `${cleanPhase.toLowerCase()} payee`;
+                  {catSubs.map(sub => {
+                    const cleanPayee = String(sub.payee || '').trim();
+                    const cleanPhase = String(sub.phase || '').trim();
+                    const hasContract = Array.isArray(sub.contracts) ? sub.contracts.length > 0 : Boolean(
+                      cleanPayee &&
+                      cleanPayee.toLowerCase() !== cleanPhase.toLowerCase() &&
+                      !cleanPayee.toLowerCase().endsWith('payee') &&
+                      cleanPayee.toLowerCase() !== `${cleanPhase.toLowerCase()} payee`
+                    );
+                    const displayPayee = hasContract ? cleanPayee : null;
+                    const isPhaseOpen = !!expandedPhases[sub.id];
+                    const phasePayments = Array.isArray(sub.payments) ? [...sub.payments].reverse() : [];
 
-                      // Only a sub with a contract is named; phases bought as material show no label
-                      const isAssigned = !isPlaceholder;
-                      const displayPayee = isAssigned ? cleanPayee : null;
-
-                      return (
+                    return (
+                      <div
+                        key={sub.id}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--st-soft)',
+                          fontSize: '0.78rem',
+                          border: isPhaseOpen ? '1px solid rgba(212, 183, 135, 0.4)' : '1px solid var(--st-line)',
+                          boxShadow: '0 1px 4px rgba(0, 0, 0, 0.2)',
+                          overflow: 'hidden',
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      >
                         <div
-                          key={sub.id}
-                          onClick={() => onSelectSubcontractor(sub)}
+                          onClick={() => togglePhase(sub.id)}
+                          className="project-profile-row"
                           style={{
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '6px',
                             padding: '10px 12px',
-                            borderRadius: '8px',
-                            backgroundColor: 'var(--st-soft)',
-                            fontSize: '0.78rem',
-                            cursor: 'pointer',
-                            border: '1px solid var(--st-line)',
-                            boxShadow: '0 1px 4px rgba(0, 0, 0, 0.2)',
-                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                            cursor: 'pointer'
                           }}
-                          className="project-profile-row"
                         >
-                          {/* Row 1: Phase name on the left, the sub (if any) on the right */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', width: '100%' }}>
                             <span style={{
                               fontFamily: 'var(--font-sans)',
@@ -286,23 +299,188 @@ export default function DashboardTradeSections({
                             }}>
                               {sub.phase}
                             </span>
-                            {displayPayee && (
-                              <span style={{
-                                fontWeight: 600,
-                                color: 'var(--st-gold)',
-                                fontSize: '0.72rem',
-                                flexShrink: 0
-                              }}>
-                                {displayPayee}
-                              </span>
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                              {displayPayee && (
+                                <span style={{
+                                  fontWeight: 600,
+                                  color: 'var(--st-gold)',
+                                  fontSize: '0.72rem'
+                                }}>
+                                  {displayPayee}
+                                </span>
+                              )}
+                              {phasePayments.length > 0 && (
+                                <span style={{ fontSize: '0.66rem', color: 'var(--st-muted)', fontWeight: 600 }}>
+                                  ({phasePayments.length})
+                                </span>
+                              )}
+                              {isPhaseOpen
+                                ? <ChevronUp size={14} style={{ color: 'var(--st-gold)' }} />
+                                : <ChevronDown size={14} style={{ color: 'var(--st-muted)' }} />}
+                            </div>
                           </div>
 
-                          {/* Row 2: Fixed 3-Column Pill Bar (Mat, Lab, Total) */}
                           <PhaseMetricGroup sub={sub} />
                         </div>
-                      );
-                    })}
+
+                        {isPhaseOpen && (
+                          <div style={{
+                            borderTop: '1px solid var(--st-line)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.28)',
+                            padding: '10px 12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--st-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Phase Transactions ({phasePayments.length})
+                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                {hasContract && onSelectSubcontractor && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onSelectSubcontractor(sub);
+                                    }}
+                                    style={{
+                                      background: 'rgba(212, 183, 135, 0.14)',
+                                      border: '1px solid rgba(212, 183, 135, 0.35)',
+                                      color: 'var(--st-gold)',
+                                      borderRadius: '14px',
+                                      padding: '3px 9px',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Contract Balance →
+                                  </button>
+                                )}
+                                {onViewPhasePhotos && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onViewPhasePhotos({ category: sub.category, phase: sub.phase });
+                                    }}
+                                    style={{
+                                      background: 'rgba(255, 255, 255, 0.05)',
+                                      border: '1px solid var(--st-line)',
+                                      color: 'var(--st-text)',
+                                      borderRadius: '14px',
+                                      padding: '3px 9px',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 600,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    <Camera size={11} style={{ color: 'var(--st-gold)' }} />
+                                    <span>Phase Photos</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {phasePayments.length === 0 ? (
+                              <div style={{ fontSize: '0.73rem', color: 'var(--color-zinc-500)', fontStyle: 'italic', padding: '4px 0' }}>
+                                No receipts or checks recorded in this phase yet.
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                {phasePayments.map((p, idx) => {
+                                  const matVal = p.rawMaterial ?? parseCurrencyNumber(p.materialCost);
+                                  const labVal = p.rawLabor ?? parseCurrencyNumber(p.laborCost);
+                                  const isLabor = labVal !== 0 && matVal === 0;
+                                  const displayAmt = isLabor ? labVal : matVal;
+                                  const paymentMeta = [
+                                    p.date && p.date !== 'N/A' ? p.date : null,
+                                    p.checkNumber && p.checkNumber !== 'N/A' ? p.checkNumber : null
+                                  ].filter(Boolean).join(' · ');
+
+                                  return (
+                                    <div
+                                      key={`${p.rowNumber || idx}_${p.vendor}`}
+                                      style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '7px 9px',
+                                        borderRadius: '6px',
+                                        backgroundColor: 'var(--st-panel)',
+                                        border: '1px solid var(--st-line)'
+                                      }}
+                                    >
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontWeight: 600, fontSize: '0.76rem', color: 'var(--st-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                          {p.vendor}
+                                        </div>
+                                        {p.description && (
+                                          <div style={{ fontSize: '0.7rem', color: 'var(--color-zinc-400)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '1px' }}>
+                                            {p.description}
+                                          </div>
+                                        )}
+                                        {paymentMeta && (
+                                          <div style={{ fontSize: '0.66rem', color: 'var(--st-muted)', marginTop: '2px' }}>
+                                            {paymentMeta}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                        <span style={{
+                                          fontSize: '0.62rem',
+                                          fontWeight: 700,
+                                          textTransform: 'uppercase',
+                                          padding: '2px 5px',
+                                          borderRadius: '4px',
+                                          color: isLabor ? '#7dd3fc' : 'var(--st-gold)',
+                                          backgroundColor: isLabor ? 'rgba(56, 189, 248, 0.12)' : 'rgba(212, 183, 135, 0.12)'
+                                        }}>
+                                          {isLabor ? 'Lab' : 'Mat'}
+                                        </span>
+                                        <span style={{ fontWeight: 700, fontSize: '0.78rem', color: isLabor ? '#7dd3fc' : 'var(--st-text)' }}>
+                                          {formatMoney(displayAmt)}
+                                        </span>
+                                        {p.receiptUrl && onOpenReceiptPdf && (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              onOpenReceiptPdf({ link: p.receiptUrl });
+                                            }}
+                                            className="btn btn-secondary"
+                                            style={{
+                                              width: 'auto',
+                                              padding: '3px 7px',
+                                              fontSize: '0.68rem',
+                                              borderRadius: '5px',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '3px'
+                                            }}
+                                            title="Open scanned receipt PDF"
+                                          >
+                                            <FileText size={11} />
+                                            <span>PDF</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
