@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.16",
-  "releaseName": "Field sync hardening, security tightening, and UI polish",
+  "version": "1.14.17",
+  "releaseName": "History delete confirmation and Today Sheet edit actions",
   "type": "module",
   "scripts": {
     "dev": "vite",

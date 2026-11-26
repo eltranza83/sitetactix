@@ -4,12 +4,32 @@ import { buildDailyCheck, parseSheetDashboardTotals } from '../services/dailyChe
 import { formatMoney as money } from '../services/money';
 
 
+const inlineActionStyle = {
+  fontSize: '0.68rem',
+  fontWeight: 700,
+  padding: '2px 8px',
+  borderRadius: '6px',
+  border: '1px solid rgba(241, 215, 167, 0.35)',
+  backgroundColor: 'rgba(241, 215, 167, 0.1)',
+  color: 'var(--st-gold)',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap'
+};
+
 /**
  * "Today" card: everything synced today on this device for this house, checked against the Sheet
  * (row found, same payee / category / phase / amounts), plus drafts still waiting, possible duplicates,
  * and whether the Sheet's own Dashboard total matches.
  */
-export default function DashboardTodayCheck({ data, history, drafts, projectName, isCached }) {
+export default function DashboardTodayCheck({
+  data,
+  history,
+  drafts,
+  projectName,
+  isCached,
+  onAcceptHistorySheetEdit,
+  onRemoveHistoryEntry
+}) {
   const result = useMemo(() => buildDailyCheck({
     history: history || [],
     transactions: data?.transactions || [],
@@ -23,12 +43,32 @@ export default function DashboardTodayCheck({ data, history, drafts, projectName
 
   const good = result.ok;
   const color = good ? '#4ade80' : '#f87171';
-  const lines = [];
-  result.missing.forEach(e => lines.push(`${e.log.vendor || 'Entry'} ${money(e.log.amount)}: not found in the Sheet`));
-  result.different.forEach(e => lines.push(`${e.log.vendor || 'Entry'} ${money(e.log.amount)}: ${e.problems.join('; ')}`));
-  result.duplicates.forEach(d => lines.push(`Possible duplicate: ${d.payee} ${money(d.amount)} on ${d.date} (rows ${d.rows.join(' and ')})`));
+  const items = [];
+  result.missing.forEach((e, idx) => items.push({
+    key: `missing-${e.log?.id || e.log?.receiptId || idx}`,
+    text: `${e.log.vendor || 'Entry'} ${money(e.log.amount)}: not found in the Sheet`,
+    action: onRemoveHistoryEntry && e.log?.id
+      ? { label: 'Removed on purpose', onClick: () => onRemoveHistoryEntry(e.log.id) }
+      : null
+  }));
+  result.different.forEach((e, idx) => items.push({
+    key: `different-${e.log?.id || e.log?.receiptId || idx}`,
+    text: `${e.log.vendor || 'Entry'} ${money(e.log.amount)}: ${e.problems.join('; ')}`,
+    action: onAcceptHistorySheetEdit && e.log?.id && e.row && !(Number(e.row.material) !== 0 && Number(e.row.labor) !== 0)
+      ? { label: 'Accept Sheet edit', onClick: () => onAcceptHistorySheetEdit(e.log.id, e.row) }
+      : null
+  }));
+  result.duplicates.forEach((d, idx) => items.push({
+    key: `duplicate-${d.rows.join('-')}-${idx}`,
+    text: `Possible duplicate: ${d.payee} ${money(d.amount)} on ${d.date} (rows ${d.rows.join(' and ')})`,
+    action: null
+  }));
   if (result.totalsMatch === false) {
-    lines.push(`The Sheet's Dashboard shows ${money(result.sheetTotals.spent)} spent, the app counts ${money(data.projectInfo.totalSpent)}. Check the Sheet's formulas.`);
+    items.push({
+      key: 'totals-mismatch',
+      text: `The Sheet's Dashboard shows ${money(result.sheetTotals.spent)} spent, the app counts ${money(data.projectInfo.totalSpent)}. Check the Sheet's formulas.`,
+      action: null
+    });
   }
 
   return (
@@ -50,8 +90,26 @@ export default function DashboardTodayCheck({ data, history, drafts, projectName
           {result.count > 0 && good ? ' · all recorded' : ''}
           {!good ? ` · ${result.problemCount} to check` : ''}
         </span>
-        {lines.map(line => (
-          <span key={line} style={{ fontSize: '0.74rem', color: 'var(--st-text)', lineHeight: 1.4 }}>{line}</span>
+        {items.map(item => (
+          <div
+            key={item.key}
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.74rem',
+              color: 'var(--st-text)',
+              lineHeight: 1.4
+            }}
+          >
+            <span>{item.text}</span>
+            {item.action && (
+              <button type="button" onClick={item.action.onClick} style={inlineActionStyle}>
+                {item.action.label}
+              </button>
+            )}
+          </div>
         ))}
         <span style={{ fontSize: '0.7rem', color: 'var(--st-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           {result.draftsWaiting > 0 ? (

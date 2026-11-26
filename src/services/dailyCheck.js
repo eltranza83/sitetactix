@@ -56,7 +56,26 @@ export function checkEntry(log, rowsByReceiptId) {
   if (!same(row.phase, expected.phase)) problems.push(`Phase is "${row.phase}", expected "${expected.phase}"`);
   if (cents(row.material) !== cents(expected.material)) problems.push(`Material is ${money(row.material)}, expected ${money(expected.material)}`);
   if (cents(row.labor) !== cents(expected.labor)) problems.push(`Labor is ${money(row.labor)}, expected ${money(expected.labor)}`);
-  return { status: problems.length ? 'different' : 'ok', problems, rowNumber: row.rowNumber };
+  return { status: problems.length ? 'different' : 'ok', problems, rowNumber: row.rowNumber, row };
+}
+
+/** Updates a History entry on this device to match its edited Transactions row in the Sheet. */
+export function applySheetRowToHistoryEntry(log, row, checkedAt = new Date().toISOString()) {
+  if (!log || !row) return log;
+  const hasLabor = cents(row.labor) !== 0 && cents(row.material) === 0;
+  const hasMaterial = cents(row.material) !== 0 && cents(row.labor) === 0;
+  const costCategory = hasLabor ? 'labor' : (hasMaterial ? 'material' : (log.costCategory || 'material'));
+  const amount = hasLabor ? row.labor : (hasMaterial ? row.material : (cents(row.material) + cents(row.labor)) / 100);
+  return {
+    ...log,
+    vendor: text(row.payee) || log.vendor,
+    tradeCategory: text(row.category) || log.tradeCategory,
+    tradePhase: text(row.phase) || log.tradePhase,
+    costCategory,
+    amount,
+    dateTransaction: text(row.date) || log.dateTransaction,
+    check: { status: 'ok', problems: [], rowNumber: row.rowNumber, checkedAt }
+  };
 }
 
 export function indexByReceiptId(transactions) {
