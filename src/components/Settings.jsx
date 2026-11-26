@@ -20,8 +20,7 @@ export default function Settings({
   setProjects,
   activeProject,
   setActiveProject,
-  handleSelectActiveProject,
-  onReconcileHistoryPhases
+  handleSelectActiveProject
 }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -36,8 +35,7 @@ export default function Settings({
     setError,
     setProjects,
     setSelectedFolder,
-    setSuccess,
-    onReconcileHistoryPhases
+    setSuccess
   });
 
   return (
@@ -72,8 +70,6 @@ export default function Settings({
           onEditProject={projectSettings.openEditProjectModal}
           onSelectActiveProject={handleSelectActiveProject}
           onToggleOpen={() => projectSettings.setShowProjectsAccordion(!projectSettings.showProjectsAccordion)}
-          upgradingOverhead={projectSettings.upgradingOverhead}
-          onUpgradeOverheadPhases={projectSettings.handleUpgradeOverheadPhases}
         />
       )}
 

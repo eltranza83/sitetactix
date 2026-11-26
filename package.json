@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.18",
-  "releaseName": "Overhead phases for Fuel, Food, Office & Tools plus Sheet upgrader",
+  "version": "1.14.19",
+  "releaseName": "Overhead phases for Fuel, Food, Office & Tools",
   "type": "module",
   "scripts": {
     "dev": "vite",
