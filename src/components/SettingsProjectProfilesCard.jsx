@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ChevronDown, ChevronUp, ExternalLink, FolderOpen, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, ExternalLink, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 
 export default function SettingsProjectProfilesCard({
   activeProject,
@@ -11,9 +11,7 @@ export default function SettingsProjectProfilesCard({
   onDeleteProject,
   onEditProject,
   onSelectActiveProject,
-  onToggleOpen,
-  upgradingOverhead = false,
-  onUpgradeOverheadPhases
+  onToggleOpen
 }) {
   return (
     <div className="settings-card" style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -30,41 +28,6 @@ export default function SettingsProjectProfilesCard({
       >
         <Plus size={16} /> Create New Project
       </button>
-
-      {activeProject?.spreadsheetId && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onUpgradeOverheadPhases}
-            disabled={upgradingOverhead}
-            style={{
-              padding: '10px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              fontSize: '0.84rem',
-              opacity: upgradingOverhead ? 0.7 : 1
-            }}
-          >
-            {upgradingOverhead ? (
-              <>
-                <span className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', margin: 0 }} />
-                <span>Upgrading Sheet...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles size={15} style={{ color: 'var(--color-amber-400)' }} />
-                <span>Upgrade Overhead Phases</span>
-              </>
-            )}
-          </button>
-          <span style={{ fontSize: '0.72rem', color: 'var(--color-zinc-500)', lineHeight: 1.35 }}>
-            Adds Fuel &amp; Gas, Food &amp; Crew, Office &amp; Tech, and Tools &amp; Supplies to &ldquo;{activeProject.name}&rdquo; and reclassifies matching Extra Costs &amp; Misc rows.
-          </span>
-        </div>
-      )}
 
       {projects.length > 0 && (
         <div style={{ borderTop: '1px solid var(--color-zinc-800)', paddingTop: '12px' }}>

@@ -16,9 +16,6 @@ import {
 import { readProjectInfoIfV2, writeProjectInfo } from '../services/sheetV2';
 import { TEMPLATE_SHEET_ID } from '../config/appConfig';
 import { APP_STORAGE_KEYS, persistActiveProject, persistProjects, sanitizeProject } from '../services/appStorage';
-import { confirmAction } from '../services/confirmAction';
-import { getDashboardStorageKeys } from '../services/dashboardDrive';
-import { upgradeOverheadPhasesInSheet } from '../services/overheadSheetUpgrade';
 import {
   buildNotionLotRequest,
   cleanSubdivision,
@@ -39,8 +36,7 @@ export function useSettingsProjects({
   setError,
   setProjects,
   setSelectedFolder,
-  setSuccess,
-  onReconcileHistoryPhases
+  setSuccess
 }) {
   const [folders, setFolders] = useState([]);
   // Spreadsheets in the folder being browsed (shown greyed out so you can tell you're in the right place)
@@ -70,7 +66,6 @@ export function useSettingsProjects({
   const templateAvailable = Boolean(TEMPLATE_SHEET_ID);
   // The project whose Notion page is being made right now (its id), so its button can show progress
   const [notionBusyId, setNotionBusyId] = useState(null);
-  const [upgradingOverhead, setUpgradingOverhead] = useState(false);
   // The house's subdivision (goes on its Notion page), with the names already used in Notion as suggestions
   const [subdivisionInput, setSubdivisionInput] = useState('');
   const [subdivisionOptions, setSubdivisionOptions] = useState([]);
@@ -490,66 +485,6 @@ export function useSettingsProjects({
     handleSelectFolderForProject(currentFolder);
   };
 
-  const handleUpgradeOverheadPhases = async () => {
-    if (upgradingOverhead) return;
-    if (!googleToken) {
-      setError('Connect Google Drive first before upgrading your Google Sheet.');
-      return;
-    }
-    if (!activeProject?.spreadsheetId) {
-      setError('The active project does not have a linked Google Sheet.');
-      return;
-    }
-
-    const confirmed = await confirmAction({
-      title: 'Upgrade Overhead Phases in Google Sheet?',
-      message: `Adds Fuel & Gas, Food & Crew, Office & Tech, and Tools & Supplies to "${activeProject.name}" (and your Master Template Sheet if editable), and moves matching Extra Costs & Misc rows into their new phases. All other categories stay untouched.`,
-      confirmLabel: 'Upgrade Sheet'
-    });
-    if (!confirmed) return;
-
-    setUpgradingOverhead(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      const result = await upgradeOverheadPhasesInSheet(googleToken, activeProject.spreadsheetId);
-      onReconcileHistoryPhases?.(result.reclassified);
-      try {
-        const { cachedDashboard } = getDashboardStorageKeys(activeProject.id);
-        localStorage.removeItem(cachedDashboard);
-      } catch {}
-
-      let templateNote = '';
-      if (TEMPLATE_SHEET_ID && TEMPLATE_SHEET_ID !== activeProject.spreadsheetId) {
-        try {
-          await upgradeOverheadPhasesInSheet(googleToken, TEMPLATE_SHEET_ID);
-          templateNote = ' + Master Template';
-        } catch (tplErr) {
-          console.warn('[useSettingsProjects] Could not upgrade Master Template Sheet:', tplErr?.message || tplErr);
-          templateNote = ' (Master Template skipped)';
-        }
-      }
-
-      const addedCount = result.addedPhases.length;
-      const movedCount = result.reclassified.length;
-      const validCount = result.updatedValidations || 0;
-      if (addedCount === 0 && movedCount === 0 && validCount === 0) {
-        setSuccess(`"${activeProject.name}"${templateNote} is already up to date with all overhead phases.`);
-      } else {
-        const parts = [];
-        if (addedCount > 0) parts.push(`added ${addedCount} overhead phase${addedCount === 1 ? '' : 's'}`);
-        if (movedCount > 0) parts.push(`reclassified ${movedCount} row${movedCount === 1 ? '' : 's'}`);
-        if (validCount > 0) parts.push('expanded dropdown validations');
-        setSuccess(`Upgraded "${activeProject.name}"${templateNote}: ${parts.join(', ')}.`);
-      }
-    } catch (err) {
-      console.error(err);
-      setError(getDriveErrorMessage(err, 'upgrade overhead phases in the Google Sheet'));
-    } finally {
-      setUpgradingOverhead(false);
-    }
-  };
-
   return {
     breadcrumbs,
     currentParentId,
@@ -593,8 +528,6 @@ export function useSettingsProjects({
     setProjectNameInput,
     setProjectToDelete,
     setShowFolderPickerModal,
-    setShowProjectsAccordion,
-    upgradingOverhead,
-    handleUpgradeOverheadPhases
+    setShowProjectsAccordion
   };
 }
