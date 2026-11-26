@@ -9,17 +9,17 @@ import {
 import { GEMINI_RESPONSE_SCHEMA, DOCUMENT_EXTRACTION_PROMPT } from '../api/_lib/document-prompt.js';
 import { generateDocumentData } from '../api/extract-document.js';
 
-test('1. TRADE_SECTIONS_CONFIG contains exactly 9 categories and 26 canonical phases', () => {
+test('1. TRADE_SECTIONS_CONFIG contains exactly 9 categories and 30 canonical phases', () => {
   const categories = Object.keys(TRADE_SECTIONS_CONFIG);
   assert.equal(categories.length, 9);
 
   const allPhases = categories.flatMap(cat => TRADE_SECTIONS_CONFIG[cat].phases);
-  assert.equal(allPhases.length, 26);
+  assert.equal(allPhases.length, 30);
 
-  // Assert schema enum contains all 26 phases
+  // Assert schema enum contains all 30 phases
   assert.equal(GEMINI_RESPONSE_SCHEMA.properties.tradePhase.type, 'STRING');
   assert.equal(Array.isArray(GEMINI_RESPONSE_SCHEMA.properties.tradePhase.enum), true);
-  assert.equal(GEMINI_RESPONSE_SCHEMA.properties.tradePhase.enum.length, 26);
+  assert.equal(GEMINI_RESPONSE_SCHEMA.properties.tradePhase.enum.length, 30);
   assert.deepEqual([...GEMINI_RESPONSE_SCHEMA.properties.tradePhase.enum].sort(), [...allPhases].sort());
 });
 

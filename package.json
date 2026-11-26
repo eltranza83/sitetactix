@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.14.17",
-  "releaseName": "History delete confirmation and Today Sheet edit actions",
+  "version": "1.14.18",
+  "releaseName": "Overhead phases for Fuel, Food, Office & Tools plus Sheet upgrader",
   "type": "module",
   "scripts": {
     "dev": "vite",

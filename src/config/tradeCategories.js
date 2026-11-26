@@ -1,5 +1,5 @@
 /**
- * The one list of the 9 categories and 26 phases, in Sheet order.
+ * The one list of the 9 categories and 30 phases, in Sheet order.
  * Everything reads from here: the scan AI, the Edit screen, X-Ray, the Sheet sync and the Dashboard.
  * `key` is the app's internal category key; `name` matches the Sheet exactly.
  */
@@ -12,7 +12,7 @@ export const TRADE_CATEGORIES = [
   { key: 'Paint_Tile', name: 'Paint & Tile', color: '#a855f7', phases: ['Tile & Flooring', 'Paint & Finishes'] },
   { key: 'Interior_Hardware', name: 'Interior Hardware', color: '#6366f1', phases: ['Plumbing Hardware Fixtures', 'Electrical Hardware Fixtures'] },
   { key: 'House_Exterior_&_Yard', name: 'House Exterior & Yard', color: '#F1D7A7', phases: ['Stucco & Masonry', 'Garage Doors', 'Driveway & Sidewalks', 'Cantera Stone Detail', 'Fencing & Gates', 'Landscaping & Irrigation'] },
-  { key: 'Project_Overhead_&_Bills', name: 'Project Overhead & Bills', color: '#71717a', phases: ['Monthly Utility Bills', 'Dumpsters & Cleaning', 'Extra Costs & Misc'] }
+  { key: 'Project_Overhead_&_Bills', name: 'Project Overhead & Bills', color: '#71717a', phases: ['Monthly Utility Bills', 'Dumpsters & Cleaning', 'Fuel & Gas', 'Food & Crew', 'Office & Tech', 'Tools & Supplies', 'Extra Costs & Misc'] }
 ];
 
 export const ALL_CATEGORY_KEYS = TRADE_CATEGORIES.map(c => c.key);

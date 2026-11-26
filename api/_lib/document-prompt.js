@@ -68,6 +68,16 @@ Rough-in vs fixtures (the owner's rules; apply them to the whole document and to
 - Plumbing Hardware Fixtures = finished plumbing items: faucets, shower kits, toilets, sinks, tubs, and the water heater.
 - The electrician and plumber supply most of their own rough-in material, so owner receipts are often fixtures; still classify each item by what it is.
 
+Paperwork vs Project Overhead (the owner's rules; apply them to the whole document and to each line item):
+- Paperwork & Permits = strictly house/lot build paperwork: city or county building permits, architectural floor plans, structural or windstorm engineering, land surveys, closing/HUD/title fees, Builder's Risk insurance, and HOA review fees. Never put office supplies, subscriptions, phone plans, tools, food, or fuel here.
+- Monthly Utility Bills = recurring temporary electric, water, or gas utility bills for the property during construction.
+- Dumpsters & Cleaning = roll-off dumpsters, trash haul-off, portable restroom rentals, and construction/make-ready cleaning.
+- Fuel & Gas = gasoline, diesel, DEF, and fuel purchases at the pump.
+- Food & Crew = crew meals, lunches, tacos, drinks, Gatorade, bottled water cases, and ice.
+- Office & Tech = printer ink or toner, paper, office gear, software/cloud/AI subscriptions, phone or SIM plans, and postage/shipping.
+- Tools & Supplies = general jobsite tools and consumables not tied to a single trade: saw blades, drill bits, extension cords, brooms, trash bags, tarps, buckets, padlocks, and safety gear.
+- Extra Costs & Misc = only miscellaneous overhead expenses that do not fit any phase above.
+
 High-Precision OCR Rules:
 1. BANK CHECKS: Extract payee from the "Pay to the Order of" line. Extract total amount from the numerical dollar box and written legal amount line. Check number is located in top-right corner or bottom MICR routing line.
 2. VENDOR RECEIPTS: Identify stores (Home Depot, Lowe's, Ferguson, Builders FirstSource). Extract the FINAL GRAND TOTAL (ignoring tax sub-totals).

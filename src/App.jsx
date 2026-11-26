@@ -138,7 +138,8 @@ export default function App() {
     handleViewPDF,
     handleClearHistory,
     handleDeleteHistoryItem,
-    handleAcceptSheetHistoryEdit
+    handleAcceptSheetHistoryEdit,
+    reconcileReclassifiedHistoryPhases
   } = useInvoiceSync({
     activeProject,
     googleToken,
@@ -798,6 +799,7 @@ export default function App() {
             activeProject={activeProject}
             setActiveProject={setActiveProject}
             handleSelectActiveProject={handleSelectActiveProject}
+            onReconcileHistoryPhases={reconcileReclassifiedHistoryPhases}
           />
         )}
         </Suspense>
