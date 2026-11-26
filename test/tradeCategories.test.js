@@ -7,10 +7,10 @@ import { TRADE_SECTIONS_CONFIG } from '../src/services/editFormHelpers.js';
 import { GEMINI_RESPONSE_SCHEMA, DOCUMENT_EXTRACTION_PROMPT } from '../api/_lib/document-prompt.js';
 
 describe('shared category and phase list', () => {
-  test('has 9 categories and 26 unique phases', () => {
+  test('has 9 categories and 30 unique phases', () => {
     assert.equal(TRADE_CATEGORIES.length, 9);
-    assert.equal(ALL_PHASES.length, 26);
-    assert.equal(new Set(ALL_PHASES).size, 26);
+    assert.equal(ALL_PHASES.length, 30);
+    assert.equal(new Set(ALL_PHASES).size, 30);
   });
 
   test('the Sheet code, Edit screen and scan AI all use the same list', () => {
@@ -41,5 +41,15 @@ describe('scan rules for rough-in vs fixtures', () => {
     assert.match(DOCUMENT_EXTRACTION_PROMPT, /Electrical & Lighting = [^\n]*wire[^\n]*conduit/);
     assert.match(DOCUMENT_EXTRACTION_PROMPT, /Plumbing Rough-In = [^\n]*shower valves/);
     assert.match(DOCUMENT_EXTRACTION_PROMPT, /Plumbing Hardware Fixtures = [^\n]*faucets[^\n]*water heater/);
+  });
+
+  test('the scan AI gets the owner\'s Paperwork vs Project Overhead rules', () => {
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Paperwork vs Project Overhead/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Paperwork & Permits = [^\n]*building permits[^\n]*Never put office supplies/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Fuel & Gas = [^\n]*gasoline[^\n]*diesel/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Food & Crew = [^\n]*crew meals[^\n]*Gatorade/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Office & Tech = [^\n]*printer ink[^\n]*subscriptions[^\n]*SIM plans/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Tools & Supplies = [^\n]*saw blades[^\n]*extension cords/);
+    assert.match(DOCUMENT_EXTRACTION_PROMPT, /Extra Costs & Misc = [^\n]*do not fit any phase above/);
   });
 });

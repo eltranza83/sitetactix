@@ -88,14 +88,14 @@ describe('new Sheet layout detection', () => {
 describe('Transactions rows', () => {
   test('every scan category key maps to its Sheet display name', () => {
     assert.equal(V2_CATEGORIES.length, 9);
-    assert.equal(V2_CATEGORIES.reduce((n, c) => n + c.phases.length, 0), 26);
+    assert.equal(V2_CATEGORIES.reduce((n, c) => n + c.phases.length, 0), 30);
     const keys = GEMINI_RESPONSE_SCHEMA.properties.tradeCategory.enum;
     keys.forEach(key => assert.ok(V2_CATEGORIES.some(c => c.key === key), key));
     assert.equal(categoryDisplayName('Mechanicals_&_Utilities'), 'Mechanicals & Utilities');
     assert.equal(categoryDisplayName('Paint_Tile'), 'Paint & Tile');
     assert.equal(categoryDisplayName('Project_Overhead_&_Bills'), 'Project Overhead & Bills');
     assert.equal(categoryDisplayName('Paint & Tile'), 'Paint & Tile');
-    // every scan phase is one of the 26
+    // every scan phase is one of the 30
     GEMINI_RESPONSE_SCHEMA.properties.tradePhase.enum.forEach(phase => assert.equal(canonicalPhaseName(phase), phase));
     assert.equal(canonicalPhaseName('Framing'), 'Framing Lumber & Truss');
   });
@@ -287,8 +287,8 @@ describe('v2 Dashboard math (spec sample)', () => {
     assert.equal(byPhase['SecureHome Alarms'].stillOwed, 2300);
   });
 
-  test('per phase and per category totals, all 26 phases present', () => {
-    assert.equal(data.subcontractors.length, 26);
+  test('per phase and per category totals, all 30 phases present', () => {
+    assert.equal(data.subcontractors.length, 30);
     const electrical = data.subcontractors.find(s => s.phase === 'Electrical & Lighting');
     assert.equal(electrical.totalMaterial, 1200);
     assert.equal(electrical.totalLabor, 8000);
@@ -354,7 +354,7 @@ describe('v2 Dashboard math (spec sample)', () => {
     const empty = computeV2Dashboard({ projectInfoRows: [], transactionRows: [TX_HEADER], contractRows: [CONTRACTS_HEADER] });
     assert.equal(empty.projectInfo.totalSpent, 0);
     assert.equal(empty.projectInfo.stillOwed, 0);
-    assert.equal(empty.subcontractors.length, 26);
+    assert.equal(empty.subcontractors.length, 30);
   });
 
   test('known subs list comes from Contracts Sub/Company', () => {

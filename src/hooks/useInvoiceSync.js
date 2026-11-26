@@ -545,6 +545,35 @@ export function useInvoiceSync({
     setSuccess?.('Updated History on this device to match your Google Sheet.');
   };
 
+  const reconcileReclassifiedHistoryPhases = (reclassifiedList) => {
+    if (!Array.isArray(reclassifiedList) || reclassifiedList.length === 0) return;
+    const phaseByReceiptId = new Map();
+    reclassifiedList.forEach(item => {
+      const receiptId = String(item?.receiptId || '').trim();
+      if (receiptId && item?.newPhase) {
+        phaseByReceiptId.set(receiptId, item.newPhase);
+      }
+    });
+    if (phaseByReceiptId.size === 0) return;
+    setHistory(prev => {
+      let changed = false;
+      const next = (prev || []).map(entry => {
+        const receiptId = String(entry?.receiptId || '').trim();
+        if (!receiptId || !phaseByReceiptId.has(receiptId)) return entry;
+        const newPhase = phaseByReceiptId.get(receiptId);
+        changed = true;
+        return {
+          ...entry,
+          tradePhase: newPhase,
+          ...(entry.check ? { check: { ...entry.check, status: 'ok', problems: [] } } : {})
+        };
+      });
+      if (!changed) return prev;
+      persistHistory(next);
+      return next;
+    });
+  };
+
   return {
     uploading,
     uploadStatusText,
@@ -554,6 +583,7 @@ export function useInvoiceSync({
     handleViewPDF,
     handleClearHistory,
     handleDeleteHistoryItem,
-    handleAcceptSheetHistoryEdit
+    handleAcceptSheetHistoryEdit,
+    reconcileReclassifiedHistoryPhases
   };
 }
