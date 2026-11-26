@@ -14,15 +14,16 @@ export default function DashboardContractorSearch({
   onSelectSubcontractor,
   onClearSelection,
   onViewPhasePhotos,
+  onOpenReceiptPdf,
   onOpenQuoteModal,
   onShowToast
 }) {
   return (
     <div id="contractor-lookup-container" className="settings-card" style={{ border: '1px solid var(--st-line)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '0.95rem', fontWeight: 700, color: 'var(--st-text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-          <Search size={16} style={{ color: 'var(--st-gold)' }} />
-          Contractor Balance Lookup
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(0.84rem, 3.6vw, 0.95rem)', fontWeight: 700, color: 'var(--st-text)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <Search size={15} style={{ color: 'var(--st-gold)', flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Contractor Balance Lookup</span>
         </h3>
 
         {isV2Layout && onOpenQuoteModal && (
@@ -32,18 +33,19 @@ export default function DashboardContractorSearch({
             className="btn btn-primary"
             style={{
               width: 'auto',
-              padding: '6px 12px',
-              fontSize: '0.75rem',
+              padding: '5px 10px',
+              fontSize: '0.72rem',
               fontWeight: 700,
               borderRadius: '20px',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
-              whiteSpace: 'nowrap'
+              gap: '4px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
             }}
           >
-            <Plus size={13} />
-            <span>Add / Upload Quote</span>
+            <Plus size={12} />
+            <span>Add Quote</span>
           </button>
         )}
       </div>
@@ -105,12 +107,15 @@ export default function DashboardContractorSearch({
             )}
           </div>
 
-          <DashboardContractorDetail
-            selectedSub={selectedSub}
-            onViewPhasePhotos={onViewPhasePhotos}
-            onClearSelection={onClearSelection}
-            onShowToast={onShowToast}
-          />
+          {selectedSub && (
+            <DashboardContractorDetail
+              selectedSub={selectedSub}
+              onViewPhasePhotos={onViewPhasePhotos}
+              onOpenReceiptPdf={onOpenReceiptPdf}
+              onClearSelection={onClearSelection}
+              onShowToast={onShowToast}
+            />
+          )}
         </>
       ) : (
         <div style={{
@@ -123,7 +128,7 @@ export default function DashboardContractorSearch({
           borderRadius: '8px',
           lineHeight: 1.45
         }}>
-          No subcontractor quotes added to <strong style={{ color: 'var(--st-text)' }}>Contracts</strong> yet. Tap <strong style={{ color: 'var(--st-gold)' }}>+ Add / Upload Quote</strong> above when a sub bid comes in.
+          No subcontractor quotes added to <strong style={{ color: 'var(--st-text)' }}>Contracts</strong> yet. Tap <strong style={{ color: 'var(--st-gold)' }}>+ Add Quote</strong> above when a sub bid comes in.
         </div>
       )}
     </div>
