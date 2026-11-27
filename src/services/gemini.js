@@ -69,3 +69,82 @@ export async function extractDocumentData(fileOrBlob, fetchImpl = fetch) {
 export async function extractQuoteData(fileOrBlob, fetchImpl = fetch) {
   return postDocumentExtraction(fileOrBlob, { 'x-document-mode': 'quote' }, fetchImpl);
 }
+
+function getLocalIsoDate(now = new Date()) {
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatKnownSubsHeader(knownSubs = []) {
+  return (Array.isArray(knownSubs) ? knownSubs : [])
+    .map(s => (typeof s === 'string' ? s : [s?.sub, s?.company].filter(Boolean).join(' / ')))
+    .filter(Boolean)
+    .slice(0, 25)
+    .join(', ')
+    .slice(0, 500);
+}
+
+/**
+ * Extracts a structured no-receipt expense draft from a spoken audio clip.
+ */
+export async function extractVoiceExpenseData(
+  audioBlob,
+  { localDate = getLocalIsoDate(), activeProjectName = '', knownSubs = [] } = {},
+  fetchImpl = fetch
+) {
+  const rawMime = String(audioBlob?.type || 'audio/webm').split(';')[0].trim().toLowerCase() || 'audio/webm';
+  return postDocumentExtraction(
+    audioBlob,
+    {
+      'x-document-mode': 'voice-expense',
+      'x-document-mime': rawMime,
+      'x-local-date': localDate,
+      'x-active-project': encodeURIComponent(String(activeProjectName || '').slice(0, 80)),
+      'x-known-subs': encodeURIComponent(formatKnownSubsHeader(knownSubs))
+    },
+    fetchImpl
+  );
+}
+
+/**
+ * Translates punch list title, description, category, and phase into clear construction Spanish.
+ */
+export async function translatePunchPacketToSpanish(
+  { title = '', description = '', categoryLabel = '', tradePhase = '' } = {},
+  fetchImpl = fetch
+) {
+  const user = getFirebaseAuthInstance()?.currentUser;
+  if (!user) {
+    throw new Error('Please sign in with Google to translate punch packets.');
+  }
+
+  const idToken = await user.getIdToken();
+  let response;
+  try {
+    response = await fetchImpl('/api/extract-document', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${idToken}`,
+        'content-type': 'application/json',
+        'x-document-mode': 'translate-punch'
+      },
+      body: JSON.stringify({ title, description, categoryLabel, tradePhase })
+    });
+  } catch {
+    throw new Error('Could not reach the translation service. Check your connection and try again.');
+  }
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    // Non-JSON response
+  }
+
+  if (response.ok && payload?.data) {
+    return payload.data;
+  }
+  throw new Error(getExtractionError(response.status, payload));
+}

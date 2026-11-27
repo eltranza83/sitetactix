@@ -1,5 +1,11 @@
 import { DOCUMENT_EXTRACTION_PROMPT, GEMINI_RESPONSE_SCHEMA } from './_lib/document-prompt.js';
 import { QUOTE_EXTRACTION_PROMPT, QUOTE_RESPONSE_SCHEMA } from './_lib/quote-prompt.js';
+import {
+  VOICE_EXPENSE_SCHEMA,
+  TRANSLATE_PUNCH_SCHEMA,
+  buildVoiceExpensePrompt,
+  buildTranslatePunchPrompt
+} from './_lib/voice-prompt.js';
 import { AI_CONFIG } from './_lib/ai-config.js';
 import { fetchWithBackupModel, geminiUrl } from './_lib/ai-retry.js';
 import {
@@ -12,12 +18,28 @@ import { resolveServerGeminiKey, sanitizeUpstreamAiError } from './_lib/ai-auth.
 import { generateDocumentCorners } from './_lib/document-corners.js';
 
 const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
+const MAX_TRANSLATE_BYTES = 32 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
   'image/jpeg',
   'image/png',
   'image/webp'
 ]);
+const ALLOWED_AUDIO_MIME_TYPES = new Set([
+  'audio/webm',
+  'audio/mp4',
+  'audio/m4a',
+  'audio/x-m4a',
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/ogg',
+  'audio/wav',
+  'audio/aac'
+]);
+
+function normalizeMimeType(raw) {
+  return String(raw || '').split(';')[0].trim().toLowerCase();
+}
 
 function parseGeminiJson(text) {
   const cleaned = String(text || '')
@@ -32,13 +54,23 @@ function parseGeminiJson(text) {
  * (the backup model when Google said the main one was busy).
  */
 export async function generateDocumentData({
-  bytes,
-  mimeType,
+  bytes = null,
+  mimeType = '',
   apiKey,
   prompt = DOCUMENT_EXTRACTION_PROMPT,
   schema = GEMINI_RESPONSE_SCHEMA,
   fetchImpl = fetch
 }) {
+  const parts = [{ text: prompt }];
+  if (bytes && bytes.byteLength > 0 && mimeType) {
+    parts.push({
+      inlineData: {
+        data: Buffer.from(bytes).toString('base64'),
+        mimeType
+      }
+    });
+  }
+
   const { response, model } = await fetchWithBackupModel(
     [AI_CONFIG.primaryModel, AI_CONFIG.backupModel],
     geminiUrl,
@@ -54,15 +86,7 @@ export async function generateDocumentData({
       body: JSON.stringify({
         contents: [{
           role: 'user',
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                data: Buffer.from(bytes).toString('base64'),
-                mimeType
-              }
-            }
-          ]
+          parts
         }],
         generationConfig: {
           responseMimeType: 'application/json',
@@ -105,8 +129,40 @@ export async function POST(request) {
       throw new HttpError(503, 'AI processing is not configured on the server. Please configure GEMINI_API_KEY.');
     }
 
-    const mimeType = (request.headers.get('x-document-mime') || '').toLowerCase();
-    if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    const mode = (request.headers.get('x-document-mode') || '').toLowerCase();
+
+    // Text-only Spanish punch-packet translation mode
+    if (mode === 'translate-punch') {
+      const declaredLength = Number(request.headers.get('content-length') || 0);
+      if (declaredLength > MAX_TRANSLATE_BYTES) {
+        throw new HttpError(413, 'Translation request is too large.');
+      }
+      const rawText = await request.text();
+      if (!rawText || rawText.length > MAX_TRANSLATE_BYTES) {
+        throw new HttpError(400, 'Translation payload is empty or too large.');
+      }
+      let payload;
+      try {
+        payload = JSON.parse(rawText);
+      } catch {
+        throw new HttpError(400, 'Invalid JSON payload.');
+      }
+      const { data, model } = await generateDocumentData({
+        apiKey,
+        prompt: buildTranslatePunchPrompt(payload),
+        schema: TRANSLATE_PUNCH_SCHEMA
+      });
+      return jsonResponse({ data, readByBackupAi: model !== AI_CONFIG.primaryModel });
+    }
+
+    const mimeType = normalizeMimeType(request.headers.get('x-document-mime') || '');
+    const isVoiceMode = mode === 'voice-expense';
+
+    if (isVoiceMode) {
+      if (!ALLOWED_AUDIO_MIME_TYPES.has(mimeType)) {
+        throw new HttpError(415, 'Unsupported audio recording format.');
+      }
+    } else if (!ALLOWED_MIME_TYPES.has(mimeType)) {
       throw new HttpError(415, 'Only PDF, JPEG, PNG, and WebP documents are supported.');
     }
 
@@ -132,13 +188,30 @@ export async function POST(request) {
       return jsonResponse({ corners });
     }
 
-    const isQuoteMode = (request.headers.get('x-document-mode') || '').toLowerCase() === 'quote';
+    let prompt = DOCUMENT_EXTRACTION_PROMPT;
+    let schema = GEMINI_RESPONSE_SCHEMA;
+    let geminiMime = mimeType;
+
+    if (mode === 'quote') {
+      prompt = QUOTE_EXTRACTION_PROMPT;
+      schema = QUOTE_RESPONSE_SCHEMA;
+    } else if (mode === 'voice-expense') {
+      if (geminiMime === 'audio/m4a' || geminiMime === 'audio/x-m4a') geminiMime = 'audio/mp4';
+      if (geminiMime === 'audio/mp3') geminiMime = 'audio/mpeg';
+      prompt = buildVoiceExpensePrompt({
+        localDate: request.headers.get('x-local-date') || '',
+        activeProjectName: decodeURIComponent(request.headers.get('x-active-project') || ''),
+        knownSubs: decodeURIComponent(request.headers.get('x-known-subs') || '')
+      });
+      schema = VOICE_EXPENSE_SCHEMA;
+    }
+
     const { data, model } = await generateDocumentData({
       bytes,
-      mimeType,
+      mimeType: geminiMime,
       apiKey,
-      prompt: isQuoteMode ? QUOTE_EXTRACTION_PROMPT : DOCUMENT_EXTRACTION_PROMPT,
-      schema: isQuoteMode ? QUOTE_RESPONSE_SCHEMA : GEMINI_RESPONSE_SCHEMA
+      prompt,
+      schema
     });
     // Lets the draft show that the backup model read this receipt (worth a closer look)
     return jsonResponse({ data, readByBackupAi: model !== AI_CONFIG.primaryModel });

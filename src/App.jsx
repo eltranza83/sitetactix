@@ -529,6 +529,10 @@ export default function App() {
                     }
                   }}
                   onManualEntry={handleStartManualDraft}
+                  onVoiceExpenseSaved={(summary) => setSuccess(summary)}
+                  onOpenDrafts={() => setInvoicesSubTab('staged')}
+                  activeProjectName={activeProject?.name || ''}
+                  knownSubs={loadCachedKnownSubs(localStorage, activeProject?.spreadsheetId)}
                   onError={setError}
                 />
 

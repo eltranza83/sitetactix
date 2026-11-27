@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.15.2",
-  "releaseName": "Manual expense entry, batch scan, quote management, punch warnings, and History search",
+  "version": "1.16.0",
+  "releaseName": "Voice Expense logging (No Receipt) and Bilingual EN/ES Punch Packets",
   "type": "module",
   "scripts": {
     "dev": "vite",
