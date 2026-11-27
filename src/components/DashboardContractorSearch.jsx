@@ -10,12 +10,17 @@ export default function DashboardContractorSearch({
   selectedSub,
   hasAnyContracts = true,
   isV2Layout = false,
+  quoteFiles = [],
+  openPunchItems = [],
   onSearchTermChange,
   onSelectSubcontractor,
   onClearSelection,
   onViewPhasePhotos,
+  onViewPunchList,
   onOpenReceiptPdf,
   onOpenQuoteModal,
+  onEditQuote,
+  onAddChangeOrder,
   onShowToast
 }) {
   return (
@@ -110,8 +115,14 @@ export default function DashboardContractorSearch({
           {selectedSub && (
             <DashboardContractorDetail
               selectedSub={selectedSub}
+              isV2Layout={isV2Layout}
+              quoteFiles={quoteFiles}
+              openPunchItems={openPunchItems}
               onViewPhasePhotos={onViewPhasePhotos}
+              onViewPunchList={onViewPunchList}
               onOpenReceiptPdf={onOpenReceiptPdf}
+              onEditQuote={onEditQuote}
+              onAddChangeOrder={onAddChangeOrder}
               onClearSelection={onClearSelection}
               onShowToast={onShowToast}
             />

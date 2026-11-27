@@ -18,6 +18,13 @@ import DashboardCostPerSqFt from './DashboardCostPerSqFt';
 import DashboardTradeSections from './DashboardTradeSections';
 import DashboardQuoteModal from './DashboardQuoteModal';
 import { auditSpreadsheetHealth } from '../services/spreadsheetHealth';
+import { listProjectQuoteFiles } from '../services/contractsService';
+import { loadIssuesVault } from '../services/issuesDrive';
+import {
+  findOpenPunchItemsForSub,
+  loadCachedProjectIssues,
+  persistCachedProjectIssues
+} from '../services/punchGuardrail';
 
 export default function Dashboard({
   googleToken,
@@ -31,6 +38,7 @@ export default function Dashboard({
   onAcceptHistorySheetEdit,
   onRemoveHistoryEntry,
   onViewPhasePhotos,
+  onViewPunchList,
   onOpenReceiptPdf,
   onTransactionsLoaded
 }) {
@@ -42,7 +50,9 @@ export default function Dashboard({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSub, setSelectedSub] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
-  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [quoteModalState, setQuoteModalState] = useState({ open: false, mode: 'new', contract: null });
+  const [quoteFiles, setQuoteFiles] = useState([]);
+  const [projectIssues, setProjectIssues] = useState(() => loadCachedProjectIssues(localStorage, activeProject?.id));
   const [resolvedSpreadsheetId, setResolvedSpreadsheetId] = useState(
     () => activeProject?.spreadsheetId || getCachedDashboardSpreadsheetId(localStorage, activeProject?.id) || null
   );
@@ -80,12 +90,32 @@ export default function Dashboard({
       }
       setData(parsedData);
       setIsCached(false);
+      setSelectedSub(prev => {
+        if (!prev) return null;
+        return (parsedData?.subcontractors || []).find(s => s.id === prev.id || s.phase === prev.phase) || null;
+      });
       const healthAudit = auditSpreadsheetHealth(parsedData);
       setSheetWarnings(healthAudit.warnings);
 
       persistDashboardCache(localStorage, activeProject.id, parsedData);
       if (parsedData?.layout === SHEET_LAYOUT_V2 && Array.isArray(parsedData.transactions)) {
         onTransactionsLoaded?.(activeProject, parsedData.transactions);
+      }
+
+      // Quietly fetch Quote PDFs & Punch List items in parallel without blocking Dashboard render
+      if (selectedFolder?.id) {
+        listProjectQuoteFiles(googleToken, selectedFolder.id)
+          .then(files => setQuoteFiles(files))
+          .catch(() => {});
+
+        loadIssuesVault(googleToken, selectedFolder.id)
+          .then(({ issues }) => {
+            if (Array.isArray(issues)) {
+              setProjectIssues(issues);
+              persistCachedProjectIssues(localStorage, activeProject.id, issues);
+            }
+          })
+          .catch(() => {});
       }
     } catch (err) {
       console.error(err);
@@ -149,6 +179,8 @@ export default function Dashboard({
     setError(null);
     setSheetWarnings([]);
     setSelectedSub(null);
+    setQuoteFiles([]);
+    setProjectIssues(loadCachedProjectIssues(localStorage, activeProject?.id));
 
     if (activeProject && selectedFolder) {
       loadDashboardData();
@@ -164,6 +196,14 @@ export default function Dashboard({
   const hasAnyContracts = isV2Layout
     ? (Array.isArray(data?.contracts) && data.contracts.length > 0)
     : (Array.isArray(data?.subcontractors) && data.subcontractors.length > 0);
+  const selectedSubOpenPunchItems = selectedSub
+    ? findOpenPunchItemsForSub({
+        issues: projectIssues,
+        payee: selectedSub.payee,
+        contracts: selectedSub.contracts,
+        phase: selectedSub.phase
+      })
+    : [];
 
   const toggleCategory = (catName) => {
     setExpandedCategories(prev => ({
@@ -405,6 +445,8 @@ export default function Dashboard({
             selectedSub={selectedSub}
             hasAnyContracts={hasAnyContracts}
             isV2Layout={isV2Layout}
+            quoteFiles={quoteFiles}
+            openPunchItems={selectedSubOpenPunchItems}
             onSearchTermChange={(value) => {
               setSearchTerm(value);
               setSelectedSub(null);
@@ -412,8 +454,11 @@ export default function Dashboard({
             onSelectSubcontractor={selectSubcontractor}
             onClearSelection={() => setSelectedSub(null)}
             onViewPhasePhotos={onViewPhasePhotos}
+            onViewPunchList={onViewPunchList}
             onOpenReceiptPdf={onOpenReceiptPdf}
-            onOpenQuoteModal={() => setShowQuoteModal(true)}
+            onOpenQuoteModal={() => setQuoteModalState({ open: true, mode: 'new', contract: null })}
+            onEditQuote={(contract) => setQuoteModalState({ open: true, mode: 'edit', contract })}
+            onAddChangeOrder={(contract) => setQuoteModalState({ open: true, mode: 'change_order', contract })}
             onShowToast={onShowToast}
           />
 
@@ -430,8 +475,10 @@ export default function Dashboard({
       )}
 
       <DashboardQuoteModal
-        isOpen={showQuoteModal}
-        onClose={() => setShowQuoteModal(false)}
+        isOpen={quoteModalState.open}
+        mode={quoteModalState.mode}
+        initialContract={quoteModalState.contract}
+        onClose={() => setQuoteModalState({ open: false, mode: 'new', contract: null })}
         googleToken={googleToken}
         activeProject={activeProject}
         selectedFolder={selectedFolder}

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Camera, Image as ImageIcon, PenLine, Sparkles } from 'lucide-react';
 import EditFormCamera from './EditFormCamera';
 import { useInlineCamera } from '../hooks/useInlineCamera';
 import { extractDocumentData } from '../services/gemini';
@@ -161,9 +161,10 @@ async function warpPerspective(srcImgData, srcWidth, srcHeight, corners) {
   return canvas;
 }
 
-export default function Scanner({ onDataExtracted, onError }) {
+export default function Scanner({ onDataExtracted, onBatchComplete, onManualEntry, onError }) {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [batchProgress, setBatchProgress] = useState(null);
   const [textDirection, setTextDirection] = useState('upright');
 
   // Crop & Perspective Correction states
@@ -405,14 +406,67 @@ export default function Scanner({ onDataExtracted, onError }) {
   });
 
   const handleFileChange = async (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
-    await processFile(file);
-    
-    // Clear value so same file can be re-captured/selected again
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    // Clear value immediately so the same file(s) can be re-selected later
     e.target.value = '';
+    if (files.length === 0) return;
+
+    if (files.length === 1) {
+      await processFile(files[0]);
+      return;
+    }
+
+    await processBatchFiles(files);
+  };
+
+  const processBatchFiles = async (files) => {
+    setLoading(true);
+    if (onError) onError(null);
+    let succeeded = 0;
+    const failed = [];
+
+    try {
+      for (let idx = 0; idx < files.length; idx += 1) {
+        const file = files[idx];
+        const fileName = file?.name || `File ${idx + 1}`;
+        setBatchProgress({ current: idx + 1, total: files.length, fileName, succeeded });
+        setStatusMessage(`Scanning ${idx + 1} of ${files.length}...`);
+
+        try {
+          if (!file || file.size === 0) {
+            throw new Error('File is empty.');
+          }
+          const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(fileName);
+          const preparedFile = isPdf
+            ? file
+            : await compressImage(file, 2200, 2200, 0.85);
+
+          const { data: extractedData, readByBackupAi } = await extractDocumentData(preparedFile);
+          await onDataExtracted(
+            {
+              metadata: extractedData,
+              mainImage: preparedFile,
+              readByBackupAi
+            },
+            { silent: true, stayOnScan: true }
+          );
+          succeeded += 1;
+        } catch (err) {
+          console.error(`Batch scan failed for ${fileName}:`, err);
+          failed.push({ name: fileName, reason: err?.message || 'AI parsing failed.' });
+        }
+      }
+
+      if (onBatchComplete) {
+        onBatchComplete({ total: files.length, succeeded, failed });
+      } else if (failed.length > 0 && onError) {
+        onError(`Scanned ${succeeded} of ${files.length}. Failed: ${failed.map(f => f.name).join(', ')}`);
+      }
+    } finally {
+      setBatchProgress(null);
+      setLoading(false);
+      setStatusMessage('');
+    }
   };
 
   const processFile = async (file) => {
@@ -628,9 +682,23 @@ export default function Scanner({ onDataExtracted, onError }) {
             <Sparkles size={18} className="logo-icon" style={{ animation: 'pulse 1.5s infinite ease-in-out', color: 'var(--color-amber-500)' }} />
             {statusMessage}
           </div>
-          <p style={{ fontSize: '0.8rem', color: 'var(--color-zinc-500)', textAlign: 'center', maxWidth: '280px' }}>
-            Processing image and running OCR layout analysis.
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-zinc-500)', textAlign: 'center', maxWidth: '280px', margin: 0 }}>
+            {batchProgress
+              ? `${batchProgress.fileName} (${batchProgress.succeeded} saved to Drafts so far)`
+              : 'Processing image and running OCR layout analysis.'}
           </p>
+          {batchProgress && (
+            <div style={{ width: '100%', maxWidth: '260px', height: '6px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: `${Math.round((batchProgress.current / Math.max(1, batchProgress.total)) * 100)}%`,
+                  height: '100%',
+                  backgroundColor: 'var(--st-gold)',
+                  transition: 'width 0.25s ease'
+                }}
+              />
+            </div>
+          )}
         </div>
       ) : (
         <div 
@@ -650,7 +718,7 @@ export default function Scanner({ onDataExtracted, onError }) {
               Take Photo (Use Camera)
             </button>
 
-            {/* Choose Photo or File (photos and PDFs) */}
+            {/* Choose Photo or File (supports single or multi-file batch PDF/photo upload) */}
             <div style={{ position: 'relative', width: '100%' }}>
               <button 
                 type="button" 
@@ -662,6 +730,7 @@ export default function Scanner({ onDataExtracted, onError }) {
               </button>
               <input 
                 type="file" 
+                multiple
                 onChange={handleFileChange}
                 accept="image/*,application/pdf"
                 style={{ 
@@ -676,6 +745,29 @@ export default function Scanner({ onDataExtracted, onError }) {
                 }}
               />
             </div>
+            <p style={{ fontSize: '0.72rem', color: 'var(--color-zinc-500)', textAlign: 'center', margin: '-6px 0 2px', lineHeight: 1.35 }}>
+              Select 1 file to crop, or pick multiple PDFs &amp; photos to batch-scan straight into Drafts.
+            </p>
+
+            {/* Manual Expense (No Receipt) */}
+            {onManualEntry && (
+              <button
+                type="button"
+                onClick={onManualEntry}
+                className="btn btn-secondary"
+                style={{
+                  padding: '12px 14px',
+                  width: '100%',
+                  borderStyle: 'dashed',
+                  borderColor: 'rgba(212, 183, 135, 0.38)',
+                  color: 'var(--st-gold)',
+                  backgroundColor: 'rgba(212, 183, 135, 0.05)'
+                }}
+              >
+                <PenLine size={16} />
+                Log Expense (No Receipt)
+              </button>
+            )}
           </div>
         </div>
       )}

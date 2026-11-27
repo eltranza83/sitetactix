@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Trash2, Calendar, User, DollarSign, Tag, CheckSquare, MapPin } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, Save, Trash2, Calendar, User, DollarSign, Tag, CheckSquare, MapPin, AlertTriangle } from 'lucide-react';
 import EditFormAttachments from './EditFormAttachments';
 import EditFormCamera from './EditFormCamera';
 import EditFormPayeePicker from './EditFormPayeePicker';
 import { useInlineCamera } from '../hooks/useInlineCamera';
 import { knownSubPayeeName } from '../services/payeeMatching';
+import { findOpenPunchItemsForSub } from '../services/punchGuardrail';
 import {
   ALLOCATION_COLORS,
   TRADE_SECTIONS_CONFIG,
@@ -20,7 +21,7 @@ import {
 } from '../services/editFormHelpers';
 import { compressImage, fileToBase64 } from '../services/imageFiles';
 
-export default function EditForm({ stagedItem, onSave, onCancel, history = [], stagedItems = [], projects = [], knownSubs = [] }) {
+export default function EditForm({ stagedItem, onSave, onCancel, history = [], stagedItems = [], projects = [], knownSubs = [], projectIssues = [] }) {
   const [formData, setFormData] = useState({
     payeeMatch: stagedItem.metadata.payeeMatch || null,
     type: stagedItem.metadata.type || 'invoice',
@@ -313,6 +314,39 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
     accessErrorMessage: 'Could not start inline camera. Please verify permissions.'
   });
 
+  const isLaborOrCheckPayment = formData.costCategory === 'labor'
+    || formData.type === 'check'
+    || (isSplit && splits.some(s => s.costCategory === 'labor'));
+
+  const openPunchWarnings = useMemo(() => {
+    if (!isLaborOrCheckPayment || !Array.isArray(projectIssues) || projectIssues.length === 0) {
+      return [];
+    }
+    const phasesToCheck = isSplit
+      ? [...new Set(splits.filter(s => s.costCategory === 'labor' || formData.type === 'check').map(s => s.tradePhase).filter(Boolean))]
+      : [formData.tradePhase].filter(Boolean);
+
+    const byId = new Map();
+    const runMatch = (phaseName) => {
+      findOpenPunchItemsForSub({
+        issues: projectIssues,
+        payee: formData.vendor,
+        subName: formData.payeeMatch?.sub || '',
+        companyName: formData.payeeMatch?.company || '',
+        phase: phaseName
+      }).forEach(issue => {
+        if (issue?.id) byId.set(issue.id, issue);
+      });
+    };
+
+    if (phasesToCheck.length > 0) {
+      phasesToCheck.forEach(runMatch);
+    } else if (formData.vendor) {
+      runMatch('');
+    }
+    return [...byId.values()];
+  }, [isLaborOrCheckPayment, projectIssues, isSplit, splits, formData.type, formData.tradePhase, formData.vendor, formData.payeeMatch]);
+
   const isPhaseValid = isSplit
     ? (splits.length > 0 && splits.every(s => isValidPhase(s.tradeCategory || formData.tradeCategory, s.tradePhase)))
     : isValidPhase(formData.tradeCategory, formData.tradePhase);
@@ -391,7 +425,11 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
         <button onClick={onCancel} className="nav-item" style={{ width: 'auto', padding: '4px', flex: 'none' }} type="button">
           <ArrowLeft size={20} />
         </button>
-        <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 700 }}>Review & Edit Scan</span>
+        <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 700 }}>
+          {stagedItem?.isNewManualDraft || formData.documentType === 'manual_expense'
+            ? 'Log Manual Expense'
+            : 'Review & Edit Scan'}
+        </span>
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1146,6 +1184,34 @@ export default function EditForm({ stagedItem, onSave, onCancel, history = [], s
           onRemoveReceipt={handleRemoveReceipt}
           onStartCamera={startCamera}
         />
+
+        {/* Non-blocking Open Punch List Guardrail for Labor / Check Payments */}
+        {openPunchWarnings.length > 0 && (
+          <div style={{
+            fontSize: '0.75rem',
+            color: '#fecaca',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(248, 113, 113, 0.38)',
+            borderLeft: '3px solid #f87171',
+            borderRadius: '8px',
+            padding: '9px 12px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
+            lineHeight: 1.4
+          }}>
+            <AlertTriangle size={15} style={{ color: '#f87171', flexShrink: 0, marginTop: '1px' }} />
+            <div>
+              <strong style={{ color: '#fca5a5' }}>
+                Heads up — {openPunchWarnings.length} open punch {openPunchWarnings.length === 1 ? 'item' : 'items'}
+              </strong>{' '}
+              for {formData.vendor || formData.tradePhase}
+              {openPunchWarnings[0]?.title
+                ? ` (“${openPunchWarnings[0].title}”${openPunchWarnings.length > 1 ? ` +${openPunchWarnings.length - 1} more` : ''})`
+                : ''}. You can still save and pay if intended.
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         {!isPhaseValid && (

@@ -43,7 +43,9 @@ export function useBlueprintPinboard({
   selectedFolder,
   tradeSectionsConfig,
   initialAlbumPhase = null,
-  onConsumeInitialAlbumPhase = null
+  onConsumeInitialAlbumPhase = null,
+  initialViewMode = null,
+  onConsumeInitialViewMode = null
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -66,7 +68,7 @@ export function useBlueprintPinboard({
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [savingPin, setSavingPin] = useState(false);
-  const [viewMode, setViewMode] = useState(() => (initialAlbumPhase ? 'albums' : 'blueprint'));
+  const [viewMode, setViewMode] = useState(() => (initialViewMode || (initialAlbumPhase ? 'albums' : 'blueprint')));
   const [expandedCategory, setExpandedCategory] = useState(() => (
     initialAlbumPhase ? resolveAlbumCategoryKey(tradeSectionsConfig, initialAlbumPhase.category) : null
   ));
@@ -89,7 +91,7 @@ export function useBlueprintPinboard({
   const albumFileInputRef = useRef(null);
   const imageSrcRef = useRef(null);
   const loadCountRef = useRef(0);
-  const preserveAlbumsViewRef = useRef(Boolean(initialAlbumPhase));
+  const preserveAlbumsViewRef = useRef(Boolean(initialAlbumPhase || initialViewMode));
   const activeAlbumPhaseRef = useRef(activeAlbumPhase);
   activeAlbumPhaseRef.current = activeAlbumPhase;
 
@@ -181,11 +183,18 @@ export function useBlueprintPinboard({
   }, [initialAlbumPhase, tradeSectionsConfig, onConsumeInitialAlbumPhase]);
 
   useEffect(() => {
+    if (!initialViewMode) return;
+    preserveAlbumsViewRef.current = true;
+    setViewMode(initialViewMode);
+    onConsumeInitialViewMode?.();
+  }, [initialViewMode, onConsumeInitialViewMode]);
+
+  useEffect(() => {
     if (imageSrc) {
       if (!preserveAlbumsViewRef.current && !activeAlbumPhaseRef.current) {
         setViewMode('blueprint');
       }
-    } else {
+    } else if (!preserveAlbumsViewRef.current) {
       setViewMode('albums');
     }
     imageSrcRef.current = imageSrc;

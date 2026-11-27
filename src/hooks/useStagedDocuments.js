@@ -7,7 +7,8 @@ import {
   updateDraftById,
   addDraft,
   saveDraftEdits,
-  updateDraftField
+  updateDraftField,
+  createManualExpenseDraft
 } from '../services/stagedDocumentOperations';
 import { normalizeScanDate, buildAutoSplits } from '../services/editFormHelpers';
 import { applyPayeeMatch, loadCachedKnownSubs, persistKnownSubs } from '../services/payeeMatching';
@@ -34,11 +35,14 @@ async function loadKnownSubsForProject(activeProject, googleToken) {
   }
 }
 
+export { createManualExpenseDraft };
+
 export function useStagedDocuments({ activeProject, googleToken = null, setError, setSuccess, onSessionExpired = null }) {
   const [stagedItems, setStagedItems] = useState(() => loadStoredAppState().stagedItems);
   const [animateBadge, setAnimateBadge] = useState(false);
   const [prevStagedCount, setPrevStagedCount] = useState(0);
   const [editingItemId, setEditingItemId] = useState(null);
+  const [pendingManualDraft, setPendingManualDraft] = useState(null);
 
   useEffect(() => {
     if (stagedItems.length > prevStagedCount) {
@@ -101,8 +105,8 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
     return () => { active = false; };
   }, []);
 
-  const handleDataExtracted = async (scanItem) => {
-    setError(null);
+  const handleDataExtracted = async (scanItem, { silent = false } = {}) => {
+    if (!silent) setError(null);
     try {
       let mainImageBase64 = null;
       if (scanItem.mainImage) {
@@ -134,14 +138,44 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
       };
 
       saveStagedItems(prev => addDraft(prev, newDraft));
-      setSuccess('Check/Invoice scanned and saved to Drafts!');
+      if (!silent) setSuccess('Check/Invoice scanned and saved to Drafts!');
     } catch (err) {
       console.error(err);
+      if (silent) throw err;
       setError(`Failed to save scanned item to drafts: ${err.message}`);
     }
   };
 
+  const handleStartManualDraft = () => {
+    setError(null);
+    // Warm up known subs cache silently in background so payee picker is ready
+    loadKnownSubsForProject(activeProject, googleToken).catch(() => {});
+    const draft = createManualExpenseDraft(activeProject);
+    setPendingManualDraft(draft);
+    setEditingItemId(draft.id);
+  };
+
+  const handleCancelEditing = () => {
+    setPendingManualDraft(null);
+    setEditingItemId(null);
+  };
+
   const handleSaveStagedEdits = (updatedItem) => {
+    if (pendingManualDraft && editingItemId === pendingManualDraft.id) {
+      const finalizedDraft = {
+        id: pendingManualDraft.id,
+        metadata: updatedItem.metadata,
+        mainImageBase64: updatedItem.mainImageBase64 || null,
+        secondaryImageBase64: updatedItem.secondaryImageBase64 || null,
+        createdAt: pendingManualDraft.createdAt || Date.now()
+      };
+      saveStagedItems(prev => addDraft(prev, finalizedDraft));
+      setPendingManualDraft(null);
+      setEditingItemId(null);
+      setSuccess('Manual expense saved to Drafts!');
+      return;
+    }
+
     saveStagedItems(prev => saveDraftEdits(prev, editingItemId, updatedItem));
     setEditingItemId(null);
     setSuccess('Draft updated successfully!');
@@ -201,6 +235,9 @@ export function useStagedDocuments({ activeProject, googleToken = null, setError
     animateBadge,
     editingItemId,
     setEditingItemId,
+    pendingManualDraft,
+    handleStartManualDraft,
+    handleCancelEditing,
     handleDataExtracted,
     handleSaveStagedEdits,
     handleDeleteStaged,

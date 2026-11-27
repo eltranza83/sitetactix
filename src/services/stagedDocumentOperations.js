@@ -60,3 +60,32 @@ export function updateDraftField(drafts, id, field, value) {
     return item;
   });
 }
+
+export function createManualExpenseDraft(activeProject = null, now = new Date()) {
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return {
+    id: `manual_${now.getTime()}_${Math.random().toString(36).slice(2, 8)}`,
+    isNewManualDraft: true,
+    metadata: {
+      type: 'invoice',
+      documentType: 'manual_expense',
+      receiptStatus: 'no_receipt',
+      provenance: 'manual_user_entry',
+      vendor: '',
+      description: '',
+      amount: '',
+      date: `${yyyy}-${mm}-${dd}`,
+      checkNumber: '',
+      costCategory: 'material',
+      lotNumber: activeProject?.name || '',
+      tradeCategory: 'Site_Prep_&_Structure',
+      tradePhase: 'Foundation & Flatwork',
+      payeeMatch: null
+    },
+    mainImageBase64: null,
+    secondaryImageBase64: null,
+    createdAt: now.getTime()
+  };
+}

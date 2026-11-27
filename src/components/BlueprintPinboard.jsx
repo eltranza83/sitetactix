@@ -121,7 +121,9 @@ export default function BlueprintPinboard({
   selectedFolder,
   onSessionExpired,
   initialAlbumPhase = null,
-  onConsumeInitialAlbumPhase = null
+  onConsumeInitialAlbumPhase = null,
+  initialViewMode = null,
+  onConsumeInitialViewMode = null
 }) {
   const [isIssueAddMode, setIsIssueAddMode] = useState(false);
   const [pendingIssueLocation, setPendingIssueLocation] = useState(null);
@@ -137,7 +139,9 @@ export default function BlueprintPinboard({
     selectedFolder,
     tradeSectionsConfig: TRADE_SECTIONS_CONFIG,
     initialAlbumPhase,
-    onConsumeInitialAlbumPhase
+    onConsumeInitialAlbumPhase,
+    initialViewMode,
+    onConsumeInitialViewMode
   });
 
   const issuesState = useIssues({ googleToken, activeProject, onSessionExpired });
