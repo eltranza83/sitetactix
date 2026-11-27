@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Camera, X, Copy, Check, FileText } from 'lucide-react';
+import { AlertTriangle, Camera, X, Copy, Check, FileText, Pencil, PlusCircle } from 'lucide-react';
 import { paidToSub, overpaidAmount } from '../services/sheetV2.js';
 import { formatMoney, parseMoney } from '../services/money.js';
+import { matchQuoteFilesForSub } from '../services/contractsService.js';
 
 const safeFormat = (val) => formatMoney(val, { cents: 'auto' });
 
@@ -22,8 +23,14 @@ function matchesAnyContractParty(vendor, contracts) {
 
 export default function DashboardContractorDetail({
   selectedSub,
+  isV2Layout = false,
+  quoteFiles = [],
+  openPunchItems = [],
   onViewPhasePhotos,
+  onViewPunchList,
   onOpenReceiptPdf,
+  onEditQuote,
+  onAddChangeOrder,
   onClearSelection,
   onShowToast
 }) {
@@ -34,6 +41,9 @@ export default function DashboardContractorDetail({
   }
 
   const hasV2Contracts = Array.isArray(selectedSub.contracts) && selectedSub.contracts.length > 0;
+  const primaryContract = hasV2Contracts ? selectedSub.contracts[0] : null;
+  const matchedQuoteFiles = matchQuoteFilesForSub(quoteFiles, selectedSub);
+  const punchList = Array.isArray(openPunchItems) ? openPunchItems : [];
   const laborPayments = (selectedSub.payments || []).filter((p) => {
     const lab = p.rawLabor ?? parseMoney(p.laborCost);
     const mat = p.rawMaterial ?? parseMoney(p.materialCost);
@@ -176,7 +186,134 @@ export default function DashboardContractorDetail({
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{copied ? 'Copied!' : 'Copy Summary'}</span>
           </button>
         </div>
+
+        {/* Quote Management & Quote PDF Quick Row (v2 Contracts) */}
+        {(isV2Layout && primaryContract && (onEditQuote || onAddChangeOrder || matchedQuoteFiles.length > 0)) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            {onAddChangeOrder && (
+              <button
+                type="button"
+                onClick={() => onAddChangeOrder(primaryContract)}
+                style={{
+                  background: 'rgba(212, 183, 135, 0.08)',
+                  border: '1px solid rgba(212, 183, 135, 0.3)',
+                  borderRadius: '7px',
+                  color: 'var(--st-gold)',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  padding: '5px 9px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                <PlusCircle size={12} />
+                <span>+ Change Order</span>
+              </button>
+            )}
+            {onEditQuote && (
+              <button
+                type="button"
+                onClick={() => onEditQuote(primaryContract)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--st-line)',
+                  borderRadius: '7px',
+                  color: 'var(--st-text)',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  padding: '5px 9px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                <Pencil size={11} />
+                <span>Edit Quote</span>
+              </button>
+            )}
+            {matchedQuoteFiles.slice(0, 3).map((file, idx) => (
+              <button
+                key={file.id || idx}
+                type="button"
+                onClick={() => onOpenReceiptPdf?.({ id: file.id, fileId: file.id, link: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view` })}
+                style={{
+                  background: 'rgba(56, 189, 248, 0.1)',
+                  border: '1px solid rgba(56, 189, 248, 0.28)',
+                  borderRadius: '7px',
+                  color: '#7dd3fc',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  padding: '5px 9px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer',
+                  maxWidth: '100%'
+                }}
+                title={file.name}
+              >
+                <FileText size={11} style={{ flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+                  {matchedQuoteFiles.length === 1
+                    ? 'Quote PDF'
+                    : (/change\s*order/i.test(file.name) ? `CO PDF #${idx + 1}` : `Quote PDF #${idx + 1}`)}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Open Punch List Guardrail Warning (non-blocking) */}
+      {punchList.length > 0 && (
+        <div
+          style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(248, 113, 113, 0.38)',
+            borderLeft: '3px solid #f87171',
+            borderRadius: '8px',
+            padding: '9px 11px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            flexWrap: 'wrap'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', flex: 1, minWidth: '180px' }}>
+            <AlertTriangle size={14} style={{ color: '#f87171', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ fontSize: '0.73rem', color: '#fecaca', lineHeight: 1.35 }}>
+              <strong style={{ color: '#fca5a5' }}>
+                {punchList.length} open punch {punchList.length === 1 ? 'item' : 'items'}
+              </strong>{' '}
+              in {selectedSub.phase}
+              {punchList[0]?.title ? `: “${punchList[0].title}”${punchList.length > 1 ? ` +${punchList.length - 1} more` : ''}` : ''}
+            </div>
+          </div>
+          {onViewPunchList && (
+            <button
+              type="button"
+              onClick={() => onViewPunchList({ phase: selectedSub.phase, category: selectedSub.category })}
+              style={{
+                background: 'rgba(248, 113, 113, 0.16)',
+                border: '1px solid rgba(248, 113, 113, 0.4)',
+                color: '#fecaca',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              View Punch List →
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 3 Metric Tiles: QUOTE | PAID (N) | BALANCE */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px', textAlign: 'center', width: '100%' }}>

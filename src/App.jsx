@@ -1,13 +1,15 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { Camera, Settings as SettingsIcon, Sparkles, Folder, LogIn, FileText, TrendingUp, MapPin, Check, Trash2, X, ChevronDown, CloudLightning } from 'lucide-react';
+import { Camera, Settings as SettingsIcon, Sparkles, Folder, LogIn, FileText, TrendingUp, MapPin, Check, ChevronDown, CloudLightning } from 'lucide-react';
 import StagingCard from './components/StagingCard';
 import ScanTargetCard from './components/ScanTargetCard';
+import HistoryTab from './components/HistoryTab';
 import { useGoogleAuth } from './hooks/useGoogleAuth';
 import { useInvoiceSync } from './hooks/useInvoiceSync';
 import { useInviteGate } from './hooks/useInviteGate';
 import { useProjects } from './hooks/useProjects';
 import { useStagedDocuments } from './hooks/useStagedDocuments';
 import { loadCachedKnownSubs } from './services/payeeMatching';
+import { loadCachedProjectIssues } from './services/punchGuardrail';
 import ToastNotification from './components/ToastNotification';
 import { ConfirmHost } from './components/ConfirmDialog';
 import DashboardErrorBoundary from './components/DashboardErrorBoundary';
@@ -55,6 +57,7 @@ export default function App() {
   const [invoicesSubTab, setInvoicesSubTab] = useState('scan'); // 'scan', 'staged', or 'history'
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const [pendingXrayAlbumPhase, setPendingXrayAlbumPhase] = useState(null);
+  const [pendingXrayViewMode, setPendingXrayViewMode] = useState(null);
   // Top bar slides away while scrolling down and comes back when scrolling up
   const [headerHidden, setHeaderHidden] = useState(false);
   useEffect(() => {
@@ -116,6 +119,9 @@ export default function App() {
     animateBadge,
     editingItemId,
     setEditingItemId,
+    pendingManualDraft,
+    handleStartManualDraft,
+    handleCancelEditing,
     handleDataExtracted,
     handleSaveStagedEdits,
     handleDeleteStaged,
@@ -449,17 +455,29 @@ export default function App() {
 
         {/* Tab view routing */}
         <Suspense fallback={<LazyScreenFallback />}>
-        {editingItemId && stagedItems.find(item => item.id === editingItemId) ? (
+        {(() => {
+          const activeEditingItem = editingItemId
+            ? ((pendingManualDraft && pendingManualDraft.id === editingItemId)
+                ? pendingManualDraft
+                : stagedItems.find(item => item.id === editingItemId))
+            : null;
+          return activeEditingItem ? (
           <EditForm 
-            stagedItem={stagedItems.find(item => item.id === editingItemId)}
-            onSave={handleSaveStagedEdits}
-            onCancel={() => setEditingItemId(null)}
+            stagedItem={activeEditingItem}
+            onSave={(updatedItem) => {
+              const wasManual = Boolean(pendingManualDraft && activeEditingItem.id === pendingManualDraft.id);
+              handleSaveStagedEdits(updatedItem);
+              if (wasManual) setInvoicesSubTab('staged');
+            }}
+            onCancel={handleCancelEditing}
             history={history}
             stagedItems={stagedItems}
             projects={projects}
             knownSubs={loadCachedKnownSubs(localStorage, activeProject?.spreadsheetId)}
+            projectIssues={loadCachedProjectIssues(localStorage, activeProject?.id)}
           />
-        ) : activeTab === 'invoices' ? (
+          ) : null;
+        })() || (activeTab === 'invoices' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Sliding Pill Selector Segmented Control */}
             <div className="sliding-toggle-container">
@@ -492,10 +510,25 @@ export default function App() {
             {invoicesSubTab === 'scan' ? (
               <div key="scan-subtab" className="slide-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <Scanner 
-                  onDataExtracted={(data) => {
-                    handleDataExtracted(data);
-                    setInvoicesSubTab('staged');
+                  onDataExtracted={async (data, opts = {}) => {
+                    await handleDataExtracted(data, opts);
+                    if (!opts?.stayOnScan) {
+                      setInvoicesSubTab('staged');
+                    }
                   }}
+                  onBatchComplete={({ total, succeeded, failed }) => {
+                    if (succeeded > 0) {
+                      setInvoicesSubTab('staged');
+                      if (failed.length === 0) {
+                        setSuccess(`Batch scanned ${succeeded} ${succeeded === 1 ? 'receipt' : 'receipts'} into Drafts!`);
+                      } else {
+                        setError(`Scanned ${succeeded} of ${total} into Drafts. Failed: ${failed.map(f => f.name).join(', ')}`);
+                      }
+                    } else if (failed.length > 0) {
+                      setError(`Could not scan selected files: ${failed.map(f => `${f.name} (${f.reason})`).join('; ')}`);
+                    }
+                  }}
+                  onManualEntry={handleStartManualDraft}
                   onError={setError}
                 />
 
@@ -660,111 +693,12 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <div key="history-subtab" className="slide-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Sync Log & History ({history.length})</h2>
-                  {history.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleClearHistory}
-                      className="btn btn-secondary"
-                      style={{
-                        width: 'auto',
-                        padding: '4px 10px',
-                        fontSize: '0.74rem',
-                        color: '#f87171',
-                        borderColor: 'rgba(239, 68, 68, 0.3)',
-                        backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      <Trash2 size={13} />
-                      <span>Clear All</span>
-                    </button>
-                  )}
-                </div>
-                
-                {history.length === 0 ? (
-                  <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-zinc-500)', fontSize: '0.9rem', border: '1px dashed var(--color-zinc-800)', borderRadius: '12px' }}>
-                    No documents uploaded yet. Scans will be logged here.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {history.map(item => (
-                      <div key={item.id} className="history-item">
-                        <div className="history-info" style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
-                          <div className="history-title-text" style={{ wordBreak: 'break-word' }}>{item.description}</div>
-                          <div className="history-meta">
-                            {item.vendor} • {item.dateTransaction || 'N/A'}
-                          </div>
-                          {item.tradeCategory && item.tradePhase && (
-                            <div style={{ fontSize: '0.7rem', color: 'var(--color-amber-400)', marginTop: '2px', fontWeight: 500 }}>
-                              Logged: {item.tradeCategory.replace(/_/g, ' ')} → {item.tradePhase}
-                            </div>
-                          )}
-                          <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
-                            <span style={{ fontSize: '0.65rem', fontWeight: 600, color: item.costCategory === 'labor' ? 'var(--color-blue-500)' : 'var(--color-amber-500)', textTransform: 'uppercase' }}>
-                              {item.costCategory}
-                            </span>
-                            <span style={{ fontSize: '0.65rem', color: 'var(--color-zinc-600)' }}>•</span>
-                            <span style={{ fontSize: '0.65rem', color: 'var(--color-zinc-500)' }}>Logged {item.dateLogged}</span>
-                          </div>
-                          {item.check?.status === 'ok' && (
-                            <div style={{ fontSize: '0.68rem', color: '#4ade80', marginTop: '3px', fontWeight: 600 }}>
-                              ✓ Recorded in Sheet{item.check.rowNumber ? ` (row ${item.check.rowNumber})` : ''}
-                            </div>
-                          )}
-                          {item.check && item.check.status !== 'ok' && (
-                            <div style={{ fontSize: '0.68rem', color: '#f87171', marginTop: '3px', fontWeight: 600, lineHeight: 1.35 }}>
-                              ⚠ {item.check.status === 'missing' ? 'Not found in the Sheet' : 'Sheet row is different'}: {(item.check.problems || []).join('; ')}
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
-                          <div className="history-price">${Number(item.amount).toFixed(2)}</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {item.link ? (
-                              <button 
-                                type="button"
-                                onClick={() => handleViewPDF(item)}
-                                className="btn btn-secondary" 
-                                style={{ padding: '4px 8px', fontSize: '0.75rem', width: 'auto', borderRadius: '6px', whiteSpace: 'nowrap' }}
-                              >
-                                View PDF
-                              </button>
-                            ) : (
-                              <span style={{ fontSize: '0.75rem', color: 'var(--color-zinc-600)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
-                                Downloaded
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteHistoryItem(item.id)}
-                              style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--color-zinc-500)',
-                                cursor: 'pointer',
-                                padding: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '4px'
-                              }}
-                              title="Delete log entry"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <HistoryTab
+                history={history}
+                onViewPDF={handleViewPDF}
+                onDeleteItem={handleDeleteHistoryItem}
+                onClearAll={handleClearHistory}
+              />
             )}
           </div>
         ) : activeTab === 'dashboard' ? (
@@ -782,6 +716,12 @@ export default function App() {
               onRemoveHistoryEntry={handleDeleteHistoryItem}
               onViewPhasePhotos={(phaseTarget) => {
                 setPendingXrayAlbumPhase(phaseTarget);
+                setPendingXrayViewMode(null);
+                setActiveTab('xray');
+              }}
+              onViewPunchList={() => {
+                setPendingXrayAlbumPhase(null);
+                setPendingXrayViewMode('punch_list');
                 setActiveTab('xray');
               }}
               onOpenReceiptPdf={handleViewPDF}
@@ -796,6 +736,8 @@ export default function App() {
             onSessionExpired={handleSessionExpired}
             initialAlbumPhase={pendingXrayAlbumPhase}
             onConsumeInitialAlbumPhase={() => setPendingXrayAlbumPhase(null)}
+            initialViewMode={pendingXrayViewMode}
+            onConsumeInitialViewMode={() => setPendingXrayViewMode(null)}
           />
         ) : (
           <Settings 
@@ -810,7 +752,7 @@ export default function App() {
             setActiveProject={setActiveProject}
             handleSelectActiveProject={handleSelectActiveProject}
           />
-        )}
+        ))}
         </Suspense>
       </main>
 

@@ -37,7 +37,8 @@ function cleanFilePart(value) {
     .trim();
 }
 
-export function buildQuoteFileName({ file, sub, company, date, now = new Date() }) {
+export function buildQuoteFileName({ file, sub, company, date, prefix = 'Quote', now = new Date() }) {
+  const safePrefix = cleanFilePart(prefix) || 'Quote';
   const party = cleanFilePart(company || sub || 'Subcontractor').slice(0, 40) || 'Subcontractor';
   const safeDate = cleanFilePart(date || now.toISOString().slice(0, 10));
   const origName = cleanFilePart(file?.name || 'quote');
@@ -45,11 +46,11 @@ export function buildQuoteFileName({ file, sub, company, date, now = new Date() 
   const extMatch = origName.match(/(\.[a-zA-Z0-9]{2,5})$/);
   const ext = extMatch ? extMatch[1] : (isPdf ? '.pdf' : '.jpg');
   const stem = origName.replace(/\.[a-zA-Z0-9]{2,5}$/, '').slice(0, 32) || 'quote';
-  return `Quote - ${party} - ${safeDate} - ${stem}${ext}`;
+  return `${safePrefix} - ${party} - ${safeDate} - ${stem}${ext}`;
 }
 
 /**
- * Uploads an attached subcontractor quote PDF or photo into the "Contracts & Quotes"
+ * Uploads an attached subcontractor quote (or change order) PDF/photo into the "Contracts & Quotes"
  * subfolder directly inside the active Lot's Google Drive folder.
  */
 export async function uploadQuoteFileToDrive({
@@ -58,7 +59,8 @@ export async function uploadQuoteFileToDrive({
   file,
   sub = '',
   company = '',
-  date = ''
+  date = '',
+  prefix = 'Quote'
 }) {
   if (!accessToken) throw new Error('Google Drive session not connected.');
   if (!projectFolderId) throw new Error('No project Drive folder is selected.');
@@ -80,13 +82,91 @@ export async function uploadQuoteFileToDrive({
     mimeType = 'application/pdf';
   }
 
-  const fileName = buildQuoteFileName({ file: uploadBlob, sub, company, date });
+  const fileName = buildQuoteFileName({ file: uploadBlob, sub, company, date, prefix });
   const uploaded = await uploadFileToDrive(accessToken, quotesFolderId, fileName, mimeType, uploadBlob);
   return {
     id: uploaded.id,
     webViewLink: uploaded.webViewLink,
     name: uploaded.name || fileName
   };
+}
+
+const GENERIC_PARTY_TOKENS = new Set([
+  'llc', 'inc', 'corp', 'co', 'company', 'services', 'service', 'construction',
+  'contractors', 'contractor', 'builders', 'builder', 'group', 'enterprises',
+  'enterprise', 'the', 'and', 'of', 'for', 'quote', 'change', 'order', 'pdf'
+]);
+
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function extractPartyCandidates(selectedSub) {
+  const raw = [];
+  if (!selectedSub) return raw;
+  if (selectedSub.payee) {
+    raw.push(selectedSub.payee);
+    const parenMatch = String(selectedSub.payee).match(/^([^(]+)\(([^)]+)\)$/);
+    if (parenMatch) {
+      raw.push(parenMatch[1], parenMatch[2]);
+    }
+  }
+  (Array.isArray(selectedSub.contracts) ? selectedSub.contracts : []).forEach(c => {
+    if (c?.sub) raw.push(c.sub);
+    if (c?.company) raw.push(c.company);
+  });
+  return [...new Set(raw.map(normalizeText).filter(v => v.length >= 3))];
+}
+
+/**
+ * Matches uploaded files in the Lot's "Contracts & Quotes" Drive folder to a subcontractor entry.
+ * Pure helper — requires zero extra Google Sheet columns.
+ */
+export function matchQuoteFilesForSub(quoteFiles = [], selectedSub = null) {
+  const files = Array.isArray(quoteFiles) ? quoteFiles : [];
+  const candidates = extractPartyCandidates(selectedSub);
+  if (files.length === 0 || candidates.length === 0) return [];
+
+  const matched = files.filter(file => {
+    const fileNorm = normalizeText(file?.name);
+    if (!fileNorm) return false;
+
+    return candidates.some(cand => {
+      if (fileNorm.includes(cand)) return true;
+      const tokens = cand.split(' ').filter(t => t.length >= 3 && !GENERIC_PARTY_TOKENS.has(t));
+      return tokens.length >= 2 && tokens.every(t => fileNorm.includes(t));
+    });
+  });
+
+  return matched.sort((a, b) => String(b?.modifiedTime || '').localeCompare(String(a?.modifiedTime || '')));
+}
+
+/**
+ * Lists files inside the Lot's "Contracts & Quotes" Drive folder without creating the folder.
+ */
+export async function listProjectQuoteFiles(accessToken, projectFolderId, fetchImpl = fetch) {
+  if (!accessToken || !projectFolderId) return [];
+  const quotesFolderId = await findFolder(accessToken, CONTRACTS_QUOTES_FOLDER_NAME, projectFolderId);
+  if (!quotesFolderId) return [];
+
+  const safeFolderId = String(quotesFolderId).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const query = `'${safeFolderId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,webViewLink,modifiedTime)&orderBy=modifiedTime%20desc&pageSize=100`;
+
+  const response = await fetchImpl(url, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    const err = new Error(`Could not list Contracts & Quotes files: ${text || response.statusText || response.status}`);
+    err.status = response.status;
+    throw err;
+  }
+  const data = await response.json();
+  return Array.isArray(data.files) ? data.files : [];
 }
 
 async function sheetsJsonRequest(accessToken, url, options = {}, action = 'access Contracts in Google Sheets', fetchImpl = fetch) {
@@ -343,5 +423,74 @@ export async function saveQuoteContractsToSheet({
   return {
     writtenRows: writes,
     updatedCount: writes.length
+  };
+}
+
+/**
+ * Updates a single existing contract row strictly inside `Contracts!A{rowNumber}:E{rowNumber}`
+ * so `F:G` formulas (Paid / Still Owed) are never touched.
+ */
+export async function updateContractRowInSheet({
+  accessToken,
+  spreadsheetId,
+  rowNumber,
+  sub = '',
+  company = '',
+  tradeCategory = '',
+  tradePhase = '',
+  quoteAmount = 0,
+  fetchImpl = fetch
+}) {
+  if (!accessToken) {
+    const err = new Error('Google Drive session not connected.');
+    err.status = 401;
+    throw err;
+  }
+  if (!spreadsheetId) throw new Error('No Google Sheet is linked to this project.');
+
+  const rowNum = Number(rowNumber);
+  if (!Number.isInteger(rowNum) || rowNum < 2) {
+    throw new Error('Could not find the row number for this contract in Contracts.');
+  }
+
+  const cleanSub = cellText(sub);
+  const cleanCompany = cellText(company);
+  if (!cleanSub && !cleanCompany) {
+    throw new Error('Please enter a Subcontractor name or Company name.');
+  }
+
+  const phaseName = canonicalPhaseName(tradePhase);
+  if (!phaseName) {
+    throw new Error('Please select a trade phase.');
+  }
+
+  const cleanQuote = roundCents(parseMoney(quoteAmount));
+  if (cleanQuote <= 0) {
+    throw new Error('Quote amount must be greater than $0.');
+  }
+
+  const categoryName = categoryDisplayName(tradeCategory) || categoryForPhase(phaseName)?.name || '';
+  const values = [
+    asSheetText(cleanSub),
+    asSheetText(cleanCompany),
+    categoryName,
+    phaseName,
+    cleanQuote
+  ];
+
+  const writeUrl = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(`${V2_TABS.contracts}!A${rowNum}:E${rowNum}`)}?valueInputOption=USER_ENTERED`;
+  await sheetsJsonRequest(accessToken, writeUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      range: `${V2_TABS.contracts}!A${rowNum}:E${rowNum}`,
+      majorDimension: 'ROWS',
+      values: [values]
+    })
+  }, 'update quote in Contracts tab', fetchImpl);
+
+  return {
+    rowNumber: rowNum,
+    values
   };
 }

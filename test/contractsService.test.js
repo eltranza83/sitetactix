@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
   buildQuoteFileName,
   findDuplicateContractMatches,
-  saveQuoteContractsToSheet
+  matchQuoteFilesForSub,
+  saveQuoteContractsToSheet,
+  updateContractRowInSheet
 } from '../src/services/contractsService.js';
 
 describe('contractsService', () => {
@@ -121,5 +123,57 @@ describe('contractsService', () => {
       fetchImpl: mockFetch
     });
     assert.equal(state.rows[1][4], 15000);
+  });
+
+  test('buildQuoteFileName supports Change Order prefix', () => {
+    const name = buildQuoteFileName({
+      file: { name: 'Extra_Footings.pdf', type: 'application/pdf' },
+      sub: 'Ramiro Garza',
+      company: 'RG Concrete',
+      date: '2026-11-27',
+      prefix: 'Change Order'
+    });
+    assert.equal(name, 'Change Order - RG Concrete - 2026-11-27 - Extra_Footings.pdf');
+  });
+
+  test('matchQuoteFilesForSub matches Drive files in Contracts & Quotes without extra Sheet columns', () => {
+    const files = [
+      { id: 'f1', name: 'Quote - RG Concrete - 2026-09-10 - slab.pdf', modifiedTime: '2026-09-10T10:00:00Z' },
+      { id: 'f2', name: 'Change Order - RG Concrete - 2026-10-01 - patio.pdf', modifiedTime: '2026-10-01T10:00:00Z' },
+      { id: 'f3', name: 'Quote - Salinas Plumbing - 2026-09-12 - roughin.pdf', modifiedTime: '2026-09-12T10:00:00Z' }
+    ];
+
+    const matched = matchQuoteFilesForSub(files, {
+      payee: 'Ramiro Garza (RG Concrete)',
+      contracts: [{ sub: 'Ramiro Garza', company: 'RG Concrete' }]
+    });
+
+    assert.deepEqual(matched.map(f => f.id), ['f2', 'f1']);
+  });
+
+  test('updateContractRowInSheet writes strictly to Contracts!A{row}:E{row}', async () => {
+    let capturedUrl = '';
+    let capturedBody = null;
+    const mockFetch = async (url, options) => {
+      capturedUrl = decodeURIComponent(url);
+      capturedBody = JSON.parse(options.body);
+      return { ok: true, json: async () => ({}) };
+    };
+
+    const res = await updateContractRowInSheet({
+      accessToken: 'tok',
+      spreadsheetId: 'sheet_1',
+      rowNumber: 4,
+      sub: 'Ramiro Garza',
+      company: 'RG Concrete',
+      tradeCategory: 'Site_Prep_&_Structure',
+      tradePhase: 'Foundation & Flatwork',
+      quoteAmount: 29500,
+      fetchImpl: mockFetch
+    });
+
+    assert.match(capturedUrl, /Contracts!A4:E4/);
+    assert.deepEqual(capturedBody.values, [['Ramiro Garza', 'RG Concrete', 'Site Prep & Structure', 'Foundation & Flatwork', 29500]]);
+    assert.equal(res.rowNumber, 4);
   });
 });

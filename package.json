@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.15.1",
-  "releaseName": "Master Category headers, smart $0 phases, and mobile Dashboard polish",
+  "version": "1.15.2",
+  "releaseName": "Manual expense entry, batch scan, quote management, punch warnings, and History search",
   "type": "module",
   "scripts": {
     "dev": "vite",

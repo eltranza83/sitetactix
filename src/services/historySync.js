@@ -181,6 +181,7 @@ export function buildProjectHistory({
         tradePhase: localMatch?.check?.status === 'different' ? localMatch.tradePhase : canonicalPhase,
         dateTransaction: row.date || localMatch?.dateTransaction || '',
         dateLogged: localMatch?.dateLogged || row.date || 'Sheet',
+        checkNumber: row.check || localMatch?.checkNumber || '',
         syncedAt: localMatch?.syncedAt || '',
         link: row.receipt || localMatch?.link || '',
         fileId: localMatch?.fileId || '',
@@ -202,4 +203,39 @@ export function buildProjectHistory({
   return [...localUnmatched, ...fromSheet].filter(
     entry => !dismissedSet.has(getHistoryDismissKey(entry))
   );
+}
+
+/**
+ * Filters History items by search query (vendor, description, category, phase, date, check #, amount)
+ * and cost category ('all' | 'material' | 'labor').
+ */
+export function filterHistoryItems(history = [], { query = '', costFilter = 'all' } = {}) {
+  const list = Array.isArray(history) ? history : [];
+  const cleanQuery = String(query || '').trim().toLowerCase();
+
+  return list.filter(item => {
+    if (!item) return false;
+    if (costFilter === 'material' && String(item.costCategory || '').toLowerCase() === 'labor') {
+      return false;
+    }
+    if (costFilter === 'labor' && String(item.costCategory || '').toLowerCase() !== 'labor') {
+      return false;
+    }
+    if (!cleanQuery) return true;
+
+    const haystack = [
+      item.vendor,
+      item.description,
+      item.tradeCategory ? String(item.tradeCategory).replace(/_/g, ' ') : '',
+      item.tradePhase,
+      item.dateTransaction,
+      item.checkNumber,
+      item.amount !== undefined && item.amount !== null ? String(item.amount) : ''
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes(cleanQuery);
+  });
 }

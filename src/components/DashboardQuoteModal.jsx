@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FileUp, Loader2, Plus, Sparkles, Trash2, UploadCloud, X, AlertTriangle } from 'lucide-react';
 import { TRADE_CATEGORIES } from '../config/tradeCategories';
 import { extractQuoteData } from '../services/gemini';
@@ -6,10 +6,21 @@ import {
   findDuplicateContractMatches,
   readExistingContracts,
   saveQuoteContractsToSheet,
+  updateContractRowInSheet,
   uploadQuoteFileToDrive
 } from '../services/contractsService';
 import { formatMoney, parseMoney } from '../services/money';
 import { getDriveErrorMessage, isAuthError } from '../services/appErrors';
+
+function resolveCategoryKey(catNameOrKey, phaseName) {
+  const norm = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const targetCat = norm(catNameOrKey);
+  const byCat = TRADE_CATEGORIES.find(c => norm(c.key) === targetCat || norm(c.name) === targetCat);
+  if (byCat) return byCat.key;
+  const targetPhase = norm(phaseName);
+  const byPhase = TRADE_CATEGORIES.find(c => c.phases.some(p => norm(p) === targetPhase));
+  return byPhase?.key || TRADE_CATEGORIES[0].key;
+}
 
 function makeBlankLine(idSuffix = 1) {
   const firstCat = TRADE_CATEGORIES[0];
@@ -24,6 +35,8 @@ function makeBlankLine(idSuffix = 1) {
 
 export default function DashboardQuoteModal({
   isOpen,
+  mode = 'new', // 'new' | 'edit' | 'change_order'
+  initialContract = null,
   onClose,
   googleToken,
   activeProject,
@@ -34,6 +47,9 @@ export default function DashboardQuoteModal({
   onSessionExpired,
   onShowToast
 }) {
+  const isEditMode = mode === 'edit' && Boolean(initialContract?.rowNumber);
+  const isChangeOrderMode = mode === 'change_order' && Boolean(initialContract);
+
   const [sub, setSub] = useState('');
   const [company, setCompany] = useState('');
   const [quoteDate, setQuoteDate] = useState('');
@@ -47,6 +63,37 @@ export default function DashboardQuoteModal({
   const [dragOver, setDragOver] = useState(false);
 
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setAttachedFile(null);
+    setModalError(null);
+    setAiNotice(null);
+    setConflictMatches(null);
+    setQuoteDate('');
+
+    if ((mode === 'edit' || mode === 'change_order') && initialContract) {
+      const catKey = resolveCategoryKey(initialContract.category, initialContract.phase);
+      const catObj = TRADE_CATEGORIES.find(c => c.key === catKey) || TRADE_CATEGORIES[0];
+      const matchedPhase = catObj.phases.find(
+        p => p.toLowerCase() === String(initialContract.phase || '').trim().toLowerCase()
+      ) || catObj.phases[0];
+
+      setSub(initialContract.sub || '');
+      setCompany(initialContract.company || '');
+      setItems([{
+        id: `qline_init_${Date.now()}`,
+        tradeCategory: catKey,
+        tradePhase: matchedPhase,
+        quoteAmount: mode === 'edit' ? String(parseMoney(initialContract.quote) || '') : '',
+        scopeSummary: ''
+      }]);
+    } else {
+      setSub('');
+      setCompany('');
+      setItems([makeBlankLine(1)]);
+    }
+  }, [isOpen, mode, initialContract]);
 
   const knownSubSuggestions = useMemo(() => {
     const subs = new Set();
@@ -83,25 +130,37 @@ export default function DashboardQuoteModal({
     setExtracting(true);
     try {
       const { data, readByBackupAi } = await extractQuoteData(file);
-      if (data.sub) setSub(data.sub);
-      if (data.company) setCompany(data.company);
       if (data.date) setQuoteDate(data.date);
-      if (Array.isArray(data.items) && data.items.length > 0) {
-        setItems(
-          data.items.map((item, idx) => {
-            const matchedCat = TRADE_CATEGORIES.find(c => c.key === item.tradeCategory) || TRADE_CATEGORIES[0];
-            const validPhase = matchedCat.phases.includes(item.tradePhase)
-              ? item.tradePhase
-              : matchedCat.phases[0];
-            return {
-              id: `qline_ai_${Date.now()}_${idx}`,
-              tradeCategory: matchedCat.key,
-              tradePhase: validPhase,
-              quoteAmount: item.quoteAmount ? String(item.quoteAmount) : '',
-              scopeSummary: item.scopeSummary || ''
-            };
-          })
+      if (isChangeOrderMode || isEditMode) {
+        const extractedSum = (Array.isArray(data.items) ? data.items : []).reduce(
+          (acc, item) => acc + parseMoney(item?.quoteAmount),
+          0
         );
+        if (extractedSum > 0) {
+          setItems(prev => prev.map((line, idx) => (idx === 0 ? { ...line, quoteAmount: String(extractedSum) } : line)));
+        }
+        if (!sub && data.sub) setSub(data.sub);
+        if (!company && data.company) setCompany(data.company);
+      } else {
+        if (data.sub) setSub(data.sub);
+        if (data.company) setCompany(data.company);
+        if (Array.isArray(data.items) && data.items.length > 0) {
+          setItems(
+            data.items.map((item, idx) => {
+              const matchedCat = TRADE_CATEGORIES.find(c => c.key === item.tradeCategory) || TRADE_CATEGORIES[0];
+              const validPhase = matchedCat.phases.includes(item.tradePhase)
+                ? item.tradePhase
+                : matchedCat.phases[0];
+              return {
+                id: `qline_ai_${Date.now()}_${idx}`,
+                tradeCategory: matchedCat.key,
+                tradePhase: validPhase,
+                quoteAmount: item.quoteAmount ? String(item.quoteAmount) : '',
+                scopeSummary: item.scopeSummary || ''
+              };
+            })
+          );
+        }
       }
       setAiNotice(
         readByBackupAi
@@ -167,6 +226,88 @@ export default function DashboardQuoteModal({
     setModalError(null);
 
     try {
+      const projectFolderId = selectedFolder?.id || activeProject?.folderId;
+      const partyLabel = cleanCompany && cleanSub && cleanCompany.toLowerCase() !== cleanSub.toLowerCase()
+        ? `${cleanSub} (${cleanCompany})`
+        : (cleanCompany || cleanSub);
+      const fileNote = attachedFile ? ' + saved file in Drive' : '';
+
+      if (isEditMode) {
+        if (attachedFile && projectFolderId) {
+          await uploadQuoteFileToDrive({
+            accessToken: googleToken,
+            projectFolderId,
+            file: attachedFile,
+            sub: cleanSub,
+            company: cleanCompany,
+            date: quoteDate,
+            prefix: 'Quote'
+          });
+        }
+        const [firstLine] = validItems;
+        await updateContractRowInSheet({
+          accessToken: googleToken,
+          spreadsheetId,
+          rowNumber: initialContract.rowNumber,
+          sub: cleanSub,
+          company: cleanCompany,
+          tradeCategory: firstLine.tradeCategory,
+          tradePhase: firstLine.tradePhase,
+          quoteAmount: firstLine.quoteAmount
+        });
+        onShowToast?.(`Updated contract quote for ${partyLabel} to ${formatMoney(firstLine.quoteAmount)}${fileNote}!`, 'success');
+        setSaving(false);
+        resetAndClose();
+        onSaved?.();
+        return;
+      }
+
+      if (isChangeOrderMode) {
+        if (attachedFile && projectFolderId) {
+          await uploadQuoteFileToDrive({
+            accessToken: googleToken,
+            projectFolderId,
+            file: attachedFile,
+            sub: cleanSub,
+            company: cleanCompany,
+            date: quoteDate,
+            prefix: 'Change Order'
+          });
+        }
+        const [changeLine] = validItems;
+        const addedAmt = parseMoney(changeLine.quoteAmount);
+        const newTotal = parseMoney(initialContract.quote) + addedAmt;
+        if (initialContract.rowNumber) {
+          await updateContractRowInSheet({
+            accessToken: googleToken,
+            spreadsheetId,
+            rowNumber: initialContract.rowNumber,
+            sub: cleanSub,
+            company: cleanCompany,
+            tradeCategory: changeLine.tradeCategory,
+            tradePhase: changeLine.tradePhase,
+            quoteAmount: newTotal
+          });
+        } else {
+          await saveQuoteContractsToSheet({
+            accessToken: googleToken,
+            spreadsheetId,
+            sub: cleanSub,
+            company: cleanCompany,
+            items: [changeLine],
+            conflictResolution: 'add_to_quote'
+          });
+        }
+        onShowToast?.(
+          `Added ${formatMoney(addedAmt)} change order for ${partyLabel} (new quote: ${formatMoney(newTotal)})${fileNote}!`,
+          'success'
+        );
+        setSaving(false);
+        resetAndClose();
+        onSaved?.();
+        return;
+      }
+
       // If user hasn't picked a duplicate resolution yet, inspect live Contracts!A1:E first
       if (!resolutionMode) {
         const live = await readExistingContracts(googleToken, spreadsheetId);
@@ -181,7 +322,6 @@ export default function DashboardQuoteModal({
         }
       }
 
-      const projectFolderId = selectedFolder?.id || activeProject?.folderId;
       if (attachedFile && projectFolderId) {
         await uploadQuoteFileToDrive({
           accessToken: googleToken,
@@ -202,10 +342,6 @@ export default function DashboardQuoteModal({
         conflictResolution: resolutionMode || 'append_row'
       });
 
-      const partyLabel = cleanCompany && cleanSub && cleanCompany.toLowerCase() !== cleanSub.toLowerCase()
-        ? `${cleanSub} (${cleanCompany})`
-        : (cleanCompany || cleanSub);
-      const fileNote = attachedFile ? ' + saved quote file in Drive' : '';
       onShowToast?.(
         `Saved ${result.updatedCount === 1 ? 'quote' : `${result.updatedCount} phase quotes`} for ${partyLabel} to Contracts${fileNote}!`,
         'success'
@@ -263,10 +399,18 @@ export default function DashboardQuoteModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--st-text)', fontFamily: 'var(--font-display)' }}>
-              Add / Upload Subcontractor Quote
+              {isEditMode
+                ? 'Edit Subcontractor Quote'
+                : isChangeOrderMode
+                  ? 'Add Change Order to Quote'
+                  : 'Add / Upload Subcontractor Quote'}
             </h3>
             <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: 'var(--st-muted)', lineHeight: 1.35 }}>
-              Drop an emailed PDF/photo for AI auto-fill, or enter the quote manually into <strong style={{ color: 'var(--st-gold)' }}>Contracts</strong>.
+              {isEditMode
+                ? <>Updates row {initialContract?.rowNumber} in <strong style={{ color: 'var(--st-gold)' }}>Contracts</strong> without touching your Paid/Still Owed formulas.</>
+                : isChangeOrderMode
+                  ? <>Current quote: <strong style={{ color: 'var(--st-text)' }}>{formatMoney(initialContract?.quote || 0)}</strong>. Enter the change order amount below to add it to this contract.</>
+                  : <>Drop an emailed PDF/photo for AI auto-fill, or enter the quote manually into <strong style={{ color: 'var(--st-gold)' }}>Contracts</strong>.</>}
             </p>
           </div>
           <button
@@ -342,7 +486,10 @@ export default function DashboardQuoteModal({
             <>
               <UploadCloud size={20} style={{ color: 'var(--st-gold)' }} />
               <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--st-text)' }}>
-                Upload Emailed Quote PDF or Photo <span style={{ color: 'var(--st-muted)', fontWeight: 400 }}>(Optional)</span>
+                {isChangeOrderMode
+                  ? 'Upload Change Order PDF or Photo '
+                  : 'Upload Emailed Quote PDF or Photo '}
+                <span style={{ color: 'var(--st-muted)', fontWeight: 400 }}>(Optional)</span>
               </span>
               <span style={{ fontSize: '0.7rem', color: 'var(--st-muted)' }}>
                 AI pre-fills the fields below &amp; archives the PDF in &ldquo;Contracts &amp; Quotes&rdquo;
@@ -437,26 +584,28 @@ export default function DashboardQuoteModal({
             <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--st-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Contract Phase{items.length > 1 ? 's' : ''} ({items.length})
             </span>
-            <button
-              type="button"
-              onClick={handleAddLine}
-              disabled={saving}
-              style={{
-                background: 'transparent',
-                border: '1px solid rgba(212, 183, 135, 0.35)',
-                color: 'var(--st-gold)',
-                borderRadius: '6px',
-                padding: '4px 8px',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <Plus size={12} /> Add Another Phase
-            </button>
+            {!isEditMode && !isChangeOrderMode && (
+              <button
+                type="button"
+                onClick={handleAddLine}
+                disabled={saving}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(212, 183, 135, 0.35)',
+                  color: 'var(--st-gold)',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <Plus size={12} /> Add Another Phase
+              </button>
+            )}
           </div>
 
           {items.map((line, index) => {
@@ -534,18 +683,23 @@ export default function DashboardQuoteModal({
 
                 <div>
                   <label className="form-label" style={{ fontSize: '0.68rem', marginBottom: '3px', display: 'block' }}>
-                    Contract Quote Amount ($)
+                    {isChangeOrderMode ? 'Change Order Amount to Add ($)' : 'Contract Quote Amount ($)'}
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     className="form-input"
-                    placeholder="e.g. 14500.00"
+                    placeholder={isChangeOrderMode ? 'e.g. 1250.00' : 'e.g. 14500.00'}
                     value={line.quoteAmount}
                     onChange={(e) => handleLineChange(line.id, 'quoteAmount', e.target.value)}
                     disabled={saving}
                   />
+                  {isChangeOrderMode && parseMoney(line.quoteAmount) > 0 && (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--st-gold)', fontWeight: 600, marginTop: '5px' }}>
+                      New Total Quote: {formatMoney(parseMoney(initialContract?.quote) + parseMoney(line.quoteAmount))}
+                    </div>
+                  )}
                 </div>
 
                 {line.scopeSummary && (
@@ -634,7 +788,13 @@ export default function DashboardQuoteModal({
                   <span>Saving to Contracts...</span>
                 </>
               ) : (
-                <span>Save to Contracts</span>
+                <span>
+                  {isEditMode
+                    ? 'Update Quote'
+                    : isChangeOrderMode
+                      ? 'Add Change Order'
+                      : 'Save to Contracts'}
+                </span>
               )}
             </button>
           </div>
