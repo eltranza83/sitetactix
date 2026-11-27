@@ -265,7 +265,7 @@ export default function BlueprintPinboard({
     };
   }, [activeProject?.id, activeProject?.folderId, selectedFolder?.id, googleToken, cachedProjectInfo, packetProjectInfo]);
 
-  const handleSendIssuePacket = async (issue) => {
+  const handleSendIssuePacket = async (issue, { language = 'en' } = {}) => {
     const projectInfo = await loadPacketProjectInfo();
 
     await createAndShareIssuePacket({
@@ -275,7 +275,8 @@ export default function BlueprintPinboard({
       projectName: activeProject?.name,
       subdivision: activeProject?.subdivision,
       selectedFolderName: selectedFolder?.name,
-      projectInfo
+      projectInfo,
+      language
     });
   };
 

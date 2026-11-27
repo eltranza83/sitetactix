@@ -33,6 +33,7 @@ export default function IssueCard({
 }) {
   const [fullscreenPhotoSrc, setFullscreenPhotoSrc] = useState(null);
   const [preparingPacket, setPreparingPacket] = useState(false);
+  const [packetLanguage, setPacketLanguage] = useState('en'); // 'en' | 'es'
   const [copiedShare, setCopiedShare] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
 
@@ -188,7 +189,7 @@ export default function IssueCard({
 
     try {
       setPreparingPacket(true);
-      await onSendPacket(issue);
+      await onSendPacket(issue, { language: packetLanguage });
     } catch (err) {
       console.error('Failed to prepare issue packet:', err);
       showMessage({ title: 'Could not make the PDF', message: err?.message || 'Please try again.' });
@@ -336,31 +337,67 @@ export default function IssueCard({
         }}>
           {title}
         </h4>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, flexWrap: 'wrap' }}>
           {onSendPacket && (
-            <button
-              type="button"
-              onClick={handleSendPacketClick}
-              disabled={preparingPacket}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--color-zinc-800)',
-                color: 'var(--color-zinc-300)',
-                cursor: 'pointer',
-                padding: '3px 7px',
-                borderRadius: '5px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px',
-                fontSize: '0.68rem',
-                fontWeight: 600,
-                opacity: preparingPacket ? 0.6 : 1
-              }}
-              title="Download PDF Packet"
-            >
-              <FileText size={12} />
-              <span>{preparingPacket ? '...' : 'PDF'}</span>
-            </button>
+            <>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  borderRadius: '5px',
+                  overflow: 'hidden',
+                  border: '1px solid var(--color-zinc-800)',
+                  backgroundColor: 'rgba(0, 0, 0, 0.3)'
+                }}
+                title="Choose Punch Packet PDF language"
+              >
+                {['en', 'es'].map(lang => {
+                  const active = packetLanguage === lang;
+                  return (
+                    <button
+                      key={lang}
+                      type="button"
+                      disabled={preparingPacket}
+                      onClick={() => setPacketLanguage(lang)}
+                      style={{
+                        padding: '3px 6px',
+                        fontSize: '0.64rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: active ? 'rgba(212, 183, 135, 0.22)' : 'transparent',
+                        color: active ? 'var(--st-gold)' : 'var(--color-zinc-500)'
+                      }}
+                    >
+                      {lang}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={handleSendPacketClick}
+                disabled={preparingPacket}
+                style={{
+                  background: packetLanguage === 'es' ? 'rgba(212, 183, 135, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                  border: packetLanguage === 'es' ? '1px solid rgba(212, 183, 135, 0.4)' : '1px solid var(--color-zinc-800)',
+                  color: packetLanguage === 'es' ? 'var(--st-gold)' : 'var(--color-zinc-300)',
+                  cursor: 'pointer',
+                  padding: '3px 7px',
+                  borderRadius: '5px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontSize: '0.68rem',
+                  fontWeight: 600,
+                  opacity: preparingPacket ? 0.6 : 1
+                }}
+                title={packetLanguage === 'es' ? 'Download Spanish PDF Packet' : 'Download English PDF Packet'}
+              >
+                <FileText size={12} />
+                <span>{preparingPacket ? '...' : (packetLanguage === 'es' ? 'PDF ES' : 'PDF')}</span>
+              </button>
+            </>
           )}
 
           <button

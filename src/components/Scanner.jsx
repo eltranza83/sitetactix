@@ -1,10 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, Image as ImageIcon, PenLine, Sparkles } from 'lucide-react';
+import { Camera, Image as ImageIcon, Mic, PenLine, Sparkles, Square, X } from 'lucide-react';
 import EditFormCamera from './EditFormCamera';
 import { useInlineCamera } from '../hooks/useInlineCamera';
-import { extractDocumentData } from '../services/gemini';
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+import { extractDocumentData, extractVoiceExpenseData } from '../services/gemini';
 import { detectDocumentCorners, rotationForTextDirection } from '../services/documentCorners';
 import { compressImage } from '../services/imageFiles';
+import { buildVoiceExpenseMetadata, formatVoiceExpenseToast } from '../services/voiceDrafts';
 
 const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024; // the scan upload limit is 4 MB
 
@@ -161,10 +163,20 @@ async function warpPerspective(srcImgData, srcWidth, srcHeight, corners) {
   return canvas;
 }
 
-export default function Scanner({ onDataExtracted, onBatchComplete, onManualEntry, onError }) {
+export default function Scanner({
+  onDataExtracted,
+  onBatchComplete,
+  onManualEntry,
+  onVoiceExpenseSaved,
+  onOpenDrafts,
+  activeProjectName = '',
+  knownSubs = [],
+  onError
+}) {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [batchProgress, setBatchProgress] = useState(null);
+  const [lastVoiceSummary, setLastVoiceSummary] = useState(null);
   const [textDirection, setTextDirection] = useState('upright');
 
   // Crop & Perspective Correction states
@@ -404,6 +416,51 @@ export default function Scanner({ onDataExtracted, onBatchComplete, onManualEntr
     onPhotoCaptured: (file) => processFile(file),
     onError
   });
+
+  const handleVoiceAudioReady = async (audioBlob) => {
+    setLoading(true);
+    setStatusMessage('Listening & drafting expense...');
+    setLastVoiceSummary(null);
+    if (onError) onError(null);
+    try {
+      const { data: extracted, readByBackupAi } = await extractVoiceExpenseData(audioBlob, {
+        activeProjectName,
+        knownSubs
+      });
+      const metadata = buildVoiceExpenseMetadata(extracted, { activeProjectName });
+      const summary = formatVoiceExpenseToast(metadata);
+      await onDataExtracted(
+        {
+          metadata,
+          mainImage: null,
+          readByBackupAi
+        },
+        { silent: true, stayOnScan: true }
+      );
+      setLastVoiceSummary({
+        summary,
+        transcript: metadata.voiceTranscript
+      });
+      onVoiceExpenseSaved?.(summary, metadata);
+    } catch (err) {
+      console.error('Voice expense extraction failed:', err);
+      if (onError) onError(err?.message || 'Could not understand that recording. Please try again.');
+    } finally {
+      setLoading(false);
+      setStatusMessage('');
+    }
+  };
+
+  const voiceRecorder = useVoiceRecorder({
+    onAudioReady: handleVoiceAudioReady,
+    onError
+  });
+
+  const formatTimer = (secs) => {
+    const mins = Math.floor(secs / 60);
+    const rem = secs % 60;
+    return `${mins}:${String(rem).padStart(2, '0')}`;
+  };
 
   const handleFileChange = async (e) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
@@ -749,6 +806,135 @@ export default function Scanner({ onDataExtracted, onBatchComplete, onManualEntr
               Select 1 file to crop, or pick multiple PDFs &amp; photos to batch-scan straight into Drafts.
             </p>
 
+            {/* Voice Expense (No Receipt) — Tap once to talk, tap Stop to draft */}
+            {voiceRecorder.isSupported && (
+              voiceRecorder.isRecording ? (
+                <div
+                  style={{
+                    borderRadius: '12px',
+                    padding: '12px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    border: '1.5px solid rgba(248, 113, 113, 0.65)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    boxShadow: '0 0 20px rgba(239, 68, 68, 0.18)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '0.82rem', fontWeight: 700, color: '#fca5a5' }}>
+                      <span style={{ width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block', animation: 'pulse 1.1s infinite ease-in-out' }} />
+                      Listening...
+                    </span>
+                    <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', fontWeight: 700, color: '#fecaca' }}>
+                      {formatTimer(voiceRecorder.elapsedSeconds)}
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--color-zinc-300)', lineHeight: 1.35 }}>
+                    Say the store/sub, amount, payment method &amp; what it was for (EN or ES).
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={voiceRecorder.stopRecording}
+                      className="btn btn-primary"
+                      style={{
+                        flex: 1.6,
+                        padding: '11px 12px',
+                        backgroundColor: '#ef4444',
+                        borderColor: '#ef4444',
+                        color: '#fff',
+                        fontWeight: 700
+                      }}
+                    >
+                      <Square size={14} fill="currentColor" />
+                      Stop &amp; Draft
+                    </button>
+                    <button
+                      type="button"
+                      onClick={voiceRecorder.cancelRecording}
+                      className="btn btn-secondary"
+                      style={{ flex: 0.7, padding: '11px 10px' }}
+                      title="Cancel recording"
+                    >
+                      <X size={15} />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={voiceRecorder.startRecording}
+                  className="btn btn-secondary"
+                  style={{
+                    padding: '13px 14px',
+                    width: '100%',
+                    borderColor: 'rgba(212, 183, 135, 0.5)',
+                    color: 'var(--st-gold)',
+                    backgroundColor: 'rgba(212, 183, 135, 0.1)',
+                    fontWeight: 700
+                  }}
+                >
+                  <Mic size={17} />
+                  Voice Log Expense (No Receipt)
+                </button>
+              )
+            )}
+
+            {/* Last Voice Draft Confirmation Banner */}
+            {lastVoiceSummary && !voiceRecorder.isRecording && (
+              <div
+                style={{
+                  borderRadius: '10px',
+                  padding: '10px 12px',
+                  backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                  border: '1px solid rgba(74, 222, 128, 0.35)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#86efac', lineHeight: 1.35 }}>
+                    ✓ {lastVoiceSummary.summary}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setLastVoiceSummary(null)}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--color-zinc-400)', cursor: 'pointer', padding: '2px' }}
+                    aria-label="Dismiss voice summary"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+                {lastVoiceSummary.transcript && (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--color-zinc-400)', fontStyle: 'italic', lineHeight: 1.3 }}>
+                    &ldquo;{lastVoiceSummary.transcript}&rdquo;
+                  </span>
+                )}
+                {onOpenDrafts && (
+                  <button
+                    type="button"
+                    onClick={onOpenDrafts}
+                    style={{
+                      alignSelf: 'flex-start',
+                      background: 'rgba(74, 222, 128, 0.16)',
+                      border: '1px solid rgba(74, 222, 128, 0.38)',
+                      color: '#86efac',
+                      borderRadius: '6px',
+                      padding: '4px 9px',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Open in Drafts →
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Manual Expense (No Receipt) */}
             {onManualEntry && (
               <button
@@ -759,13 +945,13 @@ export default function Scanner({ onDataExtracted, onBatchComplete, onManualEntr
                   padding: '12px 14px',
                   width: '100%',
                   borderStyle: 'dashed',
-                  borderColor: 'rgba(212, 183, 135, 0.38)',
-                  color: 'var(--st-gold)',
-                  backgroundColor: 'rgba(212, 183, 135, 0.05)'
+                  borderColor: 'rgba(212, 183, 135, 0.3)',
+                  color: 'var(--color-zinc-300)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.02)'
                 }}
               >
                 <PenLine size={16} />
-                Log Expense (No Receipt)
+                Type Expense Manually (No Receipt)
               </button>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { formatPhone, getProjectPacketInfo } from './projectInfoFormatter.js';
 import { hasFloorPlanPin } from './floorPlanPin.js';
 import { issueStatusLabel } from './issueStatus.js';
+import { getPacketLabels } from './voiceDrafts.js';
 
 const ADEPEC_GOLD = [197, 160, 89];
 const ADEPEC_DARK = [10, 10, 10];
@@ -214,7 +215,9 @@ export async function generateIssuePacketPDF({
   selectedFolderName = '',
   projectInfo = null,
   issuePhotoBlob = null,
-  floorPlanSnapshotBlob = null
+  floorPlanSnapshotBlob = null,
+  language = 'en',
+  translatedFields = null
 }) {
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({
@@ -223,11 +226,15 @@ export async function generateIssuePacketPDF({
     format: 'a4'
   });
 
+  const isSpanish = String(language || 'en').toLowerCase() === 'es';
+  const labels = getPacketLabels(isSpanish ? 'es' : 'en');
+  const locale = isSpanish ? 'es-MX' : 'en-US';
+
   const pageWidth = 210;
   const pageHeight = 297;
   const margin = 15;
   const contentWidth = pageWidth - (margin * 2);
-  const created = new Date().toLocaleString('en-US', {
+  const created = new Date().toLocaleString(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -235,26 +242,33 @@ export async function generateIssuePacketPDF({
     minute: '2-digit'
   });
 
-  await drawAdepecHeader(pdf, 'PUNCH ISSUE PACKET', `Generated ${created}`);
+  await drawAdepecHeader(pdf, labels.headerTitle, `${labels.generatedPrefix} ${created}`);
   const packetProject = getProjectPacketInfo(projectInfo, projectName, selectedFolderName, subdivision);
+
+  const displayTitle = (isSpanish && translatedFields?.title) || issue?.title || labels.defaultTitle;
+  const displayDesc = (isSpanish && translatedFields?.description) || issue?.description || labels.noDescription;
+  const displayCategory = (isSpanish && translatedFields?.categoryLabel) || formatIssueLabel(issue?.category);
+  const displayPhase = (isSpanish && translatedFields?.tradePhase) || issue?.tradePhase || 'N/A';
 
   let currentY = 48;
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(18);
   pdf.setTextColor(...ZINC_900);
-  const titleLines = pdf.splitTextToSize(issue?.title || 'Punch Issue', contentWidth - 38);
+  const titleLines = pdf.splitTextToSize(displayTitle, contentWidth - 38);
   pdf.text(titleLines.slice(0, 2), margin, currentY);
 
-  const priority = titleCase(issue?.priority || 'open');
-  const status = issueStatusLabel(issue?.status);
-  drawBadge(pdf, pageWidth - margin - 27, currentY - 1, priority, issue?.priority === 'high' ? ROSE_500 : ADEPEC_GOLD);
+  const rawPriority = String(issue?.priority || 'open').toLowerCase();
+  const priorityLabel = labels.priorities[rawPriority] || titleCase(rawPriority);
+  const rawStatus = String(issue?.status || 'open').toLowerCase();
+  const statusLabel = labels.statuses[rawStatus] || issueStatusLabel(issue?.status);
+  drawBadge(pdf, pageWidth - margin - 27, currentY - 1, priorityLabel, issue?.priority === 'high' ? ROSE_500 : ADEPEC_GOLD);
   currentY += titleLines.length > 1 ? 14 : 10;
 
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(...ZINC_600);
-  pdf.text(`Project: ${packetProject.projectDisplayName}`, margin, currentY);
-  pdf.text(`Status: ${status}`, pageWidth - margin, currentY, { align: 'right' });
+  pdf.text(`${labels.project}: ${packetProject.projectDisplayName}`, margin, currentY);
+  pdf.text(`${labels.status}: ${statusLabel}`, pageWidth - margin, currentY, { align: 'right' });
 
   currentY += 10;
   const projectBoxHeight = 27;
@@ -262,16 +276,16 @@ export async function generateIssuePacketPDF({
   pdf.setDrawColor(...ZINC_200);
   pdf.roundedRect(margin, currentY, contentWidth, projectBoxHeight, 3, 3, 'S');
 
-  addMetaRow(pdf, 'Subdivision', packetProject.subdivision, margin + 6, currentY + 10, 58);
-  addMetaRow(pdf, 'Lot Number', packetProject.lotNumber, margin + 70, currentY + 10, 40);
-  addMetaRow(pdf, 'Full Address', packetProject.fullAddress, margin + 118, currentY + 10, 56);
+  addMetaRow(pdf, labels.subdivision, packetProject.subdivision, margin + 6, currentY + 10, 58);
+  addMetaRow(pdf, labels.lotNumber, packetProject.lotNumber, margin + 70, currentY + 10, 40);
+  addMetaRow(pdf, labels.fullAddress, packetProject.fullAddress, margin + 118, currentY + 10, 56);
 
   if (packetProject.fullAddress && packetProject.fullAddress !== 'N/A') {
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(packetProject.fullAddress)}`;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(7);
     pdf.setTextColor(22, 163, 74);
-    pdf.textWithLink('OPEN IN GOOGLE MAPS', margin + 118, currentY + 24, { url: mapsUrl });
+    pdf.textWithLink(labels.openInMaps, margin + 118, currentY + 24, { url: mapsUrl });
   }
 
   currentY += projectBoxHeight + 8;
@@ -283,15 +297,15 @@ export async function generateIssuePacketPDF({
   const col1 = margin + 6;
   const col2 = margin + 68;
   const col3 = margin + 130;
-  addMetaRow(pdf, 'Category', formatIssueLabel(issue?.category), col1, currentY + 11);
-  addMetaRow(pdf, 'Phase', issue?.tradePhase || 'N/A', col2, currentY + 11);
-  addMetaRow(pdf, 'Assigned', issue?.contractorName || 'N/A', col3, currentY + 11);
-  addMetaRow(pdf, 'Phone', formatPhone(issue?.phoneNumber) || 'N/A', col1, currentY + 29);
-  addMetaRow(pdf, 'Created', formatIssueDate(issue?.createdAt), col2, currentY + 29);
+  addMetaRow(pdf, labels.category, displayCategory, col1, currentY + 11);
+  addMetaRow(pdf, labels.phase, displayPhase, col2, currentY + 11);
+  addMetaRow(pdf, labels.assigned, issue?.contractorName || 'N/A', col3, currentY + 11);
+  addMetaRow(pdf, labels.phone, formatPhone(issue?.phoneNumber) || 'N/A', col1, currentY + 29);
+  addMetaRow(pdf, labels.created, formatIssueDate(issue?.createdAt), col2, currentY + 29);
   addMetaRow(
     pdf,
-    'Floor Plan',
-    hasFloorPlanPin(issue) ? 'Pin attached' : 'No pin attached',
+    labels.floorPlan,
+    hasFloorPlanPin(issue) ? labels.pinAttached : labels.noPinAttached,
     col3,
     currentY + 29
   );
@@ -300,13 +314,13 @@ export async function generateIssuePacketPDF({
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(8);
   pdf.setTextColor(...ZINC_500);
-  pdf.text('DESCRIPTION', margin, currentY);
+  pdf.text(labels.descriptionHeader, margin, currentY);
   currentY += 6;
 
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(10);
   pdf.setTextColor(...ZINC_900);
-  const descriptionLines = pdf.splitTextToSize(issue?.description || 'No description provided.', contentWidth);
+  const descriptionLines = pdf.splitTextToSize(displayDesc, contentWidth);
   pdf.text(descriptionLines.slice(0, 6), margin, currentY);
   currentY += Math.max(16, Math.min(descriptionLines.length, 6) * 5) + 6;
 
@@ -314,22 +328,22 @@ export async function generateIssuePacketPDF({
   const halfWidth = (contentWidth - halfGap) / 2;
   const imageHeight = 82;
   await addImageSection(pdf, {
-    title: 'Issue Photo',
+    title: labels.issuePhotoTitle,
     blob: issuePhotoBlob,
     x: margin,
     y: currentY,
     width: halfWidth,
     height: imageHeight,
-    emptyText: 'No issue photo was attached to this punch item.'
+    emptyText: labels.noIssuePhoto
   });
   await addImageSection(pdf, {
-    title: 'Floor Plan Location',
+    title: labels.floorPlanTitle,
     blob: floorPlanSnapshotBlob,
     x: margin + halfWidth + halfGap,
     y: currentY,
     width: halfWidth,
     height: imageHeight,
-    emptyText: 'No floor plan pin was attached to this punch item.'
+    emptyText: labels.noFloorPlan
   });
 
   currentY += imageHeight + 18;
@@ -341,14 +355,13 @@ export async function generateIssuePacketPDF({
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
   pdf.setTextColor(...ZINC_900);
-  pdf.text('Contractor Note', margin, currentY);
+  pdf.text(labels.contractorNoteTitle, margin, currentY);
   currentY += 6;
 
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(...ZINC_600);
-  const note = 'Please review the issue photo and marked floor plan location. Reply when complete with a completion photo or update.';
-  pdf.text(pdf.splitTextToSize(note, contentWidth), margin, currentY);
+  pdf.text(pdf.splitTextToSize(labels.contractorNoteBody, contentWidth), margin, currentY);
 
   pdf.setFillColor(...ZINC_900);
   pdf.rect(0, pageHeight - 13, pageWidth, 13, 'F');
