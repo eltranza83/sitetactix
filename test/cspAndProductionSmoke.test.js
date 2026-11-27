@@ -93,11 +93,11 @@ describe('CSP & Production Security Headers Smoke Test Suite', () => {
     assert.ok(!connectSrc.includes('https://generativelanguage.googleapis.com'), 'the browser must never call Gemini directly');
   });
 
-  it('allows the camera but not the microphone or location', () => {
+  it('allows camera and microphone for same origin, but blocks location', () => {
     const permissions = headersMap.get('Permissions-Policy') || '';
 
     assert.ok(permissions.includes('camera=(self)'), 'camera must stay allowed for scanning');
-    assert.ok(permissions.includes('microphone=()'), 'microphone must be off (voice was removed with Jarvis)');
+    assert.ok(permissions.includes('microphone=(self)'), 'microphone must be allowed for same-origin Voice Log Expense');
     assert.ok(permissions.includes('geolocation=()'), 'location must be off');
   });
 });

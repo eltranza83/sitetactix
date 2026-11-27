@@ -951,7 +951,7 @@ export default function Scanner({
                 }}
               >
                 <PenLine size={16} />
-                Type Expense Manually (No Receipt)
+                Type Expense (No Receipt)
               </button>
             )}
           </div>

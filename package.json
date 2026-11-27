@@ -1,8 +1,8 @@
 {
   "name": "sitetactix-app",
   "private": true,
-  "version": "1.16.0",
-  "releaseName": "Voice Expense logging (No Receipt) and Bilingual EN/ES Punch Packets",
+  "version": "1.16.1",
+  "releaseName": "Allow same-origin microphone in Permissions-Policy for Voice Expense",
   "type": "module",
   "scripts": {
     "dev": "vite",
